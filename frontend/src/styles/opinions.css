@@ -1,0 +1,74 @@
+.opinion {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 12px 0;
+}
+
+.opinion h3 {
+  font-size: 15px;
+  line-height: 1.45;
+  margin: 8px 0;
+}
+
+.opinion p {
+  color: #64748b;
+  margin: 0 0 8px;
+}
+
+.detail-text {
+  background: #f8fafc;
+  border-radius: 6px;
+  color: #334155;
+  font-size: 13px;
+  padding: 8px;
+  white-space: pre-wrap;
+}
+
+.opinion-top,
+.review-row,
+.levels {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.badge {
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 4px 8px;
+}
+
+.badge.bullish {
+  background: #16a34a;
+}
+
+.badge.bearish {
+  background: #dc2626;
+}
+
+.badge.range {
+  background: #ca8a04;
+}
+
+.badge.watch {
+  background: #64748b;
+}
+
+.review-row {
+  margin-top: 10px;
+}
+
+.review-row button {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  height: 30px;
+  width: 34px;
+}
+
+.empty {
+  color: #64748b;
+  padding: 24px 0;
+}

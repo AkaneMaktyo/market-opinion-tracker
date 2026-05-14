@@ -1,0 +1,9 @@
+backend/data/*.db
+backend/data/*.db-*
+backend/target/
+frontend/node_modules/
+frontend/dist/
+logs/
+.idea/
+.vscode/
+*.iml

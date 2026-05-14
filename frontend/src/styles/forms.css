@@ -1,0 +1,87 @@
+label {
+  color: #475569;
+  display: flex;
+  flex-direction: column;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+input,
+select,
+textarea {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 9px 10px;
+}
+
+textarea {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.form-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.form-grid.two {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.form-grid.three {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.primary {
+  align-items: center;
+  background: #0f766e;
+  border: 0;
+  border-radius: 6px;
+  color: #ffffff;
+  display: inline-flex;
+  gap: 8px;
+  padding: 10px 14px;
+}
+
+.primary.secondary {
+  background: #334155;
+}
+
+.json-input {
+  font-family: "Cascadia Mono", Consolas, monospace;
+  min-height: 180px;
+}
+
+.import-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.preview-notes {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  padding: 10px;
+}
+
+.preview-notes p {
+  color: #475569;
+  margin: 6px 0 0;
+}
+
+.candidate {
+  align-items: stretch;
+  border-top: 1px solid #e2e8f0;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 28px 90px 94px minmax(180px, 1fr) 120px;
+  padding: 10px 0;
+}
+
+.candidate textarea {
+  min-height: 58px;
+}

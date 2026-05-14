@@ -1,0 +1,15 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: market-opinion-tracker
+  datasource:
+    url: jdbc:sqlite:./data/opinion-tracker.db
+    driver-class-name: org.sqlite.JDBC
+  sql:
+    init:
+      mode: always
+      encoding: UTF-8
+      schema-locations: classpath:schema.sql
+      continue-on-error: true
