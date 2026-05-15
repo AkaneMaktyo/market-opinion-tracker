@@ -27,7 +27,7 @@
 
 ## 技术栈
 
-- 后端：Java 17、Spring Boot、Spring JDBC、SQLite。
+- 后端：Java 17、Spring Boot、Spring JDBC、MySQL。
 - 前端：React、TypeScript、Vite、TradingView Lightweight Charts。
 
 ## 启动
@@ -39,6 +39,8 @@ cd D:\_code\personal\market-opinion-tracker\backend
 mvn -DskipTests package
 java -jar target\market-opinion-tracker-0.1.0.jar
 ```
+
+后端默认连接本地 MySQL：`root/root`，数据库名为 `market_opinion_tracker`，启动时会自动建库建表。
 
 前端：
 

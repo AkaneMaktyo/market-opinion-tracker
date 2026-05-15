@@ -78,7 +78,11 @@ export default function App() {
             }}
           />
         </div>
-        <OpinionList opinions={opinions} onChanged={() => load(selected)} />
+        <OpinionList
+          symbol={selected}
+          opinions={opinions}
+          onChanged={() => load(selectedKol, selected)}
+        />
       </div>
     </main>
   );

@@ -5,8 +5,10 @@ spring:
   application:
     name: market-opinion-tracker
   datasource:
-    url: jdbc:sqlite:./data/opinion-tracker.db
-    driver-class-name: org.sqlite.JDBC
+    url: jdbc:mysql://localhost:3306/market_opinion_tracker?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&useSSL=false
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
   sql:
     init:
       mode: always

@@ -3,6 +3,52 @@
   padding: 12px 0;
 }
 
+.history-head {
+  align-items: flex-start;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: space-between;
+  margin: -2px 0 10px;
+  padding-bottom: 10px;
+}
+
+.history-head h2 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.history-head span {
+  background: #ecfeff;
+  border: 1px solid #67e8f9;
+  border-radius: 999px;
+  color: #0e7490;
+  font-size: 12px;
+  font-weight: 800;
+  padding: 5px 9px;
+}
+
+.timeline {
+  border-left: 2px solid #cbd5e1;
+  margin-left: 7px;
+  padding-left: 14px;
+}
+
+.timeline-item {
+  position: relative;
+}
+
+.timeline-item::before {
+  background: #0f766e;
+  border: 3px solid #ffffff;
+  border-radius: 999px;
+  content: "";
+  height: 10px;
+  left: -20px;
+  position: absolute;
+  top: 18px;
+  width: 10px;
+}
+
 .opinion h3 {
   font-size: 15px;
   line-height: 1.45;
@@ -12,6 +58,11 @@
 .opinion p {
   color: #64748b;
   margin: 0 0 8px;
+}
+
+.raw-direction {
+  color: #334155;
+  font-weight: 800;
 }
 
 .detail-text {

@@ -42,7 +42,7 @@ public class MarketBarRepository {
 
   public void saveAll(List<MarketBar> bars) {
     jdbc.batchUpdate("""
-        INSERT OR IGNORE INTO market_bars(
+        INSERT IGNORE INTO market_bars(
           id, instrument_id, timeframe, bar_time, open, high, low, close, volume
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, bars, 200, (ps, item) -> {

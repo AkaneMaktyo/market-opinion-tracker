@@ -3,11 +3,16 @@ import { api } from '../api/client';
 import type { OpinionView } from '../types';
 
 interface Props {
+  symbol: string;
   opinions: OpinionView[];
   onChanged: () => void;
 }
 
-export function OpinionList({ opinions, onChanged }: Props) {
+export function OpinionList({ symbol, opinions, onChanged }: Props) {
+  const sorted = [...opinions].sort((left, right) =>
+    right.opinion.opinionTime.localeCompare(left.opinion.opinionTime),
+  );
+
   async function review(id: string, outcome: string) {
     await api.review(id, { outcome });
     onChanged();
@@ -15,18 +20,26 @@ export function OpinionList({ opinions, onChanged }: Props) {
 
   return (
     <section className="opinions">
-      <div className="panel-title">观点时间线</div>
-      {opinions.length === 0 && <div className="empty">当前品种还没有观点</div>}
-      {opinions.map(({ opinion, priceLevels, review: result }) => (
-        <article className="opinion" key={opinion.id}>
+      <div className="history-head">
+        <div>
+          <div className="panel-title">历史观点</div>
+          <h2>{symbol}</h2>
+        </div>
+        <span>{sorted.length} 条</span>
+      </div>
+      {sorted.length === 0 && <div className="empty">当前品种还没有观点</div>}
+      <div className="timeline">
+        {sorted.map(({ opinion, priceLevels, review: result }) => (
+        <article className="opinion timeline-item" key={opinion.id}>
           <div className="opinion-top">
             <span className={`badge ${opinion.direction.toLowerCase()}`}>
               {directionLabel(opinion.direction)}
             </span>
             <time>{opinion.opinionTime.slice(0, 10)}</time>
           </div>
+          {opinion.rawDirection && <p className="raw-direction">{opinion.rawDirection}</p>}
           <h3>{opinion.thesis}</h3>
-          <p>{opinion.horizon}</p>
+          <p>周期：{opinion.horizon}</p>
           <div className="levels">
             {priceLevels.map((level) => (
               <span key={`${level.levelType}-${level.price}`}>
@@ -50,7 +63,8 @@ export function OpinionList({ opinions, onChanged }: Props) {
             </button>
           </div>
         </article>
-      ))}
+        ))}
+      </div>
     </section>
   );
 }
@@ -70,6 +84,7 @@ function levelLabel(value: string) {
     RESISTANCE: '压力',
     TARGET: '目标',
     STOP: '止损',
+    NOTE: '价位',
   }[value] || value;
 }
 

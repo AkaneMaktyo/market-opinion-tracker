@@ -60,7 +60,7 @@ public class KolRepository {
 
   private void ensureDefault() {
     jdbc.update("""
-        INSERT OR IGNORE INTO kols(id, name, description, created_at)
+        INSERT IGNORE INTO kols(id, name, description, created_at)
         VALUES (?, ?, ?, ?)
         """, DEFAULT_ID, "默认KOL", "系统自动创建的默认来源", JdbcSupport.now());
   }

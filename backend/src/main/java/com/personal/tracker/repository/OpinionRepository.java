@@ -131,11 +131,11 @@ public class OpinionRepository {
     jdbc.update("""
         INSERT INTO reviews(id, opinion_id, outcome, notes, result_price, review_date, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(opinion_id) DO UPDATE SET
-          outcome = excluded.outcome,
-          notes = excluded.notes,
-          result_price = excluded.result_price,
-          review_date = excluded.review_date
+        ON DUPLICATE KEY UPDATE
+          outcome = VALUES(outcome),
+          notes = VALUES(notes),
+          result_price = VALUES(result_price),
+          review_date = VALUES(review_date)
         """, item.id(), item.opinionId(), item.outcome(), item.notes(),
         item.resultPrice(), item.reviewDate(), item.createdAt());
     return findReview(input.opinionId()).orElse(item);
