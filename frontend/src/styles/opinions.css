@@ -74,6 +74,17 @@
   white-space: pre-wrap;
 }
 
+.source-quote {
+  background: #fff7ed;
+  border-left: 3px solid #f97316;
+  border-radius: 6px;
+  color: #7c2d12;
+  font-size: 13px;
+  line-height: 1.55;
+  padding: 8px 10px;
+  white-space: pre-wrap;
+}
+
 .opinion-top,
 .review-row,
 .levels {

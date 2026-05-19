@@ -1,4 +1,7 @@
 @import './base.css';
-@import './layout.css';
+@import './shell.css';
+@import './chart.css';
 @import './forms.css';
+@import './instruments.css';
+@import './market-summary.css';
 @import './opinions.css';

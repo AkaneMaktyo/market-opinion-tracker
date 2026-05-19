@@ -29,41 +29,45 @@ export function OpinionList({ symbol, opinions, onChanged }: Props) {
       </div>
       {sorted.length === 0 && <div className="empty">当前品种还没有观点</div>}
       <div className="timeline">
-        {sorted.map(({ opinion, priceLevels, review: result }) => (
-        <article className="opinion timeline-item" key={opinion.id}>
-          <div className="opinion-top">
-            <span className={`badge ${opinion.direction.toLowerCase()}`}>
-              {directionLabel(opinion.direction)}
-            </span>
-            <time>{opinion.opinionTime.slice(0, 10)}</time>
-          </div>
-          {opinion.rawDirection && <p className="raw-direction">{opinion.rawDirection}</p>}
-          <h3>{opinion.thesis}</h3>
-          <p>周期：{opinion.horizon}</p>
-          <div className="levels">
-            {priceLevels.map((level) => (
-              <span key={`${level.levelType}-${level.price}`}>
-                {levelLabel(level.levelType)} {level.price}
-              </span>
-            ))}
-          </div>
-          {opinion.priceNotesText && <p className="detail-text">{opinion.priceNotesText}</p>}
-          {opinion.catalystsText && <p className="detail-text">催化：{opinion.catalystsText}</p>}
-          {opinion.risksText && <p className="detail-text">风险：{opinion.risksText}</p>}
-          <div className="review-row">
-            <span>{result ? outcomeLabel(result.outcome) : '待复盘'}</span>
-            <button onClick={() => review(opinion.id, 'HIT')} title="标记命中">
-              <CheckCircle2 size={16} />
-            </button>
-            <button onClick={() => review(opinion.id, 'PARTIAL')} title="标记部分命中">
-              <CircleDot size={16} />
-            </button>
-            <button onClick={() => review(opinion.id, 'MISS')} title="标记失败">
-              <XCircle size={16} />
-            </button>
-          </div>
-        </article>
-        ))}
+        {sorted.map(({ opinion, priceLevels, review: result }) => {
+          const quote = originalText(opinion.sourceQuote, opinion.rawItemJson);
+          return (
+            <article className="opinion timeline-item" key={opinion.id}>
+              <div className="opinion-top">
+                <span className={`badge ${opinion.direction.toLowerCase()}`}>
+                  {directionLabel(opinion.direction)}
+                </span>
+                <time>{opinion.opinionTime.slice(0, 10)}</time>
+              </div>
+              {opinion.rawDirection && <p className="raw-direction">{opinion.rawDirection}</p>}
+              <h3>{opinion.thesis}</h3>
+              <p>周期：{opinion.horizon}</p>
+              <div className="levels">
+                {priceLevels.map((level) => (
+                  <span key={`${level.levelType}-${level.price}`}>
+                    {levelLabel(level.levelType)} {level.price}
+                  </span>
+                ))}
+              </div>
+              {opinion.priceNotesText && <p className="detail-text">{opinion.priceNotesText}</p>}
+              {opinion.catalystsText && <p className="detail-text">催化：{opinion.catalystsText}</p>}
+              {opinion.risksText && <p className="detail-text">风险：{opinion.risksText}</p>}
+              {quote && <p className="source-quote">原文：{quote}</p>}
+              <div className="review-row">
+                <span>{result ? outcomeLabel(result.outcome) : '待复盘'}</span>
+                <button onClick={() => review(opinion.id, 'HIT')} title="标记命中">
+                  <CheckCircle2 size={16} />
+                </button>
+                <button onClick={() => review(opinion.id, 'PARTIAL')} title="标记部分命中">
+                  <CircleDot size={16} />
+                </button>
+                <button onClick={() => review(opinion.id, 'MISS')} title="标记失败">
+                  <XCircle size={16} />
+                </button>
+              </div>
+            </article>
+          );
+        })}
       </div>
     </section>
   );
@@ -95,4 +99,16 @@ function outcomeLabel(value: string) {
     MISS: '失败',
     PENDING: '未触发',
   }[value] || value;
+}
+
+function originalText(sourceQuote?: string, rawItemJson?: string) {
+  if (sourceQuote?.trim()) return sourceQuote.trim();
+  if (!rawItemJson) return '';
+  try {
+    const raw = JSON.parse(rawItemJson) as Record<string, unknown>;
+    const value = raw['原文摘录'] || raw.sourceQuote || raw.source_quote;
+    return typeof value === 'string' ? value.trim() : '';
+  } catch {
+    return '';
+  }
 }

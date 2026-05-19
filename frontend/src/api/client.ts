@@ -5,9 +5,11 @@ import type {
   Instrument,
   Kol,
   LiveSession,
+  MarketBackfillStatus,
   MarketBar,
   OpinionView,
   PriceLevel,
+  Timeframe,
 } from '../types';
 
 async function json<T>(url: string, options?: RequestInit): Promise<T> {
@@ -16,7 +18,15 @@ async function json<T>(url: string, options?: RequestInit): Promise<T> {
     ...options,
   });
   if (!response.ok) {
-    throw new Error(await response.text());
+    const text = await response.text();
+    let message = text;
+    try {
+      const payload = JSON.parse(text) as { message?: string };
+      message = payload.message || text;
+    } catch {
+      message = text;
+    }
+    throw new Error(message);
   }
   return response.json() as Promise<T>;
 }
@@ -33,7 +43,16 @@ export const api = {
     const query = kolId ? `?kolId=${encodeURIComponent(kolId)}` : '';
     return json<LiveSession[]>(`/api/sessions${query}`);
   },
-  bars: (symbol: string) => json<MarketBar[]>(`/api/market/${symbol}/bars?timeframe=1D`),
+  bars: (symbol: string, timeframe: Timeframe) =>
+    json<MarketBar[]>(`/api/market/${symbol}/bars?timeframe=${timeframe}`),
+  marketBackfill: () => json<MarketBackfillStatus>('/api/market/backfill'),
+  startMarketBackfill: () =>
+    json<MarketBackfillStatus>('/api/market/backfill', { method: 'POST' }),
+  startSymbolMarketBackfill: (symbol: string) =>
+    json<MarketBackfillStatus>(
+      `/api/market/${encodeURIComponent(symbol)}/backfill`,
+      { method: 'POST' },
+    ),
   opinions: (kolId?: string, symbol?: string) => {
     const params = new URLSearchParams();
     if (kolId) params.set('kolId', kolId);
@@ -72,7 +91,7 @@ export const api = {
     sessionDate: string;
     rawJson: string;
   }) =>
-    json<ImportPreview>('/api/imports/preview', {
+    json<ImportPreview>('/api/json/preview', {
       method: 'POST',
       body: JSON.stringify(body),
     }),
@@ -83,7 +102,7 @@ export const api = {
     rawJson: string;
     items: ImportCandidate[];
   }) =>
-    json<ImportCommitResult>('/api/imports/commit', {
+    json<ImportCommitResult>('/api/json/commit', {
       method: 'POST',
       body: JSON.stringify(body),
     }),
@@ -95,4 +114,23 @@ export const api = {
         reviewDate: new Date().toISOString().slice(0, 10),
       }),
     }),
+  renameInstrument: (
+    id: string,
+    body: { symbol: string; name?: string; logoUrl?: string | null },
+  ) =>
+    json<Instrument>(`/api/instruments/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  mergeInstrument: (id: string, targetId: string) =>
+    json<{ status: string; message: string }>(`/api/instruments/${id}/merge`, {
+      method: 'POST',
+      body: JSON.stringify({ targetId }),
+    }),
+  updateInstrumentGroup: (id: string, groupName: string | null) =>
+    json<Instrument>(`/api/instruments/${id}/group`, {
+      method: 'PUT',
+      body: JSON.stringify({ groupName }),
+    }),
+  instrumentGroups: () => json<string[]>('/api/instruments/groups'),
 };

@@ -1,4 +1,5 @@
 export type Direction = 'BULLISH' | 'BEARISH' | 'RANGE' | 'WATCH';
+export type Timeframe = '1H' | '4H' | '1D';
 
 export interface Instrument {
   id: string;
@@ -6,6 +7,12 @@ export interface Instrument {
   name?: string;
   market?: string;
   sector?: string;
+  groupName?: string;
+  logoUrl?: string;
+  createdAt?: string;
+  dayClose?: number;
+  dayChangePct?: number;
+  dayBarTime?: string;
 }
 
 export interface Kol {
@@ -34,6 +41,21 @@ export interface MarketBar {
   low: number;
   close: number;
   volume: number;
+}
+
+export interface MarketBackfillStatus {
+  state: 'IDLE' | 'RUNNING' | 'DONE' | 'FAILED';
+  total: number;
+  processed: number;
+  success: number;
+  skipped: number;
+  failed: number;
+  fetchedBars: number;
+  message: string;
+  scope?: 'ALL' | 'SYMBOL';
+  symbol?: string;
+  startedAt?: string;
+  finishedAt?: string;
 }
 
 export interface PriceLevel {
@@ -87,6 +109,7 @@ export interface ImportCandidate {
   displayName: string;
   direction: Direction;
   rawDirection?: string;
+  horizon?: string;
   thesis: string;
   catalystsText?: string;
   triggerCondition?: string;

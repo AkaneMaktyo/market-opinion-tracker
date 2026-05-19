@@ -49,6 +49,51 @@ textarea {
   background: #334155;
 }
 
+.icon-button {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  display: inline-flex;
+  height: 34px;
+  justify-content: center;
+  width: 36px;
+}
+
+.modal-backdrop {
+  align-items: center;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 24px;
+  position: fixed;
+  z-index: 50;
+}
+
+.import-modal {
+  max-height: min(860px, calc(100vh - 48px));
+  max-width: min(980px, calc(100vw - 48px));
+  overflow-y: auto;
+  width: 100%;
+}
+
+.modal-head {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.modal-head .panel-title {
+  margin-bottom: 4px;
+}
+
+.modal-head p {
+  color: #64748b;
+  margin: 0;
+}
+
 .json-input {
   font-family: "Cascadia Mono", Consolas, monospace;
   min-height: 180px;
@@ -58,6 +103,15 @@ textarea {
   display: flex;
   gap: 8px;
   margin-bottom: 12px;
+}
+
+.form-message {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 6px;
+  color: #9a3412;
+  margin-bottom: 10px;
+  padding: 9px 10px;
 }
 
 .preview-notes {
@@ -78,7 +132,7 @@ textarea {
   border-top: 1px solid #e2e8f0;
   display: grid;
   gap: 8px;
-  grid-template-columns: 28px 90px 94px minmax(180px, 1fr) 120px;
+  grid-template-columns: 28px 90px 94px 80px minmax(180px, 1fr) 120px;
   padding: 10px 0;
 }
 

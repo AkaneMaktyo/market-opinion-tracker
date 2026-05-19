@@ -1,4 +1,4 @@
-import { FileJson, Save } from 'lucide-react';
+import { FileJson, Save, X } from 'lucide-react';
 import { useState } from 'react';
 import { api } from '../api/client';
 import type { Direction, ImportCandidate, ImportPreview } from '../types';
@@ -8,7 +8,6 @@ interface Props {
   onImported: (symbol: string) => void;
 }
 
-const today = new Date().toISOString().slice(0, 10);
 const directions: { value: Direction; label: string }[] = [
   { value: 'BULLISH', label: '看多' },
   { value: 'BEARISH', label: '看空' },
@@ -17,24 +16,29 @@ const directions: { value: Direction; label: string }[] = [
 ];
 
 export function JsonImportPanel({ kolId, onImported }: Props) {
-  const [sessionDate, setSessionDate] = useState(today);
-  const [title, setTitle] = useState('美股直播 JSON 导入');
+  const [open, setOpen] = useState(false);
+  const [sessionDate, setSessionDate] = useState('');
+  const [title, setTitle] = useState('观点录入');
   const [rawJson, setRawJson] = useState('');
   const [preview, setPreview] = useState<ImportPreview | null>(null);
+  const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
 
   async function previewJson() {
-    if (!rawJson.trim()) return;
+    if (!canImport()) return;
     setBusy(true);
     try {
       setPreview(await api.previewImport({ kolId, title, sessionDate, rawJson }));
+      setMessage('');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'JSON 解析失败');
     } finally {
       setBusy(false);
     }
   }
 
   async function commit() {
-    if (!preview) return;
+    if (!preview || !canImport()) return;
     setBusy(true);
     try {
       await api.commitImport({
@@ -47,10 +51,26 @@ export function JsonImportPanel({ kolId, onImported }: Props) {
       const first = preview.candidates.find((item) => item.selected)?.symbol || 'NVDA';
       setPreview(null);
       setRawJson('');
+      setMessage('已保存选中的 JSON 观点');
+      setOpen(false);
       onImported(first);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '保存失败');
     } finally {
       setBusy(false);
     }
+  }
+
+  function canImport() {
+    if (!sessionDate.trim()) {
+      setMessage('请先选择直播时间节点');
+      return false;
+    }
+    if (!rawJson.trim()) {
+      setMessage('请先粘贴 JSON 内容');
+      return false;
+    }
+    return true;
   }
 
   function update(index: number, next: Partial<ImportCandidate>) {
@@ -62,12 +82,35 @@ export function JsonImportPanel({ kolId, onImported }: Props) {
   }
 
   return (
-    <section className="entry">
-      <div className="panel-title">JSON 批量导入</div>
+    <>
+      <button className="primary" onClick={() => setOpen(true)} type="button">
+        <FileJson size={16} />
+        观点录入
+      </button>
+      {open && (
+        <div className="modal-backdrop" onMouseDown={() => setOpen(false)}>
+          <section className="entry import-modal" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="modal-head">
+              <div>
+                <div className="panel-title">观点录入</div>
+                <p>粘贴直播 JSON，解析后保存为历史观点</p>
+              </div>
+              <button className="icon-button" onClick={() => setOpen(false)} type="button">
+                <X size={18} />
+              </button>
+            </div>
       <div className="form-grid two">
         <label>
-          日期
-          <input value={sessionDate} onChange={(event) => setSessionDate(event.target.value)} />
+          直播时间节点
+          <input
+            type="date"
+            value={sessionDate}
+            onChange={(event) => {
+              setSessionDate(event.target.value);
+              setMessage('');
+            }}
+            required
+          />
         </label>
         <label>
           标题
@@ -81,15 +124,16 @@ export function JsonImportPanel({ kolId, onImported }: Props) {
         placeholder="粘贴 KOL 直播 JSON"
       />
       <div className="import-actions">
-        <button className="primary" onClick={previewJson} disabled={busy}>
+        <button className="primary" onClick={previewJson} disabled={busy || !sessionDate}>
           <FileJson size={16} />
           解析预览
         </button>
-        <button className="primary secondary" onClick={commit} disabled={busy || !preview}>
+        <button className="primary secondary" onClick={commit} disabled={busy || !preview || !sessionDate}>
           <Save size={16} />
           保存选中
         </button>
       </div>
+      {message && <div className="form-message">{message}</div>}
       {preview && (
         <div className="import-preview">
           <PreviewNotes preview={preview} />
@@ -109,6 +153,11 @@ export function JsonImportPanel({ kolId, onImported }: Props) {
                   <option key={option.value} value={option.value}>{option.label}</option>
                 ))}
               </select>
+              <input
+                value={item.horizon || ''}
+                onChange={(event) => update(index, { horizon: event.target.value })}
+                placeholder="周期"
+              />
               <textarea
                 value={item.thesis}
                 onChange={(event) => update(index, { thesis: event.target.value })}
@@ -118,7 +167,10 @@ export function JsonImportPanel({ kolId, onImported }: Props) {
           ))}
         </div>
       )}
-    </section>
+          </section>
+        </div>
+      )}
+    </>
   );
 }
 
