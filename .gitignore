@@ -4,6 +4,7 @@ backend/target/
 frontend/node_modules/
 frontend/dist/
 logs/
+.codex-logs/
 .idea/
 .vscode/
 *.iml
