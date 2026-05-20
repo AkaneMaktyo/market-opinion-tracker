@@ -1,0 +1,4 @@
+interface:
+  display_name: "Market Opinion JSON"
+  short_description: "Convert market commentary to import-ready JSON"
+  default_prompt: "Use $market-opinion-json to convert market commentary into import-ready JSON."
