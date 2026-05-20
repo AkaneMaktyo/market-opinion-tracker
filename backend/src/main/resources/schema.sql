@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS instruments (
   sector VARCHAR(255),
   group_name VARCHAR(255),
   logo_url VARCHAR(500),
+  market_data_provider VARCHAR(32),
   bitget_category VARCHAR(32),
   bitget_symbol VARCHAR(64),
   bitget_status VARCHAR(16),
@@ -36,6 +37,7 @@ ALTER TABLE instruments ADD COLUMN bitget_status VARCHAR(16);
 ALTER TABLE instruments ADD COLUMN bitget_checked_at VARCHAR(64);
 ALTER TABLE instruments ADD COLUMN group_name VARCHAR(255);
 ALTER TABLE instruments ADD COLUMN logo_url VARCHAR(500);
+ALTER TABLE instruments ADD COLUMN market_data_provider VARCHAR(32);
 
 CREATE TABLE IF NOT EXISTS live_sessions (
   id VARCHAR(64) PRIMARY KEY,

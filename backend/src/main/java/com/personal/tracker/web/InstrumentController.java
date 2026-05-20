@@ -96,6 +96,16 @@ public class InstrumentController {
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "\u54c1\u79cd\u4e0d\u5b58\u5728"));
   }
 
+  @PutMapping("/{id}/market-provider")
+  InstrumentView updateMarketProvider(
+      @PathVariable String id,
+      @RequestBody UpdateMarketProviderRequest request) {
+    instruments.updateMarketDataProvider(id, request.provider());
+    return instruments.findById(id)
+        .map(item -> viewOf(item, null))
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "\u54c1\u79cd\u4e0d\u5b58\u5728"));
+  }
+
   @GetMapping("/groups")
   List<String> groups() {
     return instruments.findAllGroups();
@@ -111,6 +121,7 @@ public class InstrumentController {
         item.sector(),
         item.groupName(),
         item.logoUrl(),
+        item.marketDataProvider(),
         item.createdAt(),
         changePct == null ? null : snapshot.close(),
         changePct,
@@ -173,6 +184,10 @@ public class InstrumentController {
       String groupName) {
   }
 
+  public record UpdateMarketProviderRequest(
+      String provider) {
+  }
+
   public record InstrumentView(
       String id,
       String symbol,
@@ -181,6 +196,7 @@ public class InstrumentController {
       String sector,
       String groupName,
       String logoUrl,
+      String marketDataProvider,
       String createdAt,
       BigDecimal dayClose,
       BigDecimal dayChangePct,

@@ -19,6 +19,7 @@ public class InstrumentRepository {
       rs.getString("sector"),
       rs.getString("group_name"),
       rs.getString("logo_url"),
+      rs.getString("market_data_provider"),
       rs.getString("bitget_category"),
       rs.getString("bitget_symbol"),
       rs.getString("bitget_status"),
@@ -102,12 +103,14 @@ public class InstrumentRepository {
         null,
         null,
         null,
+        null,
         JdbcSupport.now());
     jdbc.update("""
-        INSERT INTO instruments(id, symbol, name, market, sector, group_name, logo_url, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO instruments(
+          id, symbol, name, market, sector, group_name, logo_url, market_data_provider, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, item.id(), item.symbol(), item.name(), item.market(), item.sector(),
-        item.groupName(), item.logoUrl(), item.createdAt());
+        item.groupName(), item.logoUrl(), item.marketDataProvider(), item.createdAt());
     return item;
   }
 
@@ -149,6 +152,7 @@ public class InstrumentRepository {
         nextSector,
         item.groupName(),
         item.logoUrl(),
+        item.marketDataProvider(),
         item.bitgetCategory(),
         item.bitgetSymbol(),
         item.bitgetStatus(),
@@ -199,6 +203,16 @@ public class InstrumentRepository {
   public void updateGroup(String instrumentId, String groupName) {
     String nextGroup = groupName == null || groupName.isBlank() ? null : groupName.trim();
     jdbc.update("UPDATE instruments SET group_name = ? WHERE id = ?", nextGroup, instrumentId);
+  }
+
+  public void updateMarketDataProvider(String instrumentId, String provider) {
+    String nextProvider = provider == null || provider.isBlank() || "auto".equalsIgnoreCase(provider)
+        ? null
+        : provider.trim().toLowerCase();
+    jdbc.update(
+        "UPDATE instruments SET market_data_provider = ? WHERE id = ?",
+        nextProvider,
+        instrumentId);
   }
 
   public Optional<Instrument> findById(String instrumentId) {

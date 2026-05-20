@@ -5,6 +5,7 @@ import { InstrumentLogo } from './InstrumentLogo';
 
 interface Props {
   dragging: string;
+  dragEnabled: boolean;
   item: Instrument;
   manualMode: boolean;
   selected: string;
@@ -18,6 +19,7 @@ interface Props {
 
 export function InstrumentCard({
   dragging,
+  dragEnabled,
   item,
   manualMode,
   selected,
@@ -39,7 +41,7 @@ export function InstrumentCard({
   return (
     <div
       className={symbolClass(item.symbol, selected, dragging, manualMode)}
-      draggable={manualMode}
+      draggable={dragEnabled}
       onClick={() => onSelect(item.symbol)}
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}
@@ -96,7 +98,7 @@ function symbolClass(symbol: string, selected: string, dragging: string, manualM
     'symbol',
     selected === symbol ? 'active' : '',
     dragging === symbol ? 'dragging' : '',
-    manualMode ? 'manual' : '',
+    manualMode ? 'manual' : 'movable',
   ]
     .filter(Boolean)
     .join(' ');

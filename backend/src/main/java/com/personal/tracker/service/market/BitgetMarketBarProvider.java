@@ -62,6 +62,11 @@ public class BitgetMarketBarProvider implements MarketBarProvider {
   }
 
   @Override
+  public String name() {
+    return "bitget";
+  }
+
+  @Override
   public List<MarketBar> fetch(Instrument instrument, String timeframe) {
     return fetch(instrument, timeframe, null, null, DEFAULT_LIMIT);
   }

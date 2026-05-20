@@ -8,6 +8,7 @@ public record Instrument(
     String sector,
     String groupName,
     String logoUrl,
+    String marketDataProvider,
     String bitgetCategory,
     String bitgetSymbol,
     String bitgetStatus,

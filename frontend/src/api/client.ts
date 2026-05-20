@@ -132,5 +132,10 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ groupName }),
     }),
+  updateInstrumentMarketProvider: (id: string, provider: string | null) =>
+    json<Instrument>(`/api/instruments/${id}/market-provider`, {
+      method: 'PUT',
+      body: JSON.stringify({ provider }),
+    }),
   instrumentGroups: () => json<string[]>('/api/instruments/groups'),
 };
