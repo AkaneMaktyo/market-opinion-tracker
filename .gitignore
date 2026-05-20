@@ -6,6 +6,7 @@ frontend/dist/
 logs/
 .codex-logs/
 .claude/
+.codex/
 .idea/
 .vscode/
 *.iml
