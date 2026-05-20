@@ -106,12 +106,10 @@ public class MarketBarRepository {
         ) ranked
         WHERE rn <= 2
         GROUP BY instrument_id
-        HAVING latest_bar_time = ?
         """.formatted(placeholders);
     List<Object> args = new java.util.ArrayList<>();
     args.add(currentDate);
     args.addAll(instrumentIds);
-    args.add(currentDate);
     return jdbc.query(sql, rs -> {
       Map<String, DailySnapshot> items = new java.util.HashMap<>();
       while (rs.next()) {

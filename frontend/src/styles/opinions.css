@@ -1,3 +1,11 @@
+.opinions {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
 .opinion {
   border-bottom: 1px solid #e2e8f0;
   padding: 12px 0;
@@ -7,6 +15,7 @@
   align-items: flex-start;
   border-bottom: 1px solid #e2e8f0;
   display: flex;
+  flex: 0 0 auto;
   justify-content: space-between;
   margin: -2px 0 10px;
   padding-bottom: 10px;
@@ -29,8 +38,25 @@
 
 .timeline {
   border-left: 2px solid #cbd5e1;
+  flex: 1;
   margin-left: 7px;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding-left: 14px;
+  padding-right: 8px;
+  scrollbar-color: #94a3b8 transparent;
+  scrollbar-width: thin;
+}
+
+.timeline::-webkit-scrollbar {
+  width: 6px;
+}
+
+.timeline::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-radius: 999px;
 }
 
 .timeline-item {

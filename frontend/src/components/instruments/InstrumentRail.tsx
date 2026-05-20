@@ -60,7 +60,7 @@ export function InstrumentRail({ instruments, selected, groups, onSelect, onChan
     });
   }
 
-  function dropOn(event: DragEvent<HTMLButtonElement>, target: string) {
+  function dropOn(event: DragEvent<HTMLDivElement>, target: string) {
     event.preventDefault();
     if (mode !== 'manual' || !dragging || dragging === target) return setDragging('');
     const current = manualItems.map((item) => item.symbol).filter((symbol) => symbol !== dragging);
@@ -96,6 +96,12 @@ export function InstrumentRail({ instruments, selected, groups, onSelect, onChan
             </button>
           );
         })}
+      </div>
+      <div className="rail-table-head">
+        <span>商品</span>
+        <span>最新价</span>
+        <span>涨跌</span>
+        <span>涨跌%</span>
       </div>
       <div className="rail-list">
         {grouped.map(({ group, items }) => (

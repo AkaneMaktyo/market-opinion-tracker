@@ -1,5 +1,5 @@
-import { GripVertical, Settings } from 'lucide-react';
-import type { DragEvent } from 'react';
+import { Settings } from 'lucide-react';
+import type { DragEvent, KeyboardEvent } from 'react';
 import type { Instrument } from '../../types';
 import { InstrumentLogo } from './InstrumentLogo';
 
@@ -11,9 +11,9 @@ interface Props {
   onManage: (item: Instrument) => void;
   onSelect: (symbol: string) => void;
   onDragEnd: () => void;
-  onDragOver: (event: DragEvent<HTMLButtonElement>) => void;
+  onDragOver: (event: DragEvent<HTMLDivElement>) => void;
   onDragStart: (symbol: string) => void;
-  onDrop: (event: DragEvent<HTMLButtonElement>, symbol: string) => void;
+  onDrop: (event: DragEvent<HTMLDivElement>, symbol: string) => void;
 }
 
 export function InstrumentCard({
@@ -28,85 +28,76 @@ export function InstrumentCard({
   onDragStart,
   onDrop,
 }: Props) {
+  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    onSelect(item.symbol);
+  }
+
+  const tone = item.dayChangePct == null ? 'no-data' : item.dayChangePct > 0 ? 'up' : item.dayChangePct < 0 ? 'down' : 'flat';
+
   return (
-    <button
-      className={symbolClass(item.symbol, selected, dragging)}
+    <div
+      className={symbolClass(item.symbol, selected, dragging, manualMode)}
       draggable={manualMode}
       onClick={() => onSelect(item.symbol)}
       onDragEnd={onDragEnd}
       onDragOver={onDragOver}
       onDragStart={() => onDragStart(item.symbol)}
       onDrop={(event) => onDrop(event, item.symbol)}
-      type="button"
+      onKeyDown={onKeyDown}
+      role="button"
+      tabIndex={0}
     >
-      <div className="symbol-top">
-        <span className="symbol-title">
-          {manualMode && <GripVertical className="symbol-grip" size={14} />}
-          <InstrumentLogo symbol={item.symbol} logoUrl={item.logoUrl} />
-          <strong>{item.symbol}</strong>
-        </span>
-        <span className="symbol-actions">
-          {item.dayChangePct == null ? null : (
-            <span className="symbol-change" style={changeStyle(item.dayChangePct)}>
-              {changeText(item.dayChangePct)}
-            </span>
-          )}
-          <button
-            className="symbol-manage"
-            onClick={(event) => {
-              event.stopPropagation();
-              onManage(item);
-            }}
-            title={`管理 ${item.symbol}`}
-            type="button"
-          >
-            <Settings size={12} />
-          </button>
-        </span>
-      </div>
-      <span className="symbol-name">{item.name || item.sector || 'US'}</span>
-      <QuoteRow item={item} />
-    </button>
-  );
-}
-
-function QuoteRow({ item }: { item: Instrument }) {
-  if (item.dayClose == null || item.dayChangePct == null) {
-    return <span className="symbol-meta">暂无数据</span>;
-  }
-  const tone = item.dayChangePct > 0 ? 'up' : item.dayChangePct < 0 ? 'down' : 'flat';
-  return (
-    <div className={`symbol-quotes ${tone}`}>
-      <span>{formatClose(item.dayClose)}</span>
-      <span>{formatDelta(item.dayClose, item.dayChangePct)}</span>
+      <span className="symbol-product">
+        <InstrumentLogo symbol={item.symbol} logoUrl={item.logoUrl} />
+        <span className="symbol-product-text">{productText(item)}</span>
+      </span>
+      <span className="symbol-value">{formatClose(item.dayClose)}</span>
+      <span className={`symbol-value symbol-move ${tone}`}>{formatDelta(item.dayClose, item.dayChangePct)}</span>
+      <span className={`symbol-value symbol-percent ${tone}`}>{formatPercent(item.dayChangePct)}</span>
+      <button
+        aria-label={`管理 ${item.symbol}`}
+        className="symbol-manage"
+        onClick={(event) => {
+          event.stopPropagation();
+          onManage(item);
+        }}
+        title={`管理 ${item.symbol}`}
+        type="button"
+      >
+        <Settings size={12} />
+      </button>
     </div>
   );
 }
 
-function formatClose(value: number) {
-  return value.toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+function formatClose(value?: number) {
+  return value == null ? '--' : value.toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
 }
 
-function formatDelta(close: number, pct: number) {
+function formatDelta(close?: number, pct?: number) {
+  if (close == null || pct == null) return '--';
   if (pct <= -100) return '0.00';
   const delta = close - close / (1 + pct / 100);
   return delta.toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
 }
 
-function changeText(value: number) {
-  return `${value > 0 ? '+' : ''}${value.toFixed(2)}%`;
+function formatPercent(value?: number) {
+  return value == null ? '--' : `${value.toFixed(2)}%`;
 }
 
-function changeStyle(value: number) {
-  if (value === 0) return { backgroundColor: 'rgba(148, 163, 184, 0.18)', color: '#475569' };
-  const alpha = 0.14 + (Math.min(Math.abs(value), 10) / 10) * 0.48;
-  return value > 0
-    ? { backgroundColor: `rgba(22, 163, 74, ${alpha})`, color: '#166534' }
-    : { backgroundColor: `rgba(220, 38, 38, ${alpha})`, color: '#991b1b' };
+function productText(item: Instrument) {
+  return item.symbol;
 }
 
-function symbolClass(symbol: string, selected: string, dragging: string) {
-  return ['symbol', selected === symbol ? 'active' : '', dragging === symbol ? 'dragging' : '']
+function symbolClass(symbol: string, selected: string, dragging: string, manualMode: boolean) {
+  return [
+    'symbol',
+    selected === symbol ? 'active' : '',
+    dragging === symbol ? 'dragging' : '',
+    manualMode ? 'manual' : '',
+  ]
     .filter(Boolean)
     .join(' ');
 }
