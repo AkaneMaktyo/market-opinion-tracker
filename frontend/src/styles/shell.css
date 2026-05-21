@@ -4,7 +4,7 @@
   height: 100vh;
   min-height: 0;
   overflow: hidden;
-  padding: 20px;
+  padding: 16px;
 }
 
 .topbar {
@@ -13,7 +13,8 @@
   gap: 16px;
   justify-content: space-between;
   margin: 0 auto 16px;
-  max-width: 1600px;
+  max-width: 1880px;
+  width: 100%;
 }
 
 .topbar h1,
@@ -50,9 +51,9 @@
   display: grid;
   flex: 1;
   gap: 14px;
-  grid-template-columns: 420px minmax(480px, 1fr) 300px;
+  grid-template-columns: clamp(320px, 22vw, 400px) minmax(520px, 1fr) clamp(390px, 25vw, 460px);
   margin: 0 auto;
-  max-width: 1600px;
+  max-width: 1880px;
   min-height: 0;
   overflow: hidden;
   width: 100%;
@@ -79,7 +80,13 @@
   overflow: hidden;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 1280px) {
+  .workspace {
+    grid-template-columns: 340px minmax(420px, 1fr) 380px;
+  }
+}
+
+@media (max-width: 1160px) {
   .topbar {
     align-items: flex-start;
     flex-direction: column;
