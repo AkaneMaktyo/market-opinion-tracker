@@ -12,8 +12,17 @@ import type {
   Timeframe,
 } from '../types';
 
+const apiBase = (
+  import.meta.env.VITE_API_BASE_URL ||
+  `${import.meta.env.BASE_URL.replace(/\/$/, '')}/api`
+).replace(/\/$/, '');
+
+function normalizeUrl(url: string): string {
+  return url.startsWith('/api') ? `${apiBase}${url.slice(4)}` : url;
+}
+
 async function json<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
+  const response = await fetch(normalizeUrl(url), {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
