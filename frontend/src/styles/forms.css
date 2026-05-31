@@ -139,3 +139,108 @@ textarea {
 .candidate textarea {
   min-height: 58px;
 }
+
+.source-modal {
+  max-height: min(900px, calc(100vh - 40px));
+  max-width: min(1180px, calc(100vw - 40px));
+  overflow-y: auto;
+  width: 100%;
+}
+
+.source-layout {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-bottom: 12px;
+}
+
+.source-panel {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.status-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 10px;
+}
+
+.status-item {
+  background: #f8fafc;
+  border-radius: 6px;
+  padding: 10px;
+}
+
+.status-item span,
+.muted {
+  color: #64748b;
+}
+
+.status-item strong {
+  display: block;
+  margin-top: 4px;
+}
+
+.toggle-row,
+.inline-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.toggle {
+  align-items: center;
+  display: inline-flex;
+  flex-direction: row;
+  font-weight: 600;
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+.blogger-list,
+.message-audit {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.blogger-row,
+.message-row {
+  align-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  padding: 10px;
+}
+
+.blogger-row p,
+.message-row p {
+  margin: 4px 0 0;
+}
+
+.status-pill {
+  background: #e2e8f0;
+  border-radius: 999px;
+  color: #475569;
+  padding: 4px 10px;
+}
+
+.status-pill.active {
+  background: #ccfbf1;
+  color: #0f766e;
+}
+
+@media (max-width: 1080px) {
+  .source-layout,
+  .status-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -6,6 +6,22 @@ market-data:
   providers:
     - bitget
 
+trading:
+  bitget:
+    enabled: ${BITGET_DEMO_ENABLED:false}
+    demo: ${BITGET_DEMO_PAPER_TRADING:true}
+    base-url: ${BITGET_BASE_URL:https://api.bitget.com}
+    api-key: ${BITGET_DEMO_API_KEY:}
+    api-secret: ${BITGET_DEMO_API_SECRET:}
+    passphrase: ${BITGET_DEMO_PASSPHRASE:}
+    product-type: ${BITGET_DEMO_PRODUCT_TYPE:USDT-FUTURES}
+    margin-coin: ${BITGET_DEMO_MARGIN_COIN:USDT}
+
+llm:
+  base-url: ${LLM_BASE_URL:}
+  api-key: ${LLM_API_KEY:}
+  model: ${LLM_MODEL:}
+
 spring:
   application:
     name: market-opinion-tracker

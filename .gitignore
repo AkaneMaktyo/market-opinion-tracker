@@ -10,3 +10,8 @@ logs/
 .idea/
 .vscode/
 *.iml
+.env
+.env.*
+backend/.env
+backend/.env.*
+backend/application-local.yml

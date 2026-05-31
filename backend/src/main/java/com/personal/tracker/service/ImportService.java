@@ -1,26 +1,22 @@
 package com.personal.tracker.service;
 
-import com.personal.tracker.domain.LiveSession;
 import com.personal.tracker.domain.PriceLevel;
 import com.personal.tracker.repository.KolRepository;
-import com.personal.tracker.repository.SessionRepository;
+import com.personal.tracker.service.imports.OpinionImportWriter;
 import com.personal.tracker.service.json.JsonOpinionParser;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
 public class ImportService {
-  private final SessionRepository sessions;
-  private final OpinionService opinions;
   private final JsonOpinionParser parser;
+  private final OpinionImportWriter writer;
 
   public ImportService(
-      SessionRepository sessions,
-      OpinionService opinions,
-      JsonOpinionParser parser) {
-    this.sessions = sessions;
-    this.opinions = opinions;
+      JsonOpinionParser parser,
+      OpinionImportWriter writer) {
     this.parser = parser;
+    this.writer = writer;
   }
 
   public ImportPreview preview(ImportPreviewRequest request) {
@@ -36,28 +32,14 @@ public class ImportService {
 
   public ImportCommitResult commit(ImportCommitRequest request) {
     requireImportInput(request.sessionDate(), request.rawJson());
-    String date = request.sessionDate().trim();
-    LiveSession session = sessions.create(
+    var result = writer.write(
         value(request.kolId(), KolRepository.DEFAULT_ID),
-        date,
-        value(request.title(), "JSON 导入直播"),
+        request.title(),
+        request.sessionDate().trim(),
         "JSON_IMPORT",
-        request.rawJson());
-    int saved = 0;
-    for (ImportCandidate item : request.items()) {
-      if (!item.selected()) {
-        continue;
-      }
-      opinions.create(new OpinionService.CreateOpinionCommand(
-          session.id(), item.symbol(), item.displayName(), null,
-          item.direction(), value(item.horizon(), "未指定"), item.thesis(), item.triggerCondition(),
-          item.risksText(), null, item.sourceQuote(), null,
-          item.rawDirection(), item.risksText(), item.catalystsText(),
-          item.priceNotesText(), item.rawItemJson(), date + "T09:30:00",
-          item.priceLevels()));
-      saved++;
-    }
-    return new ImportCommitResult(session.id(), saved);
+        request.rawJson(),
+        request.items().stream().filter(ImportCandidate::selected).toList());
+    return new ImportCommitResult(result.sessionId(), result.savedOpinions());
   }
 
   private void requireImportInput(String sessionDate, String rawJson) {
@@ -87,6 +69,7 @@ public class ImportService {
       boolean selected,
       String symbol,
       String displayName,
+      String market,
       String direction,
       String rawDirection,
       String horizon,

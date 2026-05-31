@@ -1,0 +1,168 @@
+package com.personal.tracker.repository.wxpusher;
+
+import com.personal.tracker.repository.JdbcSupport;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public class WxPusherMessageRepository {
+  private final JdbcTemplate jdbc;
+  private final RowMapper<WxPusherMessage> mapper = (rs, rowNum) -> new WxPusherMessage(
+      rs.getString("id"),
+      rs.getString("message_key"),
+      rs.getString("kol_id"),
+      rs.getString("blogger_name"),
+      rs.getString("title"),
+      rs.getString("summary"),
+      rs.getString("detail_url"),
+      rs.getString("source_url"),
+      rs.getString("message_time"),
+      rs.getString("raw_payload_json"),
+      rs.getString("detail_text"),
+      rs.getString("llm_output_json"),
+      rs.getString("status"),
+      rs.getString("error_message"),
+      rs.getString("session_id"),
+      rs.getString("created_at"),
+      rs.getString("updated_at"));
+
+  public WxPusherMessageRepository(JdbcTemplate jdbc) {
+    this.jdbc = jdbc;
+  }
+
+  public SaveResult createPending(PendingMessage command) {
+    String id = JdbcSupport.id();
+    String now = JdbcSupport.now();
+    try {
+      jdbc.update("""
+          INSERT INTO wxpusher_messages(
+            id, message_key, kol_id, blogger_name, title, summary, detail_url, source_url,
+            message_time, raw_payload_json, detail_text, llm_output_json, status,
+            error_message, session_id, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', '', 'PENDING', '', '', ?, ?)
+          """,
+          id,
+          command.messageKey(),
+          command.kolId(),
+          command.bloggerName(),
+          blank(command.title()),
+          blank(command.summary()),
+          blank(command.detailUrl()),
+          blank(command.sourceUrl()),
+          blank(command.messageTime()),
+          blank(command.rawPayloadJson()),
+          now,
+          now);
+      return new SaveResult(findById(id).orElseThrow(), true);
+    } catch (DuplicateKeyException error) {
+      return new SaveResult(findByMessageKey(command.messageKey()).orElseThrow(), false);
+    }
+  }
+
+  public Optional<WxPusherMessage> findById(String id) {
+    return jdbc.query("SELECT * FROM wxpusher_messages WHERE id = ?", mapper, id)
+        .stream()
+        .findFirst();
+  }
+
+  public Optional<WxPusherMessage> findByMessageKey(String messageKey) {
+    return jdbc.query("SELECT * FROM wxpusher_messages WHERE message_key = ?", mapper, messageKey)
+        .stream()
+        .findFirst();
+  }
+
+  public void markProcessing(String id) {
+    updateState(id, "PROCESSING", "", null, null, null);
+  }
+
+  public void markFailed(String id, String detailText, String llmOutputJson, String errorMessage) {
+    updateState(id, "FAILED", errorMessage, detailText, llmOutputJson, null);
+  }
+
+  public void markImported(String id, String detailText, String llmOutputJson, String sessionId) {
+    updateState(id, "IMPORTED", "", detailText, llmOutputJson, sessionId);
+  }
+
+  public List<WxPusherMessage> list(String status, String kolId, int limit) {
+    StringBuilder sql = new StringBuilder("SELECT * FROM wxpusher_messages WHERE 1 = 1");
+    List<Object> args = new ArrayList<>();
+    if (status != null && !status.isBlank()) {
+      sql.append(" AND status = ?");
+      args.add(status.trim().toUpperCase());
+    }
+    if (kolId != null && !kolId.isBlank()) {
+      sql.append(" AND kol_id = ?");
+      args.add(kolId.trim());
+    }
+    sql.append(" ORDER BY updated_at DESC, created_at DESC LIMIT ?");
+    args.add(Math.max(1, Math.min(limit, 100)));
+    return jdbc.query(sql.toString(), mapper, args.toArray());
+  }
+
+  private void updateState(
+      String id,
+      String status,
+      String errorMessage,
+      String detailText,
+      String llmOutputJson,
+      String sessionId) {
+    jdbc.update("""
+        UPDATE wxpusher_messages
+        SET status = ?, error_message = ?, detail_text = COALESCE(?, detail_text),
+            llm_output_json = COALESCE(?, llm_output_json), session_id = COALESCE(?, session_id),
+            updated_at = ?
+        WHERE id = ?
+        """,
+        status,
+        blank(errorMessage),
+        detailText,
+        llmOutputJson,
+        sessionId,
+        JdbcSupport.now(),
+        id);
+  }
+
+  private static String blank(String input) {
+    return input == null ? "" : input.trim();
+  }
+
+  public record PendingMessage(
+      String messageKey,
+      String kolId,
+      String bloggerName,
+      String title,
+      String summary,
+      String detailUrl,
+      String sourceUrl,
+      String messageTime,
+      String rawPayloadJson) {
+  }
+
+  public record SaveResult(WxPusherMessage message, boolean created) {
+  }
+
+  public record WxPusherMessage(
+      String id,
+      String messageKey,
+      String kolId,
+      String bloggerName,
+      String title,
+      String summary,
+      String detailUrl,
+      String sourceUrl,
+      String messageTime,
+      String rawPayloadJson,
+      String detailText,
+      String llmOutputJson,
+      String status,
+      String errorMessage,
+      String sessionId,
+      String createdAt,
+      String updatedAt) {
+  }
+}

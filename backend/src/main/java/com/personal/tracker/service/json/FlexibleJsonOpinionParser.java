@@ -3,6 +3,7 @@ package com.personal.tracker.service.json;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.personal.tracker.domain.PriceLevel;
+import com.personal.tracker.repository.JdbcSupport;
 import com.personal.tracker.service.ImportService.ImportCandidate;
 import com.personal.tracker.service.ImportService.ImportPreview;
 import com.personal.tracker.service.ImportService.SkippedItem;
@@ -57,14 +58,22 @@ public class FlexibleJsonOpinionParser implements JsonOpinionParser {
     }
     String rawDirection = firstText(item, "方向", "观点方向", "sentiment", "view");
     String priceText = joinFirst(item, "关键价位", "价位", "支撑压力", "目标价", "priceLevels");
+    String market = JdbcSupport.market(firstText(item, "市场", "market"), symbol);
     candidates.add(new ImportCandidate(
-        true, symbol, value(displayName, symbol), mapDirection(rawDirection),
-        rawDirection, firstText(item, "周期", "时间周期", "horizon", "timeframe"),
+        true,
+        symbol,
+        value(displayName, symbol),
+        market,
+        mapDirection(rawDirection),
+        rawDirection,
+        firstText(item, "周期", "时间周期", "horizon", "timeframe"),
         firstText(item, "关键判断", "核心观点", "观点", "逻辑", "thesis", "summary"),
         joinFirst(item, "催化", "催化因素", "trigger", "catalysts"),
-        firstText(item, "替代策略", "定位", "触发条件"),
-        joinFirst(item, "风险", "风险提示", "risks"), priceText,
-        firstText(item, "原文摘录", "source_quote", "sourceQuote"), mapper.writeValueAsString(item),
+        firstText(item, "触发条件", "替代策略", "定位"),
+        joinFirst(item, "风险", "风险提示", "risks"),
+        priceText,
+        firstText(item, "原文摘录", "source_quote", "sourceQuote"),
+        mapper.writeValueAsString(item),
         priceLines(priceText)));
   }
 
@@ -128,7 +137,7 @@ public class FlexibleJsonOpinionParser implements JsonOpinionParser {
     }
     var matcher = TOKEN.matcher(name);
     while (matcher.find()) {
-      String token = matcher.group().toUpperCase();
+      String token = matcher.group().toUpperCase(Locale.ROOT);
       if (!List.of("ETF", "HDD", "CPU").contains(token)) {
         return token;
       }
@@ -159,7 +168,7 @@ public class FlexibleJsonOpinionParser implements JsonOpinionParser {
 
   private List<PriceLevel> priceLines(String text) {
     List<PriceLevel> levels = new ArrayList<>();
-    for (String line : value(text, "").split("[\\r\\n,，;；]+")) {
+    for (String line : value(text, "").split("[\\r\\n,，；;]+")) {
       if (isQuantityNote(line)) {
         continue;
       }
@@ -172,7 +181,7 @@ public class FlexibleJsonOpinionParser implements JsonOpinionParser {
   }
 
   private boolean isQuantityNote(String text) {
-    return text.matches(".*(亿|万|盎司|缺口|需求).*")
+    return text.matches(".*(亿|盎司|缺口|需求).*")
         && !text.matches(".*(价|支撑|压力|目标|止损|突破|跌破|上方|下方|附近).*");
   }
 

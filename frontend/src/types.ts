@@ -108,6 +108,7 @@ export interface ImportCandidate {
   selected: boolean;
   symbol: string;
   displayName: string;
+  market?: string;
   direction: Direction;
   rawDirection?: string;
   horizon?: string;
@@ -131,4 +132,68 @@ export interface ImportPreview {
 export interface ImportCommitResult {
   sessionId: string;
   savedOpinions: number;
+}
+
+export interface WxPusherSettings {
+  id?: string;
+  deviceToken: string;
+  pushToken: string;
+  deviceUuid: string;
+  platform: string;
+  version: string;
+  pollIntervalSeconds: number;
+  enablePolling: boolean;
+  enableWebsocket: boolean;
+  lastHeartbeatAt?: string;
+  lastError?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface WxPusherStatus {
+  running: boolean;
+  websocketState: string;
+  lastPollAt?: string;
+  lastHeartbeatAt?: string;
+  lastError?: string;
+  pollingEnabled: boolean;
+  websocketEnabled: boolean;
+  totalBloggers: number;
+  enabledBloggers: number;
+  llmConfigured: boolean;
+  llmReachable: boolean;
+  llmMessage: string;
+  llmCheckedAt?: string;
+}
+
+export interface WxPusherBlogger {
+  id: string;
+  kolId: string;
+  bloggerName: string;
+  aliases: string[];
+  enabled: boolean;
+  historySeedMode: string;
+  seedCompletedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WxPusherMessage {
+  id: string;
+  messageKey: string;
+  kolId: string;
+  bloggerName: string;
+  title: string;
+  summary?: string;
+  detailUrl?: string;
+  sourceUrl?: string;
+  messageTime: string;
+  rawPayloadJson?: string;
+  detailText?: string;
+  llmOutputJson?: string;
+  status: string;
+  errorMessage?: string;
+  sessionId?: string;
+  createdAt: string;
+  updatedAt: string;
 }

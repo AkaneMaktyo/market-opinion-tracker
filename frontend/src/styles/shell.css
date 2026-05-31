@@ -10,6 +10,7 @@
 .topbar {
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   justify-content: space-between;
   margin: 0 auto 16px;
@@ -43,7 +44,9 @@
 
 .stats {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
+  margin-left: auto;
 }
 
 .workspace {

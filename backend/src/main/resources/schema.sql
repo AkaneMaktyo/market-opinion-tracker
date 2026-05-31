@@ -129,3 +129,73 @@ CREATE TABLE IF NOT EXISTS market_bars (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 ALTER TABLE market_bars DROP FOREIGN KEY fk_bars_instrument;
+
+CREATE TABLE IF NOT EXISTS exchange_credentials (
+  id VARCHAR(64) PRIMARY KEY,
+  provider VARCHAR(32) NOT NULL,
+  account_type VARCHAR(32) NOT NULL,
+  environment VARCHAR(32) NOT NULL,
+  api_key VARCHAR(255) NOT NULL,
+  api_secret VARCHAR(512) NOT NULL,
+  passphrase VARCHAR(255) NOT NULL,
+  product_type VARCHAR(32) NOT NULL,
+  margin_coin VARCHAR(32) NOT NULL,
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at VARCHAR(64) NOT NULL,
+  updated_at VARCHAR(64) NOT NULL,
+  UNIQUE KEY uq_exchange_credential(provider, account_type, environment),
+  INDEX idx_exchange_credential_enabled(provider, environment, enabled)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS wxpusher_settings (
+  id VARCHAR(32) PRIMARY KEY,
+  device_token VARCHAR(255) NOT NULL,
+  push_token VARCHAR(255) NOT NULL,
+  device_uuid VARCHAR(255) NOT NULL,
+  platform VARCHAR(64) NOT NULL,
+  version VARCHAR(32) NOT NULL,
+  poll_interval_seconds INT NOT NULL,
+  enable_polling BOOLEAN NOT NULL DEFAULT FALSE,
+  enable_websocket BOOLEAN NOT NULL DEFAULT FALSE,
+  last_heartbeat_at VARCHAR(64),
+  last_error TEXT,
+  created_at VARCHAR(64) NOT NULL,
+  updated_at VARCHAR(64) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS wxpusher_bloggers (
+  id VARCHAR(64) PRIMARY KEY,
+  kol_id VARCHAR(64) NOT NULL,
+  blogger_name VARCHAR(255) NOT NULL,
+  aliases_json TEXT NOT NULL,
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  history_seed_mode VARCHAR(32) NOT NULL,
+  seed_completed_at VARCHAR(64),
+  created_at VARCHAR(64) NOT NULL,
+  updated_at VARCHAR(64) NOT NULL,
+  UNIQUE KEY uq_wxpusher_blogger_name(blogger_name),
+  INDEX idx_wxpusher_blogger_enabled(enabled, updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS wxpusher_messages (
+  id VARCHAR(64) PRIMARY KEY,
+  message_key VARCHAR(512) NOT NULL,
+  kol_id VARCHAR(64) NOT NULL,
+  blogger_name VARCHAR(255) NOT NULL,
+  title VARCHAR(500) NOT NULL,
+  summary TEXT,
+  detail_url VARCHAR(1000),
+  source_url VARCHAR(1000),
+  message_time VARCHAR(64) NOT NULL,
+  raw_payload_json MEDIUMTEXT,
+  detail_text MEDIUMTEXT,
+  llm_output_json MEDIUMTEXT,
+  status VARCHAR(32) NOT NULL,
+  error_message TEXT,
+  session_id VARCHAR(64),
+  created_at VARCHAR(64) NOT NULL,
+  updated_at VARCHAR(64) NOT NULL,
+  UNIQUE KEY uq_wxpusher_message_key(message_key),
+  INDEX idx_wxpusher_message_status(status, updated_at),
+  INDEX idx_wxpusher_message_kol(kol_id, updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

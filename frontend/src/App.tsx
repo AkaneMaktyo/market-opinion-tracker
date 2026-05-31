@@ -7,6 +7,7 @@ import { KolPicker } from './components/KolPicker';
 import { MarketSummaryPanel } from './components/MarketSummaryPanel';
 import { OpinionList } from './components/OpinionList';
 import { InstrumentRail } from './components/instruments/InstrumentRail';
+import { SourceManagerButton } from './components/sources/SourceManagerButton';
 import type {
   Instrument,
   Kol,
@@ -148,6 +149,7 @@ export default function App() {
             load(selectedKol, symbol, timeframe);
           }}
         />
+        <SourceManagerButton onChanged={() => void load(selectedKol, selected, timeframe)} />
         <div className="stats">
           <span>{instruments.length} 个品种</span>
           <span>{opinions.length} 条当前观点</span>

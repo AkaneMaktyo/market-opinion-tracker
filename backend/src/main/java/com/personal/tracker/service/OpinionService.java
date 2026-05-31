@@ -26,7 +26,7 @@ public class OpinionService {
 
   public OpinionView create(CreateOpinionCommand command) {
     Instrument instrument = instruments.saveIfAbsent(
-        command.symbol(), command.instrumentName(), "US", command.sector());
+        command.symbol(), command.instrumentName(), command.market(), command.sector());
     Opinion saved = opinions.create(new Opinion(
         null,
         command.sessionId(),
@@ -86,6 +86,7 @@ public class OpinionService {
       String sessionId,
       String symbol,
       String instrumentName,
+      String market,
       String sector,
       String direction,
       String horizon,
@@ -104,6 +105,7 @@ public class OpinionService {
       List<PriceLevel> priceLevels) {
     public CreateOpinionCommand {
       symbol = JdbcSupport.symbol(symbol);
+      market = JdbcSupport.market(market, symbol);
       priceLevels = priceLevels == null ? List.of() : priceLevels;
     }
   }

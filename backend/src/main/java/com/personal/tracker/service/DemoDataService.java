@@ -40,6 +40,7 @@ public class DemoDataService implements ApplicationRunner {
         session.id(),
         "NVDA",
         "NVIDIA",
+        "US",
         "AI",
         "BULLISH",
         "短线",
