@@ -19,6 +19,7 @@ public class WxPusherSettingsRepository {
       rs.getInt("poll_interval_seconds"),
       rs.getBoolean("enable_polling"),
       rs.getBoolean("enable_websocket"),
+      rs.getString("last_poll_at"),
       rs.getString("last_heartbeat_at"),
       rs.getString("last_error"),
       rs.getString("created_at"),
@@ -29,6 +30,7 @@ public class WxPusherSettingsRepository {
   }
 
   public WxPusherSettings get() {
+    ensureSchema();
     ensureDefault();
     return jdbc.query("SELECT * FROM wxpusher_settings WHERE id = ?", mapper, DEFAULT_ID)
         .stream()
@@ -37,6 +39,7 @@ public class WxPusherSettingsRepository {
   }
 
   public WxPusherSettings update(UpdateCommand command) {
+    ensureSchema();
     ensureDefault();
     String now = JdbcSupport.now();
     jdbc.update("""
@@ -59,13 +62,52 @@ public class WxPusherSettingsRepository {
     return get();
   }
 
-  public void updateRuntime(String heartbeatAt, String error) {
+  public void updateRuntime(String heartbeatAt, String error, String pollAt) {
+    ensureSchema();
     ensureDefault();
     jdbc.update("""
         UPDATE wxpusher_settings
-        SET last_heartbeat_at = ?, last_error = ?, updated_at = ?
+        SET last_heartbeat_at = ?, last_error = ?, last_poll_at = ?, updated_at = ?
         WHERE id = ?
-        """, blank(heartbeatAt), blank(error), JdbcSupport.now(), DEFAULT_ID);
+        """, blank(heartbeatAt), blank(error), blank(pollAt), JdbcSupport.now(), DEFAULT_ID);
+  }
+
+  private void ensureSchema() {
+    jdbc.execute("""
+        CREATE TABLE IF NOT EXISTS wxpusher_raw_messages (
+          id VARCHAR(64) PRIMARY KEY,
+          message_key VARCHAR(512) NOT NULL,
+          channel VARCHAR(32) NOT NULL,
+          source_name VARCHAR(255) NOT NULL,
+          title VARCHAR(500) NOT NULL,
+          summary TEXT,
+          detail_url VARCHAR(1000),
+          source_url VARCHAR(1000),
+          message_time VARCHAR(64) NOT NULL,
+          raw_payload_json MEDIUMTEXT,
+          created_at VARCHAR(64) NOT NULL,
+          updated_at VARCHAR(64) NOT NULL,
+          UNIQUE KEY uq_wxpusher_raw_message_key(message_key),
+          INDEX idx_wxpusher_raw_message_time(message_time, updated_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """);
+    jdbc.execute("""
+        CREATE TABLE IF NOT EXISTS wxpusher_consumer_state (
+          id VARCHAR(64) PRIMARY KEY,
+          consumer_name VARCHAR(64) NOT NULL,
+          message_key VARCHAR(512) NOT NULL,
+          status VARCHAR(32) NOT NULL,
+          error_message TEXT,
+          derived_id VARCHAR(64),
+          created_at VARCHAR(64) NOT NULL,
+          updated_at VARCHAR(64) NOT NULL,
+          UNIQUE KEY uq_wxpusher_consumer_message(consumer_name, message_key),
+          INDEX idx_wxpusher_consumer_status(consumer_name, status, updated_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """);
+    if (jdbc.queryForList("SHOW COLUMNS FROM wxpusher_settings LIKE 'last_poll_at'").isEmpty()) {
+      jdbc.execute("ALTER TABLE wxpusher_settings ADD COLUMN last_poll_at VARCHAR(64)");
+    }
   }
 
   private void ensureDefault() {
@@ -74,8 +116,8 @@ public class WxPusherSettingsRepository {
         INSERT IGNORE INTO wxpusher_settings(
           id, device_token, push_token, device_uuid, platform, version,
           poll_interval_seconds, enable_polling, enable_websocket,
-          last_heartbeat_at, last_error, created_at, updated_at
-        ) VALUES (?, '', '', '', 'Chrome-Windows', '1.1.1', 60, false, false, '', '', ?, ?)
+          last_poll_at, last_heartbeat_at, last_error, created_at, updated_at
+        ) VALUES (?, '', '', '', 'Chrome-Windows', '1.1.1', 60, false, false, '', '', '', ?, ?)
         """, DEFAULT_ID, now, now);
   }
 
@@ -108,6 +150,7 @@ public class WxPusherSettingsRepository {
       int pollIntervalSeconds,
       boolean enablePolling,
       boolean enableWebsocket,
+      String lastPollAt,
       String lastHeartbeatAt,
       String lastError,
       String createdAt,

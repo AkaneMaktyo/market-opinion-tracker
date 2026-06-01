@@ -18,6 +18,7 @@ import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository.PendingMessage;
 import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository.SaveResult;
 import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository.WxPusherMessage;
+import com.personal.tracker.repository.wxpusher.WxPusherSharedMessageRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository.WxPusherSettings;
 import com.personal.tracker.service.ImportService.ImportCandidate;
@@ -35,7 +36,7 @@ class WxPusherIngestionServiceTest {
     var settingsRepository = mock(WxPusherSettingsRepository.class);
     var bloggerRepository = mock(WxPusherBloggerRepository.class);
     var messageRepository = mock(WxPusherMessageRepository.class);
-    var client = mock(WxPusherClient.class);
+    var sharedRepository = mock(WxPusherSharedMessageRepository.class);
     var articleExtractor = mock(WxPusherArticleExtractor.class);
     var aiExtractor = mock(OpenAiJsonExtractor.class);
     JsonOpinionParser parser = mock(JsonOpinionParser.class);
@@ -44,7 +45,7 @@ class WxPusherIngestionServiceTest {
         settingsRepository,
         bloggerRepository,
         messageRepository,
-        client,
+        sharedRepository,
         articleExtractor,
         aiExtractor,
         parser,
@@ -62,7 +63,7 @@ class WxPusherIngestionServiceTest {
     var settingsRepository = mock(WxPusherSettingsRepository.class);
     var bloggerRepository = mock(WxPusherBloggerRepository.class);
     var messageRepository = mock(WxPusherMessageRepository.class);
-    var client = mock(WxPusherClient.class);
+    var sharedRepository = mock(WxPusherSharedMessageRepository.class);
     var articleExtractor = mock(WxPusherArticleExtractor.class);
     var aiExtractor = mock(OpenAiJsonExtractor.class);
     JsonOpinionParser parser = mock(JsonOpinionParser.class);
@@ -71,7 +72,7 @@ class WxPusherIngestionServiceTest {
         settingsRepository,
         bloggerRepository,
         messageRepository,
-        client,
+        sharedRepository,
         articleExtractor,
         aiExtractor,
         parser,
@@ -99,8 +100,26 @@ class WxPusherIngestionServiceTest {
         List.of());
     when(settingsRepository.get()).thenReturn(settings());
     when(bloggerRepository.enabled()).thenReturn(List.of(blogger("Alpha")));
+    WxPusherMessage imported = new WxPusherMessage(
+        "msg-1",
+        "wxpusher:src:https://source",
+        "kol-1",
+        "Alpha",
+        "鏍囬",
+        "鎽樿",
+        "https://wxpusher.zjiecode.com/api/message/1",
+        "https://source",
+        "2026-05-31T06:00:00Z",
+        "{\"id\":1}",
+        "姝ｆ枃",
+        "{\"ok\":true}",
+        "IMPORTED",
+        "",
+        "session-1",
+        "",
+        "");
     when(messageRepository.createPending(any(PendingMessage.class)))
-        .thenReturn(new SaveResult(saved, true), new SaveResult(saved, false));
+        .thenReturn(new SaveResult(saved, true), new SaveResult(imported, false));
     when(articleExtractor.fetchText(anyString(), any())).thenReturn("正文");
     when(aiExtractor.extract(anyString(), anyString(), anyString(), anyString(), anyString()))
         .thenReturn("{\"ok\":true}");
@@ -129,7 +148,7 @@ class WxPusherIngestionServiceTest {
     var settingsRepository = mock(WxPusherSettingsRepository.class);
     var bloggerRepository = mock(WxPusherBloggerRepository.class);
     var messageRepository = mock(WxPusherMessageRepository.class);
-    var client = mock(WxPusherClient.class);
+    var sharedRepository = mock(WxPusherSharedMessageRepository.class);
     var articleExtractor = mock(WxPusherArticleExtractor.class);
     var aiExtractor = mock(OpenAiJsonExtractor.class);
     JsonOpinionParser parser = mock(JsonOpinionParser.class);
@@ -138,7 +157,7 @@ class WxPusherIngestionServiceTest {
         settingsRepository,
         bloggerRepository,
         messageRepository,
-        client,
+        sharedRepository,
         articleExtractor,
         aiExtractor,
         parser,
@@ -170,7 +189,7 @@ class WxPusherIngestionServiceTest {
       WxPusherSettingsRepository settingsRepository,
       WxPusherBloggerRepository bloggerRepository,
       WxPusherMessageRepository messageRepository,
-      WxPusherClient client,
+      WxPusherSharedMessageRepository sharedRepository,
       WxPusherArticleExtractor articleExtractor,
       OpenAiJsonExtractor aiExtractor,
       JsonOpinionParser parser,
@@ -179,7 +198,7 @@ class WxPusherIngestionServiceTest {
         settingsRepository,
         bloggerRepository,
         messageRepository,
-        client,
+        sharedRepository,
         articleExtractor,
         aiExtractor,
         parser,
@@ -188,7 +207,7 @@ class WxPusherIngestionServiceTest {
 
   private WxPusherSettings settings() {
     return new WxPusherSettings(
-        "default", "device-token", "", "", "Chrome-Windows", "1.1.1", 60, true, false, "", "", "", "");
+        "default", "device-token", "", "", "Chrome-Windows", "1.1.1", 60, true, false, "", "", "", "", "");
   }
 
   private WxPusherBlogger blogger(String name) {

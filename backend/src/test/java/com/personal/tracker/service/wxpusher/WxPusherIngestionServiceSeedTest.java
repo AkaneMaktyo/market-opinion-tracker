@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository.WxPusherBlogger;
 import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository;
+import com.personal.tracker.repository.wxpusher.WxPusherSharedMessageRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository.WxPusherSettings;
 import com.personal.tracker.service.imports.OpinionImportWriter;
@@ -21,7 +22,7 @@ class WxPusherIngestionServiceSeedTest {
     var settingsRepository = mock(WxPusherSettingsRepository.class);
     var bloggerRepository = mock(WxPusherBloggerRepository.class);
     var messageRepository = mock(WxPusherMessageRepository.class);
-    var client = mock(WxPusherClient.class);
+    var sharedRepository = mock(WxPusherSharedMessageRepository.class);
     var articleExtractor = mock(WxPusherArticleExtractor.class);
     var aiExtractor = mock(OpenAiJsonExtractor.class);
     JsonOpinionParser parser = mock(JsonOpinionParser.class);
@@ -30,7 +31,7 @@ class WxPusherIngestionServiceSeedTest {
         settingsRepository,
         bloggerRepository,
         messageRepository,
-        client,
+        sharedRepository,
         articleExtractor,
         aiExtractor,
         parser,
@@ -48,6 +49,7 @@ class WxPusherIngestionServiceSeedTest {
         "",
         "",
         "",
+        "",
         "");
     WxPusherBlogger blogger = new WxPusherBlogger(
         "blogger-1",
@@ -59,15 +61,47 @@ class WxPusherIngestionServiceSeedTest {
         null,
         "",
         "");
+    WxPusherClient.IncomingMessage recent = new WxPusherClient.IncomingMessage(
+        "polling",
+        "wxpusher:src:https://source",
+        "Alpha",
+        "鏍囬",
+        "鎽樿",
+        "https://wxpusher.zjiecode.com/api/message/1",
+        "https://source",
+        "2026-05-31T06:00:00Z",
+        "123",
+        "{\"id\":1}",
+        1L);
     when(settingsRepository.get()).thenReturn(settings);
     when(bloggerRepository.enabledPendingSeed()).thenReturn(List.of(blogger), List.of());
-    when(client.maxCursor()).thenReturn("MAX");
-    when(client.fetchPage(settings, "MAX")).thenReturn(List.of());
+    when(sharedRepository.listRecent(600)).thenReturn(List.of(recent));
+    when(messageRepository.createPending(org.mockito.ArgumentMatchers.any()))
+        .thenReturn(new WxPusherMessageRepository.SaveResult(
+            new WxPusherMessageRepository.WxPusherMessage(
+                "msg-1",
+                "wxpusher:src:https://source",
+                "kol-1",
+                "Alpha",
+                "鏍囬",
+                "鎽樿",
+                "https://wxpusher.zjiecode.com/api/message/1",
+                "https://source",
+                "2026-05-31T06:00:00Z",
+                "{\"id\":1}",
+                "姝ｆ枃",
+                "{\"ok\":true}",
+                "IMPORTED",
+                "",
+                "session-1",
+                "",
+                ""),
+            false));
 
     service.seedHistory();
     service.seedHistory();
 
-    verify(client, times(1)).fetchPage(settings, "MAX");
+    verify(sharedRepository, times(2)).listRecent(600);
     verify(bloggerRepository, times(1)).markSeedCompleted("blogger-1");
   }
 }

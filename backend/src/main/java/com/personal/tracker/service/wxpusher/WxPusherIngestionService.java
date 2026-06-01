@@ -4,23 +4,24 @@ import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository.WxPusherBlogger;
 import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository.PendingMessage;
+import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository.SaveResult;
 import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository.WxPusherMessage;
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository;
-import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository.WxPusherSettings;
+import com.personal.tracker.repository.wxpusher.WxPusherSharedMessageRepository;
 import com.personal.tracker.service.imports.OpinionImportWriter;
 import com.personal.tracker.service.json.JsonOpinionParser;
 import java.time.LocalDate;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import org.springframework.stereotype.Service;
 
 @Service
 public class WxPusherIngestionService {
+  private static final String CONSUMER_NAME = "market_opinion_tracker";
   private final WxPusherSettingsRepository settingsRepository;
   private final WxPusherBloggerRepository bloggerRepository;
   private final WxPusherMessageRepository messageRepository;
-  private final WxPusherClient client;
+  private final WxPusherSharedMessageRepository sharedRepository;
   private final WxPusherArticleExtractor articleExtractor;
   private final OpenAiJsonExtractor aiExtractor;
   private final JsonOpinionParser parser;
@@ -30,7 +31,7 @@ public class WxPusherIngestionService {
       WxPusherSettingsRepository settingsRepository,
       WxPusherBloggerRepository bloggerRepository,
       WxPusherMessageRepository messageRepository,
-      WxPusherClient client,
+      WxPusherSharedMessageRepository sharedRepository,
       WxPusherArticleExtractor articleExtractor,
       OpenAiJsonExtractor aiExtractor,
       JsonOpinionParser parser,
@@ -38,41 +39,38 @@ public class WxPusherIngestionService {
     this.settingsRepository = settingsRepository;
     this.bloggerRepository = bloggerRepository;
     this.messageRepository = messageRepository;
-    this.client = client;
+    this.sharedRepository = sharedRepository;
     this.articleExtractor = articleExtractor;
     this.aiExtractor = aiExtractor;
     this.parser = parser;
     this.writer = writer;
   }
 
+  public int importPending() {
+    int imported = 0;
+    for (var incoming : sharedRepository.listPending(CONSUMER_NAME, 60)) {
+      if (importFromShared(incoming)) {
+        imported++;
+      }
+    }
+    return imported;
+  }
+
   public void ingest(WxPusherClient.IncomingMessage incoming) {
-    var matched = WxPusherBloggerMatcher.match(incoming, bloggerRepository.enabled());
-    if (matched.isEmpty()) {
-      return;
-    }
-    var saved = messageRepository.createPending(new PendingMessage(
-        incoming.messageKey(),
-        matched.get().kolId(),
-        matched.get().bloggerName(),
-        incoming.title(),
-        incoming.summary(),
-        incoming.detailUrl(),
-        incoming.sourceUrl(),
-        incoming.messageTime(),
-        incoming.rawPayloadJson()));
-    if (!saved.created()) {
-      return;
-    }
-    process(saved.message());
+    matchBlogger(incoming).ifPresent(blogger -> processMatched(incoming, blogger, null));
   }
 
   public void seedHistory() {
-    WxPusherSettings settings = settingsRepository.get();
-    if (!settings.pollingReady()) {
+    List<WxPusherClient.IncomingMessage> recent = sharedRepository.listRecent(600);
+    if (recent.isEmpty()) {
       return;
     }
     for (WxPusherBlogger blogger : bloggerRepository.enabledPendingSeed()) {
-      seedBlogger(settings, blogger);
+      recent.stream()
+          .filter(item -> WxPusherBloggerMatcher.matches(item, blogger))
+          .sorted(Comparator.comparingLong(WxPusherClient.IncomingMessage::sortValue))
+          .skip(Math.max(0, recent.stream().filter(item -> WxPusherBloggerMatcher.matches(item, blogger)).count() - 30))
+          .forEach(item -> processMatched(item, blogger, item.messageKey()));
       bloggerRepository.markSeedCompleted(blogger.id());
     }
   }
@@ -83,34 +81,47 @@ public class WxPusherIngestionService {
     if ("IMPORTED".equalsIgnoreCase(message.status())) {
       throw new IllegalArgumentException("已入库消息不支持重试");
     }
-    process(message);
+    process(message, null);
   }
 
-  private void seedBlogger(WxPusherSettings settings, WxPusherBlogger blogger) {
-    List<WxPusherClient.IncomingMessage> matched = new ArrayList<>();
-    String cursor = client.maxCursor();
-    for (int page = 0; page < 8 && matched.size() < 30; page++) {
-      List<WxPusherClient.IncomingMessage> items = client.fetchPage(settings, cursor);
-      if (items.isEmpty()) {
-        break;
-      }
-      matched.addAll(items.stream()
-          .filter(item -> WxPusherBloggerMatcher.matches(item, blogger))
-          .toList());
-      String nextCursor = items.get(items.size() - 1).pageCursor();
-      if (nextCursor == null || nextCursor.isBlank() || nextCursor.equals(cursor)) {
-        break;
-      }
-      cursor = nextCursor;
+  private boolean importFromShared(WxPusherClient.IncomingMessage incoming) {
+    var matched = matchBlogger(incoming);
+    if (matched.isEmpty()) {
+      sharedRepository.saveState(CONSUMER_NAME, incoming.messageKey(), "IGNORED", "", "");
+      return false;
     }
-    matched.stream()
-        .sorted(Comparator.comparingLong(WxPusherClient.IncomingMessage::sortValue))
-        .skip(Math.max(0, matched.size() - 30))
-        .forEach(this::ingest);
+    return processMatched(incoming, matched.get(), incoming.messageKey());
   }
 
-  private void process(WxPusherMessage message) {
+  private boolean processMatched(
+      WxPusherClient.IncomingMessage incoming,
+      WxPusherBlogger blogger,
+      String sharedMessageKey) {
+    SaveResult saved = messageRepository.createPending(new PendingMessage(
+        incoming.messageKey(),
+        blogger.kolId(),
+        blogger.bloggerName(),
+        incoming.title(),
+        incoming.summary(),
+        incoming.detailUrl(),
+        incoming.sourceUrl(),
+        incoming.messageTime(),
+        incoming.rawPayloadJson()));
+    if (!saved.created() && "IMPORTED".equalsIgnoreCase(saved.message().status())) {
+      saveSharedState(sharedMessageKey, "IMPORTED", "", saved.message().id());
+      return false;
+    }
+    process(saved.message(), sharedMessageKey);
+    return saved.created();
+  }
+
+  private java.util.Optional<WxPusherBlogger> matchBlogger(WxPusherClient.IncomingMessage incoming) {
+    return WxPusherBloggerMatcher.match(incoming, bloggerRepository.enabled());
+  }
+
+  private void process(WxPusherMessage message, String sharedMessageKey) {
     messageRepository.markProcessing(message.id());
+    saveSharedState(sharedMessageKey, "PROCESSING", "", message.id());
     String detailText = fallbackText(message);
     String llmJson = "";
     try {
@@ -133,8 +144,10 @@ public class WxPusherIngestionService {
           llmJson,
           preview.candidates());
       messageRepository.markImported(message.id(), detailText, llmJson, result.sessionId());
+      saveSharedState(sharedMessageKey, "IMPORTED", "", message.id());
     } catch (Exception error) {
       messageRepository.markFailed(message.id(), detailText, llmJson, error.getMessage());
+      saveSharedState(sharedMessageKey, "FAILED", error.getMessage(), message.id());
     }
   }
 
@@ -155,6 +168,13 @@ public class WxPusherIngestionService {
         .filter(item -> item != null && !item.isBlank())
         .reduce((left, right) -> left + "\n" + right)
         .orElse("");
+  }
+
+  private void saveSharedState(String messageKey, String status, String errorMessage, String derivedId) {
+    if (messageKey == null || messageKey.isBlank()) {
+      return;
+    }
+    sharedRepository.saveState(CONSUMER_NAME, messageKey, status, errorMessage, derivedId);
   }
 
   private String sessionDate(String messageTime) {

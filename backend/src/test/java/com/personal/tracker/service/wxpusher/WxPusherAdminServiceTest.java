@@ -111,7 +111,7 @@ class WxPusherAdminServiceTest {
         ingestion,
         lifecycle);
     when(settingsRepository.get()).thenReturn(new WxPusherSettings(
-        "default", "", "", "", "Chrome-Windows", "1.1.1", 60, true, true, "", "", "", ""));
+        "default", "", "", "", "Chrome-Windows", "1.1.1", 60, true, true, "", "", "", "", ""));
     when(bloggerRepository.list()).thenReturn(List.of());
     when(bloggerRepository.enabled()).thenReturn(List.of());
     when(aiExtractor.health()).thenReturn(new OpenAiJsonExtractor.HealthStatus(false, false, "未配置", null));

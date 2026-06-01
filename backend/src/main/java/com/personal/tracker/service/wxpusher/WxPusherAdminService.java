@@ -54,12 +54,15 @@ public class WxPusherAdminService {
     var settings = settingsRepository.get();
     var llm = aiExtractor.health();
     String issue = settings.configurationIssue();
+    String runtimeError = runtime.lastError() == null || runtime.lastError().isBlank()
+        ? settings.lastError()
+        : runtime.lastError();
     return new StatusView(
         runtime.running() && issue.isBlank() && (settings.enablePolling() || settings.enableWebsocket()),
         websocketState(settings, runtime),
-        runtime.lastPollAt(),
-        runtime.lastHeartbeatAt(),
-        issue.isBlank() ? runtime.lastError() : issue,
+        settings.lastPollAt(),
+        settings.lastHeartbeatAt(),
+        issue.isBlank() ? runtimeError : issue,
         settings.enablePolling(),
         settings.enableWebsocket(),
         bloggerRepository.list().size(),
@@ -125,9 +128,12 @@ public class WxPusherAdminService {
       WxPusherSettings settings,
       WxPusherMonitorLifecycle.RuntimeState runtime) {
     if (!settings.enableWebsocket()) {
-      return "IDLE";
+      return settings.enablePolling() ? "POLLING_ONLY" : "IDLE";
     }
-    if (!settings.websocketReady()) {
+    if (!settings.pushToken().isBlank() && !settings.deviceToken().isBlank()) {
+      return runtime.websocketState();
+    }
+    if (!settings.websocketReady() && !settings.pollingReady()) {
       return "ERROR";
     }
     return runtime.websocketState();
