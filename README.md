@@ -62,13 +62,13 @@ frontend/
 
 ### 1. 准备数据库
 
-默认连接本地 MySQL：
+后端必须显式配置线上 MySQL，不再提供本地库兜底。服务器读取
+`/etc/market-opinion-tracker/app.env`；本机开发可在 `backend/.env`
+配置 `SPRING_DATASOURCE_URL`、`SPRING_DATASOURCE_USERNAME` 和
+`SPRING_DATASOURCE_PASSWORD`。
 
-- 库名：`market_opinion_tracker`
-- 用户名：`root`
-- 密码：`root`
-
-首次启动后端时会自动建库建表。
+本机访问线上库时先建立 SSH 隧道，再让 `SPRING_DATASOURCE_URL` 指向
+隧道端口，例如 `127.0.0.1:13306/market_opinion_tracker`。
 
 ### 2. 启动后端
 
@@ -125,11 +125,11 @@ npm run dev
 
 - 前端：`5173`
 - 后端：`8080`
-- MySQL：`3306`
+- MySQL：不开放公网；本机通过 SSH 隧道访问线上库时使用本地端口 `13306`
 
 ## 当前状态备注
 
 - 前后端本地构建已通过
 - 前端首页和后端健康检查已验证可访问
 - 仓库里还有一些本地辅助目录未纳入提交，比如 `.codex-logs/`、`.claude/`、`skills/`
-- 业务代码当前以本地优先，后续可继续补真实行情源、标签体系和更完整的复盘流
+- 业务代码默认使用线上数据库；本地库不再作为启动兜底

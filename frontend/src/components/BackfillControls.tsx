@@ -41,7 +41,7 @@ export function BackfillControls({ status, busy, error, symbol, onCurrent, onAll
       <div className="backfill-actions">
         <button
           className="backfill-button"
-          disabled={running}
+          disabled={running || !symbol}
           onClick={onCurrent}
           title={`只回填 ${symbol} 的历史 K 线`}
           type="button"

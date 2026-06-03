@@ -7,10 +7,21 @@ function normalizeUrl(url: string): string {
   return url.startsWith('/api') ? `${apiBase}${url.slice(4)}` : url;
 }
 
+function requestHeaders(options?: RequestInit): Headers {
+  const headers = new Headers(options?.headers);
+  if (options?.body != null && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+  if (!headers.has('Accept')) {
+    headers.set('Accept', 'application/json');
+  }
+  return headers;
+}
+
 export async function json<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(normalizeUrl(url), {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers: requestHeaders(options),
   });
   if (!response.ok) {
     const text = await response.text();

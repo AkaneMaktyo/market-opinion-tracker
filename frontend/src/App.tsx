@@ -19,7 +19,7 @@ import type {
 } from './types';
 
 export default function App() {
-  const [selected, setSelected] = useState('NVDA');
+  const [selected, setSelected] = useState('');
   const [selectedKol, setSelectedKol] = useState('kzg');
   const [kols, setKols] = useState<Kol[]>([]);
   const [instruments, setInstruments] = useState<Instrument[]>([]);
@@ -37,23 +37,20 @@ export default function App() {
     symbol = selected,
     frame = timeframe,
   ) => {
-    const [
-      nextKols,
-      nextInstruments,
-      nextSessions,
-      nextBars,
-      nextOpinions,
-      nextBackfill,
-      nextGroups,
-    ] = await Promise.all([
+    const [nextKols, nextInstruments, nextSessions, nextBackfill, nextGroups] = await Promise.all([
       api.kols(),
       api.instruments(kolId),
       api.sessions(kolId),
-      api.bars(symbol, frame),
-      api.opinions(kolId, symbol),
       api.marketBackfill(),
       api.instrumentGroups(),
     ]);
+    const nextSelected = pickSelectedSymbol(nextInstruments, symbol);
+    const [nextBars, nextOpinions] = nextSelected
+      ? await Promise.all([
+        api.bars(nextSelected, frame),
+        api.opinions(kolId, nextSelected),
+      ])
+      : [[], []];
     setKols(nextKols);
     setInstruments(nextInstruments);
     setSessions(nextSessions);
@@ -61,6 +58,7 @@ export default function App() {
     setOpinions(nextOpinions);
     setBackfill(nextBackfill);
     setInstrumentGroups(nextGroups);
+    setSelected(nextSelected);
   }, [selected, selectedKol, timeframe]);
 
   useEffect(() => {
@@ -118,6 +116,10 @@ export default function App() {
   }
 
   async function startBackfillCurrent() {
+    if (!selected) {
+      setBackfillError('当前 KOL 还没有已入库品种');
+      return;
+    }
     setBackfillBusy(true);
     setBackfillError('');
     try {
@@ -189,4 +191,11 @@ export default function App() {
       </div>
     </main>
   );
+}
+
+function pickSelectedSymbol(instruments: Instrument[], requested: string) {
+  if (requested && instruments.some((item) => item.symbol === requested)) {
+    return requested;
+  }
+  return instruments[0]?.symbol || '';
 }

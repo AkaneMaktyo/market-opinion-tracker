@@ -185,6 +185,9 @@ export function InstrumentRail({ instruments, selected, groups, onSelect, onChan
         <span>涨跌%</span>
       </div>
       <div className="rail-list">
+        {grouped.length === 0 ? (
+          <div className="muted">当前 KOL 还没有已入库品种</div>
+        ) : null}
         {grouped.map(({ group, items }) => (
           <div className="instrument-group" key={group || '_ungrouped'}>
             {group ? (

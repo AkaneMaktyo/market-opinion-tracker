@@ -128,7 +128,7 @@ export function ChartPanel({
       <div className="chart-header">
         <div>
           <span className="eyebrow">K 线复盘</span>
-          <h2>{symbol}</h2>
+          <h2>{symbol || '暂无品种'}</h2>
         </div>
         <div className="chart-tools">
           <div className="timeframe-switch">
@@ -158,7 +158,11 @@ export function ChartPanel({
         onCurrent={onBackfillCurrent}
         onAll={onBackfillAll}
       />
-      {chartBars.length === 0 ? (
+      {!symbol ? (
+        <div className="chart chart-empty">
+          <span>当前 KOL 还没有已入库品种</span>
+        </div>
+      ) : chartBars.length === 0 ? (
         <div className="chart chart-empty">
           <span>暂无 K 线数据</span>
         </div>

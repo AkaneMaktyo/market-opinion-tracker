@@ -13,6 +13,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate deployment secrets
+        env:
+          SSH_HOST: ${{ secrets.KMT_SSH_HOST }}
+          SSH_PORT: ${{ secrets.KMT_SSH_PORT }}
+          SSH_USER: ${{ secrets.KMT_SSH_USER }}
+          SSH_PASSWORD: ${{ secrets.KMT_SSH_PASSWORD }}
+        run: |
+          missing=()
+          for name in SSH_HOST SSH_PORT SSH_USER SSH_PASSWORD; do
+            if [ -z "${!name:-}" ]; then
+              missing+=("$name")
+            fi
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "Missing required deployment secrets: ${missing[*]}" >&2
+            exit 1
+          fi
+
       - name: Build backend
         uses: actions/setup-java@v4
         with:
@@ -44,10 +62,6 @@ jobs:
           SSH_USER: ${{ secrets.KMT_SSH_USER }}
           SSH_PASSWORD: ${{ secrets.KMT_SSH_PASSWORD }}
         run: |
-          if [ -z "$SSH_HOST" ] || [ -z "$SSH_PORT" ] || [ -z "$SSH_USER" ] || [ -z "$SSH_PASSWORD" ]; then
-            echo "Deployment secrets are not configured; skipping deploy."
-            exit 0
-          fi
           sudo apt-get update
           sudo apt-get install -y sshpass
           sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
