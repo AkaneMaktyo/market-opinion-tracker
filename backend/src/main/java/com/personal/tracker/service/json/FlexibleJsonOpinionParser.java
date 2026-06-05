@@ -7,6 +7,7 @@ import com.personal.tracker.repository.JdbcSupport;
 import com.personal.tracker.service.ImportService.ImportCandidate;
 import com.personal.tracker.service.ImportService.ImportPreview;
 import com.personal.tracker.service.ImportService.SkippedItem;
+import com.personal.tracker.service.positions.PositionActionResolver;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -24,9 +25,11 @@ public class FlexibleJsonOpinionParser implements JsonOpinionParser {
   private static final List<String> NON_TRADE = List.of(
       "港股打新", "OpenAI", "Codex", "Claude", "港卡", "开户", "CRS");
   private final ObjectMapper mapper;
+  private final PositionActionResolver actionResolver;
 
-  public FlexibleJsonOpinionParser(ObjectMapper mapper) {
+  public FlexibleJsonOpinionParser(ObjectMapper mapper, PositionActionResolver actionResolver) {
     this.mapper = mapper;
+    this.actionResolver = actionResolver;
   }
 
   @Override
@@ -58,6 +61,10 @@ public class FlexibleJsonOpinionParser implements JsonOpinionParser {
     }
     String rawDirection = firstText(item, "方向", "观点方向", "sentiment", "view");
     String priceText = joinFirst(item, "关键价位", "价位", "支撑压力", "目标价", "priceLevels");
+    String thesis = firstText(item, "关键判断", "核心观点", "观点", "逻辑", "thesis", "summary");
+    String trigger = firstText(item, "触发条件", "替代策略", "定位");
+    String risks = joinFirst(item, "风险", "风险提示", "risks");
+    String sourceQuote = firstText(item, "原文摘录", "source_quote", "sourceQuote");
     String market = JdbcSupport.market(firstText(item, "市场", "market"), symbol);
     candidates.add(new ImportCandidate(
         true,
@@ -66,13 +73,21 @@ public class FlexibleJsonOpinionParser implements JsonOpinionParser {
         market,
         mapDirection(rawDirection),
         rawDirection,
+        actionResolver.resolve(
+            firstText(item, "持仓动作", "仓位动作", "positionAction", "position_action"),
+            rawDirection,
+            thesis,
+            trigger,
+            risks,
+            priceText,
+            sourceQuote),
         firstText(item, "周期", "时间周期", "horizon", "timeframe"),
-        firstText(item, "关键判断", "核心观点", "观点", "逻辑", "thesis", "summary"),
+        thesis,
         joinFirst(item, "催化", "催化因素", "trigger", "catalysts"),
-        firstText(item, "触发条件", "替代策略", "定位"),
-        joinFirst(item, "风险", "风险提示", "risks"),
+        trigger,
+        risks,
         priceText,
-        firstText(item, "原文摘录", "source_quote", "sourceQuote"),
+        sourceQuote,
         mapper.writeValueAsString(item),
         priceLines(priceText)));
   }

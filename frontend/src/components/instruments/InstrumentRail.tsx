@@ -1,20 +1,13 @@
-import { ChevronDown, ChevronRight, FolderTree, ListOrdered, TrendingDown, TrendingUp } from 'lucide-react';
+import { FolderTree } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { DragEvent } from 'react';
 import { api } from '../../api/client';
 import type { Instrument } from '../../types';
-import { InstrumentCard } from './InstrumentCard';
 import { InstrumentDirectory } from './InstrumentDirectory';
+import { InstrumentGroupList } from './InstrumentGroupList';
 import { InstrumentManager } from './InstrumentManager';
-import {
-  applyManualOrder,
-  groupItems,
-  mergeDefaultInstrument,
-  parseMode,
-  sortItems,
-  sortOptions,
-  type SortMode,
-} from './instrumentList';
+import { InstrumentSortBar } from './InstrumentSortBar';
+import { applyManualOrder, groupItems, mergeDefaultInstrument, parseMode, sortItems, type SortMode } from './instrumentList';
 
 const ORDER_STORAGE_KEY = 'market-opinion-instrument-order';
 const GROUP_ORDER_STORAGE_KEY = 'market-opinion-group-order';
@@ -30,8 +23,6 @@ interface Props {
   onChanged: (nextSelected?: string) => void;
 }
 
-const sortIcons = { manual: ListOrdered, gain: TrendingUp, loss: TrendingDown };
-
 export function InstrumentRail({ instruments, selected, groups, onSelect, onChanged }: Props) {
   const [order, setOrder] = useState<string[]>([]);
   const [groupOrder, setGroupOrder] = useState<string[]>([]);
@@ -43,14 +34,8 @@ export function InstrumentRail({ instruments, selected, groups, onSelect, onChan
   const [directoryOpen, setDirectoryOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const manualItems = applyManualOrder(mergeDefaultInstrument(instruments), order);
-  const grouped = useMemo(
-    () => groupItems(sortItems(manualItems, mode), groupOrder),
-    [groupOrder, manualItems, mode],
-  );
-  const instrumentMap = useMemo(
-    () => new Map(instruments.map((item) => [item.symbol, item])),
-    [instruments],
-  );
+  const grouped = useMemo(() => groupItems(sortItems(manualItems, mode), groupOrder), [groupOrder, manualItems, mode]);
+  const instrumentMap = useMemo(() => new Map(instruments.map((item) => [item.symbol, item])), [instruments]);
 
   useEffect(() => {
     try {
@@ -151,7 +136,7 @@ export function InstrumentRail({ instruments, selected, groups, onSelect, onChan
     <aside className="rail">
       <div className="rail-head">
         <div>
-          <div className="panel-title">品种</div>
+          <div className="panel-title">当前持仓</div>
           <span className="rail-note">{mode === 'manual' ? '拖动排序' : '行情排序'}</span>
         </div>
         <button className="rail-manage" onClick={() => setDirectoryOpen(true)} type="button">
@@ -159,78 +144,38 @@ export function InstrumentRail({ instruments, selected, groups, onSelect, onChan
           <span>管理</span>
         </button>
       </div>
-      <div className="rail-sort">
-        {sortOptions.map((option) => {
-          const Icon = sortIcons[option.value];
-          return (
-            <button
-              className={mode === option.value ? 'sort-button active' : 'sort-button'}
-              key={option.value}
-              onClick={() => {
-                setMode(option.value);
-                window.localStorage.setItem(SORT_STORAGE_KEY, option.value);
-              }}
-              type="button"
-            >
-              <Icon size={14} />
-              <span>{option.label}</span>
-            </button>
-          );
-        })}
-      </div>
+      <InstrumentSortBar
+        mode={mode}
+        onChange={(nextMode) => {
+          setMode(nextMode);
+          window.localStorage.setItem(SORT_STORAGE_KEY, nextMode);
+        }}
+      />
       <div className="rail-table-head">
         <span>商品</span>
         <span>最新价</span>
         <span>涨跌</span>
         <span>涨跌%</span>
       </div>
-      <div className="rail-list">
-        {grouped.length === 0 ? (
-          <div className="muted">当前 KOL 还没有已入库品种</div>
-        ) : null}
-        {grouped.map(({ group, items }) => (
-          <div className="instrument-group" key={group || '_ungrouped'}>
-            {group ? (
-              <button
-                className={groupHeaderClass(group, draggingGroup, dropGroup)}
-                draggable={mode === 'manual'}
-                onClick={() => toggleGroup(group)}
-                onDragEnd={() => setDraggingGroup('')}
-                onDragLeave={() => dropGroup === group && setDropGroup('')}
-                onDragOver={(event) => {
-                  if (mode !== 'manual' && !draggingItem) return;
-                  event.preventDefault();
-                  if (draggingItem && dropGroup !== group) setDropGroup(group);
-                }}
-                onDragStart={() => setDraggingGroup(group)}
-                onDrop={(event) => onGroupDrop(event, group)}
-                title={mode === 'manual' ? `拖动分组 ${group} 排序` : undefined}
-                type="button"
-              >
-                <span>{collapsedGroups.has(group) ? <ChevronRight size={14} /> : <ChevronDown size={14} />}</span>
-                <span>{group}</span>
-                <span className="group-count">{items.length}</span>
-              </button>
-            ) : null}
-            {!group || !collapsedGroups.has(group) ? items.map((item) => (
-              <InstrumentCard
-                dragEnabled
-                dragging={draggingItem}
-                item={item}
-                key={item.id}
-                manualMode={mode === 'manual'}
-                onDragEnd={resetItemDrag}
-                onDragOver={(event) => mode === 'manual' && event.preventDefault()}
-                onDragStart={setDraggingItem}
-                onDrop={dropItemOn}
-                onManage={setManaging}
-                onSelect={onSelect}
-                selected={selected}
-              />
-            )) : null}
-          </div>
-        ))}
-      </div>
+      <InstrumentGroupList
+        collapsedGroups={collapsedGroups}
+        draggingGroup={draggingGroup}
+        draggingItem={draggingItem}
+        dropGroup={dropGroup}
+        grouped={grouped}
+        manualMode={mode === 'manual'}
+        onDragItemEnd={resetItemDrag}
+        onDragItemOver={(event) => mode === 'manual' && event.preventDefault()}
+        onDragItemStart={setDraggingItem}
+        onDropGroup={onGroupDrop}
+        onDropItem={dropItemOn}
+        onManage={setManaging}
+        onSelect={onSelect}
+        onSetDraggingGroup={setDraggingGroup}
+        onSetDropGroup={setDropGroup}
+        onToggleGroup={toggleGroup}
+        selected={selected}
+      />
       {directoryOpen ? (
         <InstrumentDirectory
           groups={groups}
@@ -254,14 +199,4 @@ export function InstrumentRail({ instruments, selected, groups, onSelect, onChan
       ) : null}
     </aside>
   );
-}
-
-function groupHeaderClass(group: string, draggingGroup: string, dropGroup: string) {
-  return [
-    'group-header',
-    draggingGroup === group ? 'dragging' : '',
-    dropGroup === group ? 'drop-target' : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
 }

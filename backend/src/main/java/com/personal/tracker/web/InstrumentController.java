@@ -44,8 +44,11 @@ public class InstrumentController {
   @GetMapping
   List<InstrumentView> list(
       @RequestParam(required = false) String kolId,
+      @RequestParam(defaultValue = "history") String scope,
       @RequestParam(required = false) String query) {
-    List<Instrument> items = kolId == null || kolId.isBlank()
+    List<Instrument> items = "current".equalsIgnoreCase(scope) && kolId != null && !kolId.isBlank()
+        ? instruments.findCurrentByKol(kolId, query)
+        : kolId == null || kolId.isBlank()
         ? instruments.findAll(query)
         : instruments.findByKol(kolId, query);
     Map<String, DailySnapshot> snapshots = marketBars.latestDailySnapshots(

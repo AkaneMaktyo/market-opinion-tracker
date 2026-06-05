@@ -1,0 +1,168 @@
+.resonance-panel {
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 32%),
+    linear-gradient(145deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.92));
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 24px;
+  box-shadow: 0 24px 60px rgba(2, 6, 23, 0.28);
+  color: #dbeafe;
+  padding: 18px;
+}
+
+.resonance-head,
+.resonance-card,
+.resonance-meta,
+.resonance-factors,
+.source-strip,
+.resonance-alert,
+.resonance-empty {
+  align-items: center;
+  display: flex;
+}
+
+.resonance-head {
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.resonance-head h2 {
+  color: #f8fafc;
+  font-size: 22px;
+  margin: 2px 0 0;
+}
+
+.resonance-list {
+  display: grid;
+  gap: 12px;
+}
+
+.resonance-card {
+  align-items: flex-start;
+  background: rgba(15, 23, 42, 0.68);
+  border: 1px solid rgba(125, 211, 252, 0.18);
+  border-radius: 20px;
+  gap: 14px;
+  overflow: hidden;
+  padding: 14px;
+  position: relative;
+}
+
+.resonance-card::before {
+  background: linear-gradient(180deg, #38bdf8, rgba(56, 189, 248, 0));
+  content: '';
+  height: 100%;
+  left: 0;
+  opacity: 0.8;
+  position: absolute;
+  top: 0;
+  width: 3px;
+}
+
+.resonance-card.strong::before {
+  background: linear-gradient(180deg, #f97316, rgba(249, 115, 22, 0));
+}
+
+.resonance-card.actionable::before {
+  background: linear-gradient(180deg, #22c55e, rgba(34, 197, 94, 0));
+}
+
+.resonance-score {
+  background: rgba(8, 47, 73, 0.88);
+  border: 1px solid rgba(125, 211, 252, 0.24);
+  border-radius: 18px;
+  min-width: 68px;
+  padding: 10px 8px;
+  text-align: center;
+}
+
+.resonance-score strong {
+  color: #f8fafc;
+  display: block;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.resonance-score span,
+.resonance-meta,
+.resonance-factors,
+.signal-line span,
+.source-strip span,
+.resonance-loading,
+.resonance-empty {
+  color: #93c5fd;
+  font-size: 12px;
+}
+
+.resonance-body {
+  flex: 1;
+}
+
+.resonance-meta,
+.resonance-factors,
+.source-strip {
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.resonance-body h3 {
+  color: #f8fafc;
+  font-size: 16px;
+  margin: 8px 0 6px;
+}
+
+.resonance-body p {
+  color: #cbd5e1;
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0 0 8px;
+}
+
+.resonance-factors span,
+.source-strip span {
+  background: rgba(30, 41, 59, 0.88);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 999px;
+  padding: 4px 8px;
+}
+
+.source-strip .conflict {
+  background: rgba(127, 29, 29, 0.7);
+  color: #fecaca;
+}
+
+.signal-line {
+  border-left: 2px solid rgba(56, 189, 248, 0.35);
+  padding-left: 8px;
+}
+
+.signal-line span {
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.resonance-alert,
+.resonance-message {
+  color: #fed7aa;
+}
+
+.resonance-message {
+  background: rgba(124, 45, 18, 0.36);
+  border-radius: 14px;
+  font-size: 13px;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+}
+
+.resonance-alert {
+  gap: 6px;
+}
+
+.resonance-empty,
+.resonance-loading {
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px dashed rgba(148, 163, 184, 0.22);
+  border-radius: 16px;
+  gap: 8px;
+  justify-content: center;
+  padding: 16px;
+}

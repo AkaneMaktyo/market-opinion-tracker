@@ -88,6 +88,7 @@ class WxPusherIngestionServiceTest {
             "CRYPTO",
             "BULLISH",
             "看多",
+            "OPEN",
             "短线",
             "继续看强",
             "",

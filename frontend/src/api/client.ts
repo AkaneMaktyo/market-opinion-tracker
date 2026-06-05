@@ -12,15 +12,20 @@ import type {
   Timeframe,
 } from '../types';
 import { json } from './http';
+import { positionApi } from './positions';
 import { wxpusherApi } from './wxpusher';
 
 export const api = {
   ...wxpusherApi,
+  ...positionApi,
   kols: () => json<Kol[]>('/api/kols'),
   createKol: (body: { name: string; description?: string }) =>
     json<Kol>('/api/kols', { method: 'POST', body: JSON.stringify(body) }),
-  instruments: (kolId?: string) => {
-    const query = kolId ? `?kolId=${encodeURIComponent(kolId)}` : '';
+  instruments: (kolId?: string, scope: 'history' | 'current' = 'history') => {
+    const params = new URLSearchParams();
+    if (kolId) params.set('kolId', kolId);
+    if (scope) params.set('scope', scope);
+    const query = params.toString() ? `?${params}` : '';
     return json<Instrument[]>(`/api/instruments${query}`);
   },
   sessions: (kolId?: string) => {
@@ -56,6 +61,7 @@ export const api = {
     market?: string;
     sector?: string;
     direction: string;
+    positionAction?: string;
     horizon: string;
     thesis: string;
     triggerCondition?: string;

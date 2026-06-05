@@ -1,6 +1,7 @@
 import { FileJson, Save, X } from 'lucide-react';
 import { useState } from 'react';
 import { api } from '../api/client';
+import type { PositionAction } from '../positionTypes';
 import type { Direction, ImportCandidate, ImportPreview } from '../types';
 
 interface Props {
@@ -13,6 +14,12 @@ const directions: { value: Direction; label: string }[] = [
   { value: 'BEARISH', label: '看空' },
   { value: 'RANGE', label: '震荡' },
   { value: 'WATCH', label: '观望' },
+];
+
+const positionActions: { value: PositionAction; label: string }[] = [
+  { value: 'IGNORE', label: '不改持仓' },
+  { value: 'OPEN', label: '加入持仓' },
+  { value: 'CLOSE', label: '移出持仓' },
 ];
 
 export function JsonImportPanel({ kolId, onImported }: Props) {
@@ -158,6 +165,14 @@ export function JsonImportPanel({ kolId, onImported }: Props) {
                 onChange={(event) => update(index, { horizon: event.target.value })}
                 placeholder="周期"
               />
+              <select
+                value={item.positionAction || 'IGNORE'}
+                onChange={(event) => update(index, { positionAction: event.target.value as PositionAction })}
+              >
+                {positionActions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
               <textarea
                 value={item.thesis}
                 onChange={(event) => update(index, { thesis: event.target.value })}

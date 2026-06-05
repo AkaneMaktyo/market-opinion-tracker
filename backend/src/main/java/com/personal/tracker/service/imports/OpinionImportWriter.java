@@ -42,6 +42,7 @@ public class OpinionImportWriter {
           item.market(),
           null,
           item.direction(),
+          item.positionAction(),
           value(item.horizon(), "未指定"),
           item.thesis(),
           item.triggerCondition(),

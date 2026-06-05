@@ -7,6 +7,7 @@ import { KolPicker } from './components/KolPicker';
 import { MarketSummaryPanel } from './components/MarketSummaryPanel';
 import { OpinionList } from './components/OpinionList';
 import { InstrumentRail } from './components/instruments/InstrumentRail';
+import { ResonancePanel } from './components/resonance/ResonancePanel';
 import { SourceManagerButton } from './components/sources/SourceManagerButton';
 import type {
   Instrument,
@@ -39,7 +40,7 @@ export default function App() {
   ) => {
     const [nextKols, nextInstruments, nextSessions, nextBackfill, nextGroups] = await Promise.all([
       api.kols(),
-      api.instruments(kolId),
+      api.instruments(kolId, 'current'),
       api.sessions(kolId),
       api.marketBackfill(),
       api.instrumentGroups(),
@@ -117,7 +118,7 @@ export default function App() {
 
   async function startBackfillCurrent() {
     if (!selected) {
-      setBackfillError('当前 KOL 还没有已入库品种');
+      setBackfillError('当前 KOL 还没有持仓品种');
       return;
     }
     setBackfillBusy(true);
@@ -153,7 +154,7 @@ export default function App() {
         />
         <SourceManagerButton onChanged={() => void load(selectedKol, selected, timeframe)} />
         <div className="stats">
-          <span>{instruments.length} 个品种</span>
+          <span>{instruments.length} 个当前持仓</span>
           <span>{opinions.length} 条当前观点</span>
           <span>{sessions.length} 场记录</span>
         </div>
@@ -181,6 +182,7 @@ export default function App() {
           />
         </div>
         <div className="right-column">
+          <ResonancePanel symbol={selected} />
           <MarketSummaryPanel sessions={sessions} />
           <OpinionList
             opinions={opinions}
@@ -193,9 +195,5 @@ export default function App() {
   );
 }
 
-function pickSelectedSymbol(instruments: Instrument[], requested: string) {
-  if (requested && instruments.some((item) => item.symbol === requested)) {
-    return requested;
-  }
-  return instruments[0]?.symbol || '';
-}
+const pickSelectedSymbol = (instruments: Instrument[], requested: string) =>
+  requested && instruments.some((item) => item.symbol === requested) ? requested : instruments[0]?.symbol || '';

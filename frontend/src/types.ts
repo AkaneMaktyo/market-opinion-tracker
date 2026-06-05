@@ -1,3 +1,5 @@
+import type { PositionAction } from './positionTypes';
+
 export type Direction = 'BULLISH' | 'BEARISH' | 'RANGE' | 'WATCH';
 export type Timeframe = '1H' | '4H' | '1D';
 
@@ -111,6 +113,7 @@ export interface ImportCandidate {
   market?: string;
   direction: Direction;
   rawDirection?: string;
+  positionAction?: PositionAction;
   horizon?: string;
   thesis: string;
   catalystsText?: string;

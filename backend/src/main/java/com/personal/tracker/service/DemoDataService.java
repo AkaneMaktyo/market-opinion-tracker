@@ -43,6 +43,7 @@ public class DemoDataService implements ApplicationRunner {
         "US",
         "AI",
         "BULLISH",
+        "",
         "短线",
         "回踩不破支撑，资金仍在高景气方向。",
         "放量突破前高",

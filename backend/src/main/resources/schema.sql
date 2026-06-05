@@ -230,3 +230,78 @@ CREATE TABLE IF NOT EXISTS wxpusher_consumer_state (
   UNIQUE KEY uq_wxpusher_consumer_message(consumer_name, message_key),
   INDEX idx_wxpusher_consumer_status(consumer_name, status, updated_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS kol_positions (
+  id VARCHAR(64) PRIMARY KEY,
+  kol_id VARCHAR(64) NOT NULL,
+  instrument_id VARCHAR(64) NOT NULL,
+  status VARCHAR(32) NOT NULL,
+  opened_at VARCHAR(64),
+  closed_at VARCHAR(64),
+  last_opinion_id VARCHAR(64),
+  last_action VARCHAR(32) NOT NULL,
+  created_at VARCHAR(64) NOT NULL,
+  updated_at VARCHAR(64) NOT NULL,
+  UNIQUE KEY uq_kol_position(kol_id, instrument_id),
+  INDEX idx_kol_position_status(kol_id, status, updated_at),
+  INDEX idx_kol_position_instrument(instrument_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS resonance_clusters (
+  id VARCHAR(64) PRIMARY KEY,
+  instrument_id VARCHAR(64) NOT NULL,
+  symbol VARCHAR(64) NOT NULL,
+  bucket_date VARCHAR(32) NOT NULL,
+  direction VARCHAR(32) NOT NULL,
+  horizon VARCHAR(64) NOT NULL,
+  score INT NOT NULL,
+  grade VARCHAR(32) NOT NULL,
+  action VARCHAR(64) NOT NULL,
+  summary TEXT,
+  trigger_text TEXT,
+  invalidation_text TEXT,
+  risk_text TEXT,
+  catalyst_text TEXT,
+  source_count INT NOT NULL,
+  opinion_count INT NOT NULL,
+  support_count INT NOT NULL,
+  conflict_count INT NOT NULL,
+  source_names TEXT,
+  last_opinion_at VARCHAR(64) NOT NULL,
+  status VARCHAR(32) NOT NULL,
+  alert_status VARCHAR(32) NOT NULL,
+  alert_error TEXT,
+  last_alert_at VARCHAR(64),
+  created_at VARCHAR(64) NOT NULL,
+  updated_at VARCHAR(64) NOT NULL,
+  UNIQUE KEY uq_resonance_key(instrument_id, bucket_date, direction, horizon),
+  INDEX idx_resonance_symbol(symbol, score, last_opinion_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS resonance_cluster_items (
+  id VARCHAR(64) PRIMARY KEY,
+  cluster_id VARCHAR(64) NOT NULL,
+  opinion_id VARCHAR(64) NOT NULL,
+  role VARCHAR(32) NOT NULL,
+  source_name VARCHAR(255) NOT NULL,
+  direction VARCHAR(32) NOT NULL,
+  horizon VARCHAR(64) NOT NULL,
+  thesis TEXT,
+  source_quote TEXT,
+  opinion_time VARCHAR(64) NOT NULL,
+  created_at VARCHAR(64) NOT NULL,
+  UNIQUE KEY uq_resonance_item(cluster_id, opinion_id),
+  INDEX idx_resonance_item_cluster(cluster_id, role)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS resonance_alerts (
+  id VARCHAR(64) PRIMARY KEY,
+  cluster_id VARCHAR(64) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  content TEXT NOT NULL,
+  status VARCHAR(32) NOT NULL,
+  error_message TEXT,
+  sent_at VARCHAR(64),
+  created_at VARCHAR(64) NOT NULL,
+  INDEX idx_resonance_alert_cluster(cluster_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

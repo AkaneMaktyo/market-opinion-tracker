@@ -1,6 +1,7 @@
 import { RadioTower } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import type { PositionsByKol, BloggerDraft } from './sourceTypes';
 import type {
   WxPusherBlogger,
   WxPusherMessage,
@@ -20,7 +21,7 @@ const defaultSettings: WxPusherSettings = {
   enableWebsocket: false,
 };
 
-const emptyDraft = { id: '', bloggerName: '', aliasesText: '', enabled: true };
+const emptyDraft: BloggerDraft = { id: '', bloggerName: '', aliasesText: '', enabled: true };
 
 export function SourceManagerButton({ onChanged }: { onChanged: () => void }) {
   const [open, setOpen] = useState(false);
@@ -31,6 +32,7 @@ export function SourceManagerButton({ onChanged }: { onChanged: () => void }) {
   const [bloggers, setBloggers] = useState<WxPusherBlogger[]>([]);
   const [messages, setMessages] = useState<WxPusherMessage[]>([]);
   const [draft, setDraft] = useState(emptyDraft);
+  const [positionsByKol, setPositionsByKol] = useState<PositionsByKol>({});
 
   async function loadAll() {
     setLoading(true);
@@ -41,10 +43,14 @@ export function SourceManagerButton({ onChanged }: { onChanged: () => void }) {
         api.wxpusherBloggers(),
         api.wxpusherMessages('FAILED', '', 30),
       ]);
+      const positionEntries = await Promise.all(
+        nextBloggers.map(async (blogger) => [blogger.kolId, await api.positions(blogger.kolId)] as const),
+      );
       setSettings({ ...defaultSettings, ...nextSettings });
       setStatus(nextStatus);
       setBloggers(nextBloggers);
       setMessages(nextMessages);
+      setPositionsByKol(Object.fromEntries(positionEntries));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '读取来源配置失败');
     } finally {
@@ -99,6 +105,39 @@ export function SourceManagerButton({ onChanged }: { onChanged: () => void }) {
     }
   }
 
+  async function addPosition(kolId: string, symbol: string) {
+    const value = symbol.trim().toUpperCase();
+    if (!value) {
+      setMessage('请先填写持仓代码');
+      return;
+    }
+    setMessage('');
+    setLoading(true);
+    try {
+      await api.openPosition({ kolId, symbol: value });
+      await loadAll();
+      onChanged();
+      setMessage(`已加入当前持仓：${value}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '添加持仓失败');
+      setLoading(false);
+    }
+  }
+
+  async function closePosition(id: string) {
+    setMessage('');
+    setLoading(true);
+    try {
+      await api.closePosition(id);
+      await loadAll();
+      onChanged();
+      setMessage('已移出当前持仓');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '移出持仓失败');
+      setLoading(false);
+    }
+  }
+
   function editBlogger(blogger: WxPusherBlogger) {
     setDraft({
       id: blogger.id,
@@ -135,12 +174,15 @@ export function SourceManagerButton({ onChanged }: { onChanged: () => void }) {
           loading={loading}
           message={message}
           messages={messages}
+          onAddPosition={(kolId, symbol) => void addPosition(kolId, symbol)}
+          onClosePosition={(id) => void closePosition(id)}
           onClose={() => setOpen(false)}
           onEditBlogger={editBlogger}
           onRefresh={() => void loadAll()}
           onRetryMessage={(id) => void retryMessage(id)}
           onSaveBlogger={() => void saveBlogger()}
           onSaveSettings={() => void saveSettings()}
+          positionsByKol={positionsByKol}
           setDraft={setDraft}
           setMessage={setMessage}
           setSettings={setSettings}

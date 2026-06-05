@@ -1,0 +1,12 @@
+.candidate {
+  align-items: stretch;
+  border-top: 1px solid #e2e8f0;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 28px 90px 94px 80px 110px minmax(180px, 1fr) 120px;
+  padding: 10px 0;
+}
+
+.candidate textarea {
+  min-height: 58px;
+}

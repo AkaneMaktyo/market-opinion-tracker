@@ -61,6 +61,24 @@ public class InstrumentRepository {
     return jdbc.query(sql.toString(), mapper, args.toArray());
   }
 
+  public List<Instrument> findCurrentByKol(String kolId, String query) {
+    List<Object> args = new java.util.ArrayList<>();
+    StringBuilder sql = new StringBuilder("""
+        SELECT DISTINCT i.* FROM instruments i
+        JOIN kol_positions p ON p.instrument_id = i.id
+        WHERE p.kol_id = ? AND p.status = 'ACTIVE'
+        """);
+    args.add(kolId == null || kolId.isBlank() ? KolRepository.DEFAULT_ID : kolId.trim());
+    if (query != null && !query.isBlank()) {
+      String like = "%" + query.trim().toUpperCase() + "%";
+      sql.append(" AND (i.symbol LIKE ? OR UPPER(COALESCE(i.name, '')) LIKE ?)");
+      args.add(like);
+      args.add(like);
+    }
+    sql.append(" ORDER BY i.symbol");
+    return jdbc.query(sql.toString(), mapper, args.toArray());
+  }
+
   public Optional<Instrument> findBySymbol(String symbol) {
     List<Instrument> rows = jdbc.query(
         "SELECT * FROM instruments WHERE symbol = ?",

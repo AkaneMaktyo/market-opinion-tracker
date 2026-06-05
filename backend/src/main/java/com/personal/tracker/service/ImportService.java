@@ -72,6 +72,7 @@ public class ImportService {
       String market,
       String direction,
       String rawDirection,
+      String positionAction,
       String horizon,
       String thesis,
       String catalystsText,

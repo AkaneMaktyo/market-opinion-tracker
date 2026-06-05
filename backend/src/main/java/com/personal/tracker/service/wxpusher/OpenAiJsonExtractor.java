@@ -35,6 +35,7 @@ public class OpenAiJsonExtractor {
             "代码": "",
             "市场": "",
             "方向": "",
+            "持仓动作": "",
             "周期": "",
             "关键判断": "",
             "催化": [],
@@ -47,6 +48,7 @@ public class OpenAiJsonExtractor {
         "待确认映射": {}
       }
       只保留可交易品种，方向优先使用 看多/看空/震荡/观望/谨慎。
+      持仓动作只能输出 OPEN/CLOSE/IGNORE：买入、建仓、开仓、加仓、持有、继续持有为 OPEN；卖出、清仓、平仓、止盈、止损、退出、减仓到零为 CLOSE；普通看空或只观察为 IGNORE。
       市场使用 US/HK/CRYPTO/UNKNOWN。
       没有明确交易观点时，按具体品种划分输出空数组。
       """;

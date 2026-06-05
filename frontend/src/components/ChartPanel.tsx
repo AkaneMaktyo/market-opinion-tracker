@@ -160,7 +160,7 @@ export function ChartPanel({
       />
       {!symbol ? (
         <div className="chart chart-empty">
-          <span>当前 KOL 还没有已入库品种</span>
+          <span>当前 KOL 还没有当前持仓</span>
         </div>
       ) : chartBars.length === 0 ? (
         <div className="chart chart-empty">
