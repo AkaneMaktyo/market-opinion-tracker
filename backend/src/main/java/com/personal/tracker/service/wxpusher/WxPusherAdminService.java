@@ -9,11 +9,19 @@ import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository.WxPush
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository.UpdateCommand;
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository.WxPusherSettings;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 
 @Service
 public class WxPusherAdminService {
+  private static final List<DefaultBlogger> DEFAULT_BLOGGERS = List.of(
+      new DefaultBlogger("华尔街阿宝分享", List.of("华尔街阿宝", "阿宝")),
+      new DefaultBlogger("猫姐会员频道", List.of("猫姐")),
+      new DefaultBlogger("幂笈投资", List.of("幂笈")),
+      new DefaultBlogger("牛顿师兄", List.of("牛顿")),
+      new DefaultBlogger("美股投资网", List.of("美股投资网")));
   private final KolRepository kols;
   private final WxPusherSettingsRepository settingsRepository;
   private final WxPusherBloggerRepository bloggerRepository;
@@ -50,6 +58,7 @@ public class WxPusherAdminService {
   }
 
   public StatusView status() {
+    List<WxPusherBlogger> bloggers = ensureDefaultBloggers();
     var runtime = lifecycle.runtimeState();
     var settings = settingsRepository.get();
     var llm = aiExtractor.health();
@@ -65,8 +74,8 @@ public class WxPusherAdminService {
         issue.isBlank() ? runtimeError : issue,
         settings.enablePolling(),
         settings.enableWebsocket(),
-        bloggerRepository.list().size(),
-        bloggerRepository.enabled().size(),
+        bloggers.size(),
+        bloggers.stream().filter(WxPusherBlogger::enabled).map(WxPusherBlogger::id).distinct().toList().size(),
         llm.configured(),
         llm.reachable(),
         llm.message(),
@@ -74,7 +83,7 @@ public class WxPusherAdminService {
   }
 
   public List<WxPusherBlogger> bloggers() {
-    return bloggerRepository.list();
+    return ensureDefaultBloggers();
   }
 
   public WxPusherBlogger createBlogger(BloggerCommand command) {
@@ -124,6 +133,39 @@ public class WxPusherAdminService {
         || !current.aliases().equals(command.aliases()));
   }
 
+  private List<WxPusherBlogger> ensureDefaultBloggers() {
+    List<WxPusherBlogger> current = bloggerRepository.list();
+    Set<String> names = current.stream()
+        .map(WxPusherBlogger::bloggerName)
+        .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+    boolean changed = false;
+    for (DefaultBlogger blogger : DEFAULT_BLOGGERS) {
+      if (names.contains(blogger.name())) {
+        continue;
+      }
+      createDefaultBlogger(blogger);
+      names.add(blogger.name());
+      changed = true;
+    }
+    if (changed) {
+      lifecycle.refresh();
+      return bloggerRepository.list();
+    }
+    return current;
+  }
+
+  private void createDefaultBlogger(DefaultBlogger blogger) {
+    var kol = kols.save(blogger.name(), "WxPusher 博主");
+    bloggerRepository.create(new SaveCommand(
+        null,
+        kol.id(),
+        blogger.name(),
+        blogger.aliases(),
+        true,
+        "LAST_30",
+        null));
+  }
+
   private String websocketState(
       WxPusherSettings settings,
       WxPusherMonitorLifecycle.RuntimeState runtime) {
@@ -160,5 +202,8 @@ public class WxPusherAdminService {
       boolean llmReachable,
       String llmMessage,
       String llmCheckedAt) {
+  }
+
+  private record DefaultBlogger(String name, List<String> aliases) {
   }
 }

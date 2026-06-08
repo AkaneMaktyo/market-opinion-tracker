@@ -5,7 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -22,6 +24,35 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 class WxPusherAdminServiceTest {
+  @Test
+  void bloggersAutoSeedDefaultWatchlist() {
+    var kols = mock(KolRepository.class);
+    var settingsRepository = mock(WxPusherSettingsRepository.class);
+    var bloggerRepository = mock(WxPusherBloggerRepository.class);
+    var messageRepository = mock(WxPusherMessageRepository.class);
+    var aiExtractor = mock(OpenAiJsonExtractor.class);
+    var ingestion = mock(WxPusherIngestionService.class);
+    var lifecycle = mock(WxPusherMonitorLifecycle.class);
+    var service = new WxPusherAdminService(
+        kols,
+        settingsRepository,
+        bloggerRepository,
+        messageRepository,
+        aiExtractor,
+        ingestion,
+        lifecycle);
+    when(kols.save(anyString(), anyString()))
+        .thenAnswer(call -> new Kol("kol-" + call.getArgument(0), call.getArgument(0), call.getArgument(1), "now"));
+    when(bloggerRepository.list()).thenReturn(List.of(), List.of(
+        blogger("华尔街阿宝分享"), blogger("猫姐会员频道"), blogger("幂笈投资"), blogger("牛顿师兄"), blogger("美股投资网")));
+
+    var bloggers = service.bloggers();
+
+    verify(bloggerRepository, times(5)).create(any(SaveCommand.class));
+    verify(lifecycle).refresh();
+    assertEquals(5, bloggers.size());
+  }
+
   @Test
   void createBloggerSyncsKolAndRequestsRefresh() {
     var kols = mock(KolRepository.class);
@@ -112,7 +143,12 @@ class WxPusherAdminServiceTest {
         lifecycle);
     when(settingsRepository.get()).thenReturn(new WxPusherSettings(
         "default", "", "", "", "Chrome-Windows", "1.1.1", 60, true, true, "", "", "", "", ""));
-    when(bloggerRepository.list()).thenReturn(List.of());
+    when(bloggerRepository.list()).thenReturn(List.of(
+        blogger("华尔街阿宝分享"),
+        blogger("猫姐会员频道"),
+        blogger("幂笈投资"),
+        blogger("牛顿师兄"),
+        blogger("美股投资网")));
     when(bloggerRepository.enabled()).thenReturn(List.of());
     when(aiExtractor.health()).thenReturn(new OpenAiJsonExtractor.HealthStatus(false, false, "未配置", null));
     when(lifecycle.runtimeState()).thenReturn(new WxPusherMonitorLifecycle.RuntimeState(
@@ -124,5 +160,9 @@ class WxPusherAdminServiceTest {
     assertEquals("ERROR", status.websocketState());
     assertTrue(status.lastError().contains("WXPUSHER_DEVICE_TOKEN"));
     assertTrue(status.lastError().contains("WXPUSHER_PUSH_TOKEN"));
+  }
+
+  private WxPusherBlogger blogger(String name) {
+    return new WxPusherBlogger("id-" + name, "kol-" + name, name, List.of(), true, "LAST_30", null, "now", "now");
   }
 }

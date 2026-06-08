@@ -39,6 +39,12 @@ export interface ResonanceView {
   items: ResonanceItem[];
 }
 
+export interface ResonanceAlertStatus {
+  minScore: number;
+  pushReady: boolean;
+  message: string;
+}
+
 export const resonanceApi = {
   list: (symbol = '', limit = 8) => {
     const params = new URLSearchParams();
@@ -46,6 +52,7 @@ export const resonanceApi = {
     params.set('limit', String(limit));
     return json<ResonanceView[]>(`/api/resonance?${params}`);
   },
+  status: () => json<ResonanceAlertStatus>('/api/resonance/status'),
   refresh: (symbol: string) =>
     json<ResonanceView[]>(
       `/api/resonance/refresh?symbol=${encodeURIComponent(symbol)}`,

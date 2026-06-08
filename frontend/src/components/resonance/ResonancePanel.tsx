@@ -1,10 +1,15 @@
 import { AlertTriangle, Bell, Radar, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { resonanceApi, type ResonanceView } from '../../api/resonance';
+import {
+  resonanceApi,
+  type ResonanceAlertStatus,
+  type ResonanceView,
+} from '../../api/resonance';
 import './resonance.css';
 
 export function ResonancePanel({ symbol }: { symbol: string }) {
   const [items, setItems] = useState<ResonanceView[]>([]);
+  const [status, setStatus] = useState<ResonanceAlertStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -12,7 +17,12 @@ export function ResonancePanel({ symbol }: { symbol: string }) {
     setLoading(true);
     setMessage('');
     try {
-      setItems(await resonanceApi.list(symbol, symbol ? 6 : 8));
+      const [nextItems, nextStatus] = await Promise.all([
+        resonanceApi.list(symbol, symbol ? 6 : 8),
+        resonanceApi.status(),
+      ]);
+      setItems(nextItems);
+      setStatus(nextStatus);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '读取共振雷达失败');
     } finally {
@@ -28,7 +38,12 @@ export function ResonancePanel({ symbol }: { symbol: string }) {
     setLoading(true);
     setMessage('');
     try {
-      setItems(await resonanceApi.refresh(symbol));
+      const [nextItems, nextStatus] = await Promise.all([
+        resonanceApi.refresh(symbol),
+        resonanceApi.status(),
+      ]);
+      setItems(nextItems);
+      setStatus(nextStatus);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '刷新共振失败');
     } finally {
@@ -51,6 +66,12 @@ export function ResonancePanel({ symbol }: { symbol: string }) {
           <RefreshCw size={16} />
         </button>
       </div>
+      {status ? (
+        <div className={`resonance-tip ${status.pushReady ? 'ready' : 'warn'}`}>
+          <Bell size={14} />
+          {status.message}
+        </div>
+      ) : null}
       {message ? <div className="resonance-message">{message}</div> : null}
       {items.length === 0 && !loading ? (
         <div className="resonance-empty">
@@ -142,10 +163,10 @@ function gradeLabel(value: string) {
 }
 
 function alertLabel(value: string) {
-  if (value === 'SENT') return <><Bell size={12} />已提醒</>;
-  if (value === 'WAITING_CONFIG') return '待配置推送';
-  if (value === 'FAILED') return '提醒失败';
-  return '未提醒';
+  if (value === 'SENT') return <><Bell size={12} />已推送</>;
+  if (value === 'WAITING_CONFIG') return '待配推送';
+  if (value === 'FAILED') return '推送失败';
+  return '未触发推送';
 }
 
 function trimTime(value?: string) {

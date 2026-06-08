@@ -1,6 +1,7 @@
 package com.personal.tracker.web.resonance;
 
 import com.personal.tracker.service.resonance.ResonanceService;
+import com.personal.tracker.service.resonance.ResonanceNotifier.AlertStatusView;
 import com.personal.tracker.service.resonance.ResonanceService.ResonanceView;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +24,11 @@ public class ResonanceController {
       @RequestParam(required = false) String symbol,
       @RequestParam(defaultValue = "20") int limit) {
     return resonance.list(symbol, limit);
+  }
+
+  @GetMapping("/status")
+  AlertStatusView status() {
+    return resonance.alertStatus();
   }
 
   @PostMapping("/refresh")

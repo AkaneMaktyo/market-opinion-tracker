@@ -14,6 +14,7 @@ import com.personal.tracker.repository.resonance.ResonanceRepository.ClusterReco
 import com.personal.tracker.repository.resonance.ResonanceRepository.ItemDraft;
 import com.personal.tracker.repository.resonance.ResonanceRepository.OpinionSignal;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -23,11 +24,17 @@ class ResonanceServiceTest {
     var repository = mock(ResonanceRepository.class);
     var notifier = mock(ResonanceNotifier.class);
     var service = new ResonanceService(repository, notifier);
+    var saved = new AtomicReference<ClusterDraft>();
     when(repository.recentSignals("NVDA", 200)).thenReturn(List.of(
         signal("o1", "Alpha", "BULLISH", "NVDA"),
         signal("o2", "Beta", "BULLISH", "NVDA"),
         signal("o3", "Gamma", "BULLISH", "NVDA")));
-    when(repository.save(any())).thenAnswer(call -> cluster(call.getArgument(0)));
+    when(repository.save(any())).thenAnswer(call -> {
+      ClusterDraft draft = call.getArgument(0);
+      saved.set(draft);
+      return cluster(draft);
+    });
+    when(repository.cluster(any())).thenAnswer(call -> cluster(saved.get()));
     when(repository.items(any())).thenReturn(List.of(item("o1", "SUPPORT")));
 
     var result = service.refreshForSymbol("NVDA");
@@ -46,12 +53,18 @@ class ResonanceServiceTest {
     var repository = mock(ResonanceRepository.class);
     var notifier = mock(ResonanceNotifier.class);
     var service = new ResonanceService(repository, notifier);
+    var saved = new AtomicReference<ClusterDraft>();
     when(repository.recentSignals("TSLA", 200)).thenReturn(List.of(
         signal("o1", "Alpha", "BULLISH", "TSLA"),
         signal("o2", "Beta", "BULLISH", "TSLA"),
         signal("o3", "Gamma", "BULLISH", "TSLA"),
         signal("o4", "Delta", "BEARISH", "TSLA")));
-    when(repository.save(any())).thenAnswer(call -> cluster(call.getArgument(0)));
+    when(repository.save(any())).thenAnswer(call -> {
+      ClusterDraft draft = call.getArgument(0);
+      saved.set(draft);
+      return cluster(draft);
+    });
+    when(repository.cluster(any())).thenAnswer(call -> cluster(saved.get()));
     when(repository.items(any())).thenReturn(List.of(item("o1", "SUPPORT"), item("o4", "CONFLICT")));
 
     service.refreshForSymbol("TSLA");

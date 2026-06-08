@@ -145,6 +145,26 @@
   color: #fed7aa;
 }
 
+.resonance-tip {
+  align-items: center;
+  border-radius: 14px;
+  display: flex;
+  font-size: 13px;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+}
+
+.resonance-tip.ready {
+  background: rgba(20, 83, 45, 0.35);
+  color: #bbf7d0;
+}
+
+.resonance-tip.warn {
+  background: rgba(124, 45, 18, 0.36);
+  color: #fed7aa;
+}
+
 .resonance-message {
   background: rgba(124, 45, 18, 0.36);
   border-radius: 14px;

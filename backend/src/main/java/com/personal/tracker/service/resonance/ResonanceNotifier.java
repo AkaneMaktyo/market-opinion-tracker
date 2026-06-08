@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class ResonanceNotifier {
+  private static final int DEFAULT_MIN_SCORE = 70;
   private static final String SEND_URL = "https://wxpusher.zjiecode.com/api/send/message";
   private final Environment environment;
   private final ObjectMapper mapper;
@@ -51,6 +52,20 @@ public class ResonanceNotifier {
     String status = result.ok() ? "SENT" : result.status();
     repository.createAlert(new AlertDraft(cluster.id(), title, content, status, result.error(), sentAt));
     repository.markAlert(cluster.id(), status, result.error(), sentAt);
+  }
+
+  public AlertStatusView status() {
+    int minScore = minScore();
+    if (hasSptTarget() || hasAppTarget()) {
+      return new AlertStatusView(
+          minScore,
+          true,
+          "分数达到 %d 分的共振会自动推送到 WxPusher。".formatted(minScore));
+    }
+    return new AlertStatusView(
+        minScore,
+        false,
+        "分数达到 %d 分才会推送，但当前服务端还没配置 WxPusher 推送凭证。".formatted(minScore));
   }
 
   private NotifyResult send(String title, String content) {
@@ -160,10 +175,21 @@ public class ResonanceNotifier {
   private int minScore() {
     String value = env("RESONANCE_ALERT_MIN_SCORE", "");
     try {
-      return value.isBlank() ? 85 : Integer.parseInt(value);
+      return value.isBlank() ? DEFAULT_MIN_SCORE : Integer.parseInt(value);
     } catch (NumberFormatException error) {
-      return 85;
+      return DEFAULT_MIN_SCORE;
     }
+  }
+
+  private boolean hasSptTarget() {
+    return !env("RESONANCE_WXPUSHER_SPT", "POSITION_NOTIFY_WXPUSHER_SPT").isBlank();
+  }
+
+  private boolean hasAppTarget() {
+    String token = env("RESONANCE_WXPUSHER_APP_TOKEN", "POSITION_NOTIFY_WXPUSHER_APP_TOKEN");
+    List<String> uids = listEnv("RESONANCE_WXPUSHER_UIDS", "POSITION_NOTIFY_WXPUSHER_UIDS");
+    List<Integer> topics = topicIds("RESONANCE_WXPUSHER_TOPIC_IDS", "POSITION_NOTIFY_WXPUSHER_TOPIC_IDS");
+    return !token.isBlank() && (!uids.isEmpty() || !topics.isEmpty());
   }
 
   private List<String> listEnv(String primary, String fallback) {
@@ -203,6 +229,9 @@ public class ResonanceNotifier {
 
   private String blank(String value, String fallback) {
     return value == null || value.isBlank() ? fallback : value.trim();
+  }
+
+  public record AlertStatusView(int minScore, boolean pushReady, String message) {
   }
 
   private record NotifyResult(boolean ok, String status, String error) {

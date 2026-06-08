@@ -84,6 +84,11 @@ public class ResonanceRepository {
         """, itemMapper, clusterId);
   }
 
+  public ClusterRecord cluster(String id) {
+    ensureSchema();
+    return findById(id).orElseThrow(() -> new IllegalArgumentException("共振簇不存在"));
+  }
+
   @Transactional
   public ClusterRecord save(ClusterDraft draft) {
     ensureSchema();

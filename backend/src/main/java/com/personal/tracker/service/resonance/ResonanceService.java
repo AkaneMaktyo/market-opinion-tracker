@@ -6,6 +6,7 @@ import com.personal.tracker.repository.resonance.ResonanceRepository.ClusterItem
 import com.personal.tracker.repository.resonance.ResonanceRepository.ClusterRecord;
 import com.personal.tracker.repository.resonance.ResonanceRepository.ItemDraft;
 import com.personal.tracker.repository.resonance.ResonanceRepository.OpinionSignal;
+import com.personal.tracker.service.resonance.ResonanceNotifier.AlertStatusView;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -36,6 +37,10 @@ public class ResonanceService {
     return repository.list(symbol, null, limit).stream()
         .map(cluster -> new ResonanceView(cluster, repository.items(cluster.id())))
         .toList();
+  }
+
+  public AlertStatusView alertStatus() {
+    return notifier.status();
   }
 
   public List<ResonanceView> refreshForSymbol(String symbol) {
@@ -93,7 +98,7 @@ public class ResonanceService {
     repository.replaceItems(saved.id(), items);
     List<ClusterItem> viewItems = repository.items(saved.id());
     notifier.notifyIfNeeded(saved, viewItems);
-    return new ResonanceView(saved, viewItems);
+    return new ResonanceView(repository.cluster(saved.id()), viewItems);
   }
 
   private List<OpinionSignal> latestWindow(List<OpinionSignal> signals) {
