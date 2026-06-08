@@ -7,6 +7,10 @@ logs/
 .codex-logs/
 .claude/
 .codex/
+!.codex/
+!.codex/scripts/
+!.codex/scripts/start-dev.ps1
+.codegraph/
 .idea/
 .vscode/
 *.iml
