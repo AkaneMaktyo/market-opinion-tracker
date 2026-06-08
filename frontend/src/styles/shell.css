@@ -49,6 +49,23 @@
   margin-left: auto;
 }
 
+.manual-position {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.manual-position input {
+  height: 34px;
+  max-width: 120px;
+}
+
+.manual-position-message {
+  color: #0f766e;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 .workspace {
   align-items: stretch;
   display: grid;

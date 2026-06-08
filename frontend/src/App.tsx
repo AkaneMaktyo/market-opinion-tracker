@@ -4,6 +4,7 @@ import { AppBrand } from './components/brand/AppBrand';
 import { ChartPanel } from './components/ChartPanel';
 import { JsonImportPanel } from './components/JsonImportPanel';
 import { KolPicker } from './components/KolPicker';
+import { ManualPositionForm } from './components/ManualPositionForm';
 import { MarketSummaryPanel } from './components/MarketSummaryPanel';
 import { OpinionList } from './components/OpinionList';
 import { InstrumentRail } from './components/instruments/InstrumentRail';
@@ -38,13 +39,14 @@ export default function App() {
     symbol = selected,
     frame = timeframe,
   ) => {
-    const [nextKols, nextInstruments, nextSessions, nextBackfill, nextGroups] = await Promise.all([
+    const [nextKols, currentInstruments, nextSessions, nextBackfill, nextGroups] = await Promise.all([
       api.kols(),
       api.instruments(kolId, 'current'),
       api.sessions(kolId),
       api.marketBackfill(),
       api.instrumentGroups(),
     ]);
+    const nextInstruments = currentInstruments.length ? currentInstruments : await api.instruments(kolId, 'history');
     const nextSelected = pickSelectedSymbol(nextInstruments, symbol);
     const [nextBars, nextOpinions] = nextSelected
       ? await Promise.all([
@@ -153,20 +155,15 @@ export default function App() {
           }}
         />
         <SourceManagerButton onChanged={() => void load(selectedKol, selected, timeframe)} />
+        <ManualPositionForm defaultSymbol={selected} kolId={selectedKol} onAdded={refreshSelected} />
         <div className="stats">
-          <span>{instruments.length} 个当前持仓</span>
+          <span>{instruments.length} 个相关标的</span>
           <span>{opinions.length} 条当前观点</span>
           <span>{sessions.length} 场记录</span>
         </div>
       </header>
       <div className="workspace">
-        <InstrumentRail
-          groups={instrumentGroups}
-          instruments={instruments}
-          onChanged={refreshSelected}
-          onSelect={select}
-          selected={selected}
-        />
+        <InstrumentRail groups={instrumentGroups} instruments={instruments} onChanged={refreshSelected} onSelect={select} selected={selected} />
         <div className="center">
           <ChartPanel
             backfill={backfill}

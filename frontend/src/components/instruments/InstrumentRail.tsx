@@ -16,11 +16,8 @@ const SORT_STORAGE_KEY = 'market-opinion-instrument-sort';
 const COLLAPSED_GROUPS_KEY = 'market-opinion-collapsed-groups';
 
 interface Props {
-  instruments: Instrument[];
-  selected: string;
-  groups: string[];
-  onSelect: (symbol: string) => void;
-  onChanged: (nextSelected?: string) => void;
+  instruments: Instrument[]; selected: string; groups: string[];
+  onSelect: (symbol: string) => void; onChanged: (nextSelected?: string) => void;
 }
 
 export function InstrumentRail({ instruments, selected, groups, onSelect, onChanged }: Props) {
@@ -136,7 +133,7 @@ export function InstrumentRail({ instruments, selected, groups, onSelect, onChan
     <aside className="rail">
       <div className="rail-head">
         <div>
-          <div className="panel-title">当前持仓</div>
+          <div className="panel-title">相关标的</div>
           <span className="rail-note">{mode === 'manual' ? '拖动排序' : '行情排序'}</span>
         </div>
         <button className="rail-manage" onClick={() => setDirectoryOpen(true)} type="button">

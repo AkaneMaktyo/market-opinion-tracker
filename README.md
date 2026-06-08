@@ -72,6 +72,12 @@ frontend/
 
 ### 2. 启动后端
 
+可先执行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy/start-db-tunnel.ps1 -SshPassword "<你的 SSH 密码>"
+```
+
 ```powershell
 cd D:\_code\personal\market-opinion-tracker\backend
 mvn -DskipTests package
