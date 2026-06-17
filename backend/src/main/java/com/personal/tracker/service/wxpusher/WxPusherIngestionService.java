@@ -1,5 +1,7 @@
 package com.personal.tracker.service.wxpusher;
 
+import com.personal.tracker.domain.LiveSession;
+import com.personal.tracker.repository.SessionRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository.WxPusherBlogger;
 import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository;
@@ -18,6 +20,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class WxPusherIngestionService {
   private static final String CONSUMER_NAME = "market_opinion_tracker";
+  private final SessionRepository sessionRepository;
   private final WxPusherSettingsRepository settingsRepository;
   private final WxPusherBloggerRepository bloggerRepository;
   private final WxPusherMessageRepository messageRepository;
@@ -28,6 +31,7 @@ public class WxPusherIngestionService {
   private final OpinionImportWriter writer;
 
   public WxPusherIngestionService(
+      SessionRepository sessionRepository,
       WxPusherSettingsRepository settingsRepository,
       WxPusherBloggerRepository bloggerRepository,
       WxPusherMessageRepository messageRepository,
@@ -36,6 +40,7 @@ public class WxPusherIngestionService {
       OpenAiJsonExtractor aiExtractor,
       JsonOpinionParser parser,
       OpinionImportWriter writer) {
+    this.sessionRepository = sessionRepository;
     this.settingsRepository = settingsRepository;
     this.bloggerRepository = bloggerRepository;
     this.messageRepository = messageRepository;
@@ -58,6 +63,15 @@ public class WxPusherIngestionService {
 
   public void ingest(WxPusherClient.IncomingMessage incoming) {
     matchBlogger(incoming).ifPresent(blogger -> processMatched(incoming, blogger, null));
+  }
+
+  public int ensureMessageSessions(int limit) {
+    int hydrated = 0;
+    for (WxPusherMessage message : messageRepository.listMissingSessions(limit)) {
+      ensureSession(message, storedText(message));
+      hydrated++;
+    }
+    return hydrated;
   }
 
   public void seedHistory() {
@@ -124,8 +138,10 @@ public class WxPusherIngestionService {
     saveSharedState(sharedMessageKey, "PROCESSING", "", message.id());
     String detailText = fallbackText(message);
     String llmJson = "";
+    String sessionId = "";
     try {
       detailText = fetchDetail(message);
+      sessionId = ensureSession(message, detailText);
       llmJson = aiExtractor.extract(
           message.bloggerName(),
           message.title(),
@@ -137,11 +153,12 @@ public class WxPusherIngestionService {
         throw new IllegalStateException("模型没有提取到任何可入库观点");
       }
       var result = writer.write(
+          sessionId,
           message.kolId(),
-          "WxPusher / " + message.bloggerName() + " / " + message.messageTime(),
+          sessionTitle(message),
           sessionDate(message.messageTime()),
           "WXPUSHER_AUTO",
-          llmJson,
+          detailText,
           preview.candidates());
       messageRepository.markImported(message.id(), detailText, llmJson, result.sessionId());
       saveSharedState(sharedMessageKey, "IMPORTED", "", message.id());
@@ -149,6 +166,24 @@ public class WxPusherIngestionService {
       messageRepository.markFailed(message.id(), detailText, llmJson, error.getMessage());
       saveSharedState(sharedMessageKey, "FAILED", error.getMessage(), message.id());
     }
+  }
+
+  private String ensureSession(WxPusherMessage message, String detailText) {
+    if (message.sessionId() != null && !message.sessionId().isBlank()) {
+      return message.sessionId();
+    }
+    LiveSession session = sessionRepository.create(
+        message.kolId(),
+        sessionDate(message.messageTime()),
+        sessionTitle(message),
+        "WXPUSHER_AUTO",
+        detailText);
+    messageRepository.attachSession(message.id(), session.id());
+    return session.id();
+  }
+
+  private String sessionTitle(WxPusherMessage message) {
+    return "WxPusher / " + message.bloggerName() + " / " + message.messageTime();
   }
 
   private String fetchDetail(WxPusherMessage message) {
@@ -168,6 +203,13 @@ public class WxPusherIngestionService {
         .filter(item -> item != null && !item.isBlank())
         .reduce((left, right) -> left + "\n" + right)
         .orElse("");
+  }
+
+  private String storedText(WxPusherMessage message) {
+    if (message.detailText() != null && !message.detailText().isBlank()) {
+      return message.detailText();
+    }
+    return fallbackText(message);
   }
 
   private void saveSharedState(String messageKey, String status, String errorMessage, String derivedId) {

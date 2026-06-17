@@ -1,11 +1,13 @@
 package com.personal.tracker.web.wxpusher;
 
-import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository.WxPusherBlogger;
 import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository.WxPusherMessage;
+import com.personal.tracker.repository.wxpusher.WxPusherNotifySettingsRepository;
+import com.personal.tracker.repository.wxpusher.WxPusherNotifySettingsRepository.WxPusherNotifySettings;
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository.UpdateCommand;
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository.WxPusherSettings;
 import com.personal.tracker.service.wxpusher.WxPusherAdminService;
 import com.personal.tracker.service.wxpusher.WxPusherAdminService.BloggerCommand;
+import com.personal.tracker.service.wxpusher.WxPusherAdminService.BloggerView;
 import com.personal.tracker.service.wxpusher.WxPusherAdminService.StatusView;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,9 +23,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/wxpusher")
 public class WxPusherController {
   private final WxPusherAdminService admin;
+  private final WxPusherNotifySettingsRepository notifySettingsRepository;
 
-  public WxPusherController(WxPusherAdminService admin) {
+  public WxPusherController(
+      WxPusherAdminService admin,
+      WxPusherNotifySettingsRepository notifySettingsRepository) {
     this.admin = admin;
+    this.notifySettingsRepository = notifySettingsRepository;
   }
 
   @GetMapping("/settings")
@@ -44,18 +50,32 @@ public class WxPusherController {
         request.enableWebsocket()));
   }
 
+  @GetMapping("/notify-settings")
+  WxPusherNotifySettings notifySettings() {
+    return notifySettingsRepository.get();
+  }
+
+  @PutMapping("/notify-settings")
+  WxPusherNotifySettings updateNotifySettings(@RequestBody NotifySettingsRequest request) {
+    return notifySettingsRepository.update(new WxPusherNotifySettingsRepository.UpdateCommand(
+        request.spt(),
+        request.appToken(),
+        request.uids(),
+        request.topicIds()));
+  }
+
   @GetMapping("/status")
   StatusView status() {
     return admin.status();
   }
 
   @GetMapping("/bloggers")
-  List<WxPusherBlogger> bloggers() {
+  List<BloggerView> bloggers() {
     return admin.bloggers();
   }
 
   @PostMapping("/bloggers")
-  WxPusherBlogger createBlogger(@RequestBody BloggerRequest request) {
+  BloggerView createBlogger(@RequestBody BloggerRequest request) {
     return admin.createBlogger(new BloggerCommand(
         null,
         request.bloggerName(),
@@ -64,7 +84,7 @@ public class WxPusherController {
   }
 
   @PutMapping("/bloggers")
-  WxPusherBlogger updateBlogger(@RequestBody BloggerRequest request) {
+  BloggerView updateBlogger(@RequestBody BloggerRequest request) {
     return admin.updateBlogger(new BloggerCommand(
         request.id(),
         request.bloggerName(),
@@ -94,6 +114,13 @@ public class WxPusherController {
       int pollIntervalSeconds,
       boolean enablePolling,
       boolean enableWebsocket) {
+  }
+
+  public record NotifySettingsRequest(
+      String spt,
+      String appToken,
+      String uids,
+      String topicIds) {
   }
 
   public record BloggerRequest(

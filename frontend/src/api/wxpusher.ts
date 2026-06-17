@@ -2,6 +2,7 @@ import { json } from './http';
 import type {
   WxPusherBlogger,
   WxPusherMessage,
+  WxPusherNotifySettings,
   WxPusherSettings,
   WxPusherStatus,
 } from '../types';
@@ -10,6 +11,12 @@ export const wxpusherApi = {
   wxpusherSettings: () => json<WxPusherSettings>('/api/wxpusher/settings'),
   updateWxPusherSettings: (body: WxPusherSettings) =>
     json<WxPusherSettings>('/api/wxpusher/settings', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  wxpusherNotifySettings: () => json<WxPusherNotifySettings>('/api/wxpusher/notify-settings'),
+  updateWxPusherNotifySettings: (body: WxPusherNotifySettings) =>
+    json<WxPusherNotifySettings>('/api/wxpusher/notify-settings', {
       method: 'PUT',
       body: JSON.stringify(body),
     }),

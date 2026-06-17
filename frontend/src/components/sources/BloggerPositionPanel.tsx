@@ -69,7 +69,14 @@ export function BloggerPositionPanel({
           <div className="blogger-row position-blogger-row" key={blogger.id}>
             <div>
               <strong>{blogger.bloggerName}</strong>
-              <p className="muted">别名：{blogger.aliases.join(', ') || '无'} ｜ 种子：{blogger.seedCompletedAt ? '已完成' : '待补抓'}</p>
+              <p className="muted">
+                别名：{blogger.aliases.join(', ') || '无'}
+                {' '}｜ 种子：{blogger.seedCompletedAt ? '已完成' : '待补抓'}
+              </p>
+              <p className="muted">
+                消息 {blogger.messageCount} ｜ 已导入 {blogger.importedMessageCount} ｜ 失败 {blogger.failedMessageCount}
+                {blogger.latestMessageTime ? ` ｜ 最新 ${trimTime(blogger.latestMessageTime)}` : ''}
+              </p>
               <PositionTags
                 positions={positionsByKol[blogger.kolId] || []}
                 onClosePosition={onClosePosition}
@@ -122,4 +129,8 @@ function PositionTags({
       ))}
     </div>
   );
+}
+
+function trimTime(value?: string) {
+  return value ? value.replace('T', ' ').slice(0, 19) : '暂无';
 }

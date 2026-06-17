@@ -10,10 +10,9 @@ New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 
 function Test-UrlReady {
   param([string]$Url)
-
   try {
-    $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 2
-    return $response.StatusCode -ge 200 -and $response.StatusCode -lt 500
+    $response = Invoke-WebRequest -Uri $Url -UseBasicParsing -TimeoutSec 3
+    return $response.StatusCode -ge 200 -and $response.StatusCode -lt 400
   } catch {
     return $false
   }
@@ -24,7 +23,6 @@ function Wait-UrlReady {
     [string]$Url,
     [int]$TimeoutSeconds
   )
-
   $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
   while ((Get-Date) -lt $deadline) {
     if (Test-UrlReady -Url $Url) {
@@ -37,14 +35,22 @@ function Wait-UrlReady {
 
 function Get-ListeningProcess {
   param([int]$Port)
-
   $connection = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
     Select-Object -First 1
   if (-not $connection) {
     return $null
   }
-
   return Get-Process -Id $connection.OwningProcess -ErrorAction SilentlyContinue
+}
+
+function Get-TunnelMonitorProcess {
+  Get-CimInstance Win32_Process |
+    Where-Object {
+      ($_.Name -eq "powershell.exe" -or $_.Name -eq "pwsh.exe") -and
+      $_.CommandLine -like "*monitor-db-tunnel.ps1*" -and
+      $_.CommandLine -like "*-LocalPort 13306*"
+    } |
+    Select-Object -First 1
 }
 
 function Ensure-DbTunnel {
@@ -56,18 +62,25 @@ function Ensure-DbTunnel {
   if ($LASTEXITCODE -ne 0) {
     throw "DB tunnel bootstrap failed."
   }
+  $monitor = Get-TunnelMonitorProcess
+  if ($monitor) {
+    Write-Host "DB tunnel self-heal monitor active: PID $($monitor.ProcessId)"
+  }
 }
 
 function Ensure-Backend {
   $healthUrl = "http://127.0.0.1:8080/api/health"
+  $readyUrl = "http://127.0.0.1:8080/api/wxpusher/status"
   if (Test-UrlReady -Url $healthUrl) {
-    Write-Host "Backend already running: $healthUrl"
-    return
+    if (Wait-UrlReady -Url $readyUrl -TimeoutSeconds 20) {
+      Write-Host "Backend already running: $readyUrl"
+      return
+    }
   }
 
   $process = Get-ListeningProcess -Port 8080
   if ($process) {
-    throw "Port 8080 is already used by $($process.ProcessName), but the backend health check failed."
+    throw "Port 8080 is already used by $($process.ProcessName), but the DB-backed backend API is not ready."
   }
 
   $jarPath = Join-Path $backendDir "target\market-opinion-tracker-0.1.0.jar"
@@ -91,10 +104,12 @@ function Ensure-Backend {
     -RedirectStandardError (Join-Path $logDir "backend.err.log") | Out-Null
 
   if (-not (Wait-UrlReady -Url $healthUrl -TimeoutSeconds 60)) {
-    throw "Backend start timed out. See .codex-logs\\backend.err.log"
+    throw "Backend health start timed out. See .codex-logs\\backend.err.log"
   }
-
-  Write-Host "Backend ready: $healthUrl"
+  if (-not (Wait-UrlReady -Url $readyUrl -TimeoutSeconds 60)) {
+    throw "Backend DB-backed API start timed out. See .codex-logs\\backend.err.log"
+  }
+  Write-Host "Backend ready: $readyUrl"
 }
 
 function Ensure-Frontend {
@@ -119,7 +134,6 @@ function Ensure-Frontend {
   if (-not (Wait-UrlReady -Url $frontendUrl -TimeoutSeconds 30)) {
     throw "Frontend start timed out. See .codex-logs\\frontend.err.log"
   }
-
   Write-Host "Frontend ready: $frontendUrl"
 }
 
@@ -127,4 +141,4 @@ Ensure-DbTunnel
 Ensure-Backend
 Ensure-Frontend
 
-Write-Host "Project ready: http://127.0.0.1:5173/  |  http://127.0.0.1:8080/api/health"
+Write-Host "Project ready: http://127.0.0.1:5173/  |  http://127.0.0.1:8080/api/wxpusher/status"

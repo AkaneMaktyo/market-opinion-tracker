@@ -58,6 +58,7 @@ public class WxPusherMonitorLifecycle {
           sleepSeconds(10);
           continue;
         }
+        ingestion.ensureMessageSessions(60);
         ingestion.seedHistory();
         int imported = ingestion.importPending();
         state = state.withSettings(settingsRepository.get());

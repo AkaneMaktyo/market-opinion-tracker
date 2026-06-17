@@ -14,9 +14,11 @@ import type {
 import { json } from './http';
 import { positionApi } from './positions';
 import { wxpusherApi } from './wxpusher';
+import { youtubeApi } from './youtube';
 
 export const api = {
   ...wxpusherApi,
+  ...youtubeApi,
   ...positionApi,
   kols: () => json<Kol[]>('/api/kols'),
   createKol: (body: { name: string; description?: string }) =>

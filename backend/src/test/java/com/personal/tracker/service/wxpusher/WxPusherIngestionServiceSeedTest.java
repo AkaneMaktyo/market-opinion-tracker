@@ -1,10 +1,12 @@
 package com.personal.tracker.service.wxpusher;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.personal.tracker.repository.SessionRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository.WxPusherBlogger;
 import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository;
@@ -19,15 +21,17 @@ import org.junit.jupiter.api.Test;
 class WxPusherIngestionServiceSeedTest {
   @Test
   void seedsPendingHistoryOnlyOncePerPendingBloggerBatch() {
+    var sessionRepository = mock(SessionRepository.class);
     var settingsRepository = mock(WxPusherSettingsRepository.class);
     var bloggerRepository = mock(WxPusherBloggerRepository.class);
     var messageRepository = mock(WxPusherMessageRepository.class);
     var sharedRepository = mock(WxPusherSharedMessageRepository.class);
     var articleExtractor = mock(WxPusherArticleExtractor.class);
     var aiExtractor = mock(OpenAiJsonExtractor.class);
-    JsonOpinionParser parser = mock(JsonOpinionParser.class);
+    var parser = mock(JsonOpinionParser.class);
     var writer = mock(OpinionImportWriter.class);
     var service = new WxPusherIngestionService(
+        sessionRepository,
         settingsRepository,
         bloggerRepository,
         messageRepository,
@@ -65,8 +69,8 @@ class WxPusherIngestionServiceSeedTest {
         "polling",
         "wxpusher:src:https://source",
         "Alpha",
-        "鏍囬",
-        "鎽樿",
+        "标题",
+        "摘要",
         "https://wxpusher.zjiecode.com/api/message/1",
         "https://source",
         "2026-05-31T06:00:00Z",
@@ -76,20 +80,20 @@ class WxPusherIngestionServiceSeedTest {
     when(settingsRepository.get()).thenReturn(settings);
     when(bloggerRepository.enabledPendingSeed()).thenReturn(List.of(blogger), List.of());
     when(sharedRepository.listRecent(600)).thenReturn(List.of(recent));
-    when(messageRepository.createPending(org.mockito.ArgumentMatchers.any()))
+    when(messageRepository.createPending(any()))
         .thenReturn(new WxPusherMessageRepository.SaveResult(
             new WxPusherMessageRepository.WxPusherMessage(
                 "msg-1",
                 "wxpusher:src:https://source",
                 "kol-1",
                 "Alpha",
-                "鏍囬",
-                "鎽樿",
+                "标题",
+                "摘要",
                 "https://wxpusher.zjiecode.com/api/message/1",
                 "https://source",
                 "2026-05-31T06:00:00Z",
                 "{\"id\":1}",
-                "姝ｆ枃",
+                "正文",
                 "{\"ok\":true}",
                 "IMPORTED",
                 "",

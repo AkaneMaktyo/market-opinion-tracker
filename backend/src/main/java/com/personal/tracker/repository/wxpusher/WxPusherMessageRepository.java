@@ -2,8 +2,11 @@ package com.personal.tracker.repository.wxpusher;
 
 import com.personal.tracker.repository.JdbcSupport;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -88,6 +91,14 @@ public class WxPusherMessageRepository {
     updateState(id, "IMPORTED", "", detailText, llmOutputJson, sessionId);
   }
 
+  public void attachSession(String id, String sessionId) {
+    jdbc.update("""
+        UPDATE wxpusher_messages
+        SET session_id = ?, updated_at = ?
+        WHERE id = ?
+        """, blank(sessionId), JdbcSupport.now(), id);
+  }
+
   public List<WxPusherMessage> list(String status, String kolId, int limit) {
     StringBuilder sql = new StringBuilder("SELECT * FROM wxpusher_messages WHERE 1 = 1");
     List<Object> args = new ArrayList<>();
@@ -102,6 +113,48 @@ public class WxPusherMessageRepository {
     sql.append(" ORDER BY updated_at DESC, created_at DESC LIMIT ?");
     args.add(Math.max(1, Math.min(limit, 100)));
     return jdbc.query(sql.toString(), mapper, args.toArray());
+  }
+
+  public List<WxPusherMessage> listMissingSessions(int limit) {
+    return jdbc.query("""
+        SELECT * FROM wxpusher_messages
+        WHERE session_id IS NULL OR session_id = ''
+        ORDER BY updated_at DESC, created_at DESC
+        LIMIT ?
+        """, mapper, Math.max(1, Math.min(limit, 200)));
+  }
+
+  public Map<String, MessageSummary> summaryByKolIds(List<String> kolIds) {
+    List<String> safeKolIds = kolIds == null ? List.of() : kolIds.stream()
+        .filter(item -> item != null && !item.isBlank())
+        .map(String::trim)
+        .distinct()
+        .toList();
+    if (safeKolIds.isEmpty()) {
+      return Map.of();
+    }
+    String placeholders = safeKolIds.stream().map(item -> "?").collect(Collectors.joining(", "));
+    return jdbc.query("""
+        SELECT kol_id,
+               COUNT(*) total_count,
+               SUM(CASE WHEN status = 'IMPORTED' THEN 1 ELSE 0 END) imported_count,
+               SUM(CASE WHEN status = 'FAILED' THEN 1 ELSE 0 END) failed_count,
+               MAX(message_time) latest_message_time
+        FROM wxpusher_messages
+        WHERE kol_id IN (%s)
+        GROUP BY kol_id
+        """.formatted(placeholders), rs -> {
+      Map<String, MessageSummary> result = new LinkedHashMap<>();
+      while (rs.next()) {
+        result.put(rs.getString("kol_id"), new MessageSummary(
+            rs.getString("kol_id"),
+            rs.getInt("total_count"),
+            rs.getInt("imported_count"),
+            rs.getInt("failed_count"),
+            rs.getString("latest_message_time")));
+      }
+      return result;
+    }, safeKolIds.toArray());
   }
 
   private void updateState(
@@ -164,5 +217,13 @@ public class WxPusherMessageRepository {
       String sessionId,
       String createdAt,
       String updatedAt) {
+  }
+
+  public record MessageSummary(
+      String kolId,
+      int totalCount,
+      int importedCount,
+      int failedCount,
+      String latestMessageTime) {
   }
 }

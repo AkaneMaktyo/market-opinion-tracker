@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.personal.tracker.repository.wxpusher.WxPusherNotifySettingsRepository;
 import com.personal.tracker.repository.resonance.ResonanceRepository;
+import com.personal.tracker.service.notify.WxPusherPushClient;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 
@@ -15,8 +17,8 @@ class ResonanceNotifierTest {
   void statusUsesActionableThresholdByDefault() {
     var notifier = new ResonanceNotifier(
         new MockEnvironment(),
-        new ObjectMapper(),
-        mock(ResonanceRepository.class));
+        mock(ResonanceRepository.class),
+        new WxPusherPushClient(new MockEnvironment(), new ObjectMapper(), mock(WxPusherNotifySettingsRepository.class)));
 
     var status = notifier.status();
 
@@ -33,8 +35,8 @@ class ResonanceNotifierTest {
         .withProperty("RESONANCE_WXPUSHER_UIDS", "uid-1,uid-2");
     var notifier = new ResonanceNotifier(
         env,
-        new ObjectMapper(),
-        mock(ResonanceRepository.class));
+        mock(ResonanceRepository.class),
+        new WxPusherPushClient(env, new ObjectMapper(), mock(WxPusherNotifySettingsRepository.class)));
 
     var status = notifier.status();
 

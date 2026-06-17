@@ -1,13 +1,15 @@
 import { RefreshCw, X } from 'lucide-react';
-import type { WxPusherBlogger, WxPusherMessage, WxPusherSettings, WxPusherStatus } from '../../types';
+import type { WxPusherBlogger, WxPusherMessage, WxPusherNotifySettings, WxPusherSettings, WxPusherStatus } from '../../types';
 import { BloggerPositionPanel } from './BloggerPositionPanel';
 import { MessageAuditPanel } from './MessageAuditPanel';
 import { SourceStatusPanel } from './SourceStatusPanel';
-import type { BloggerDraft, PositionsByKol, SetDraft, SetSettings } from './sourceTypes';
+import type { BloggerDraft, PositionsByKol, SetDraft, SetNotifySettings, SetSettings } from './sourceTypes';
 import { WxPusherSettingsPanel } from './WxPusherSettingsPanel';
+import { YouTubePageButton } from './YouTubePageButton';
 
 interface Props {
   settings: WxPusherSettings;
+  notifySettings: WxPusherNotifySettings;
   status: WxPusherStatus | null;
   bloggers: WxPusherBlogger[];
   messages: WxPusherMessage[];
@@ -16,6 +18,7 @@ interface Props {
   loading: boolean;
   message: string;
   setSettings: SetSettings;
+  setNotifySettings: SetNotifySettings;
   setDraft: SetDraft;
   setMessage: (value: string) => void;
   onClose: () => void;
@@ -31,6 +34,7 @@ interface Props {
 export function SourceManagerModal(props: Props) {
   const {
     settings,
+    notifySettings,
     status,
     bloggers,
     messages,
@@ -39,6 +43,7 @@ export function SourceManagerModal(props: Props) {
     loading,
     message,
     setSettings,
+    setNotifySettings,
     setDraft,
     setMessage,
     onClose,
@@ -73,7 +78,9 @@ export function SourceManagerModal(props: Props) {
           <SourceStatusPanel status={status} />
           <WxPusherSettingsPanel
             loading={loading}
+            notifySettings={notifySettings}
             onSaveSettings={onSaveSettings}
+            setNotifySettings={setNotifySettings}
             setSettings={setSettings}
             settings={settings}
           />
@@ -97,6 +104,11 @@ export function SourceManagerModal(props: Props) {
             messages={messages}
             onRetryMessage={onRetryMessage}
           />
+        </div>
+        <div className="source-panel">
+          <div className="panel-title">YouTube 转写</div>
+          <p className="muted">已改为独立页面，手机端查看会更顺手。</p>
+          <YouTubePageButton />
         </div>
 
         {message ? <div className="form-message">{message}</div> : null}

@@ -231,6 +231,43 @@ CREATE TABLE IF NOT EXISTS wxpusher_consumer_state (
   INDEX idx_wxpusher_consumer_status(consumer_name, status, updated_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS youtube_channels (
+  id VARCHAR(64) PRIMARY KEY,
+  channel_id VARCHAR(64) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  handle VARCHAR(255) NOT NULL,
+  source_url VARCHAR(500) NOT NULL,
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  last_checked_at VARCHAR(64),
+  last_video_published_at VARCHAR(64),
+  created_at VARCHAR(64) NOT NULL,
+  updated_at VARCHAR(64) NOT NULL,
+  UNIQUE KEY uq_youtube_channel_remote(channel_id),
+  INDEX idx_youtube_channels_updated(updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS youtube_videos (
+  video_id VARCHAR(64) PRIMARY KEY,
+  channel_row_id VARCHAR(64) NOT NULL,
+  channel_id VARCHAR(64) NOT NULL,
+  title VARCHAR(500) NOT NULL,
+  video_url VARCHAR(1000) NOT NULL,
+  published_at VARCHAR(64) NOT NULL,
+  audio_path VARCHAR(1000),
+  audio_duration_ms BIGINT NOT NULL DEFAULT 0,
+  transcript_status VARCHAR(32) NOT NULL,
+  transcript_language VARCHAR(32) NOT NULL DEFAULT '',
+  transcript_source VARCHAR(64) NOT NULL DEFAULT '',
+  transcript_text MEDIUMTEXT,
+  transcript_segments_json MEDIUMTEXT,
+  error_message TEXT,
+  synced_at VARCHAR(64),
+  created_at VARCHAR(64) NOT NULL,
+  updated_at VARCHAR(64) NOT NULL,
+  INDEX idx_youtube_videos_channel(channel_row_id),
+  INDEX idx_youtube_videos_published(published_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS kol_positions (
   id VARCHAR(64) PRIMARY KEY,
   kol_id VARCHAR(64) NOT NULL,

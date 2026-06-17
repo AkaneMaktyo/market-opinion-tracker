@@ -5,12 +5,14 @@ import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository.SaveCommand;
 import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository.WxPusherBlogger;
 import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository;
+import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository.MessageSummary;
 import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository.WxPusherMessage;
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository.UpdateCommand;
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository.WxPusherSettings;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.springframework.stereotype.Service;
 
@@ -82,11 +84,11 @@ public class WxPusherAdminService {
         llm.checkedAt());
   }
 
-  public List<WxPusherBlogger> bloggers() {
-    return ensureDefaultBloggers();
+  public List<BloggerView> bloggers() {
+    return enrich(ensureDefaultBloggers());
   }
 
-  public WxPusherBlogger createBlogger(BloggerCommand command) {
+  public BloggerView createBlogger(BloggerCommand command) {
     var kol = kols.save(command.bloggerName(), "WxPusher 博主");
     WxPusherBlogger created = bloggerRepository.create(new SaveCommand(
         null,
@@ -97,10 +99,10 @@ public class WxPusherAdminService {
         "LAST_30",
         command.enabled() ? null : ""));
     lifecycle.refresh();
-    return created;
+    return enrich(created);
   }
 
-  public WxPusherBlogger updateBlogger(BloggerCommand command) {
+  public BloggerView updateBlogger(BloggerCommand command) {
     WxPusherBlogger current = bloggerRepository.findById(command.id());
     var kol = kols.save(command.bloggerName(), "WxPusher 博主");
     String seedCompletedAt = shouldResetSeed(current, command) ? null : current.seedCompletedAt();
@@ -113,7 +115,7 @@ public class WxPusherAdminService {
         current.historySeedMode(),
         seedCompletedAt));
     lifecycle.refresh();
-    return updated;
+    return enrich(updated);
   }
 
   public List<WxPusherMessage> messages(String status, String kolId, int limit) {
@@ -124,6 +126,34 @@ public class WxPusherAdminService {
     ingestion.retry(id);
     return messageRepository.findById(id)
         .orElseThrow(() -> new IllegalArgumentException("消息不存在"));
+  }
+
+  private List<BloggerView> enrich(List<WxPusherBlogger> bloggers) {
+    Map<String, MessageSummary> summaries = messageRepository.summaryByKolIds(
+        bloggers.stream().map(WxPusherBlogger::kolId).toList());
+    return bloggers.stream().map(blogger -> enrich(blogger, summaries)).toList();
+  }
+
+  private BloggerView enrich(WxPusherBlogger blogger) {
+    return enrich(blogger, messageRepository.summaryByKolIds(List.of(blogger.kolId())));
+  }
+
+  private BloggerView enrich(WxPusherBlogger blogger, Map<String, MessageSummary> summaries) {
+    MessageSummary summary = summaries.get(blogger.kolId());
+    return new BloggerView(
+        blogger.id(),
+        blogger.kolId(),
+        blogger.bloggerName(),
+        blogger.aliases(),
+        blogger.enabled(),
+        blogger.historySeedMode(),
+        blogger.seedCompletedAt(),
+        blogger.createdAt(),
+        blogger.updatedAt(),
+        summary == null ? 0 : summary.totalCount(),
+        summary == null ? 0 : summary.importedCount(),
+        summary == null ? 0 : summary.failedCount(),
+        summary == null ? "" : summary.latestMessageTime());
   }
 
   private boolean shouldResetSeed(WxPusherBlogger current, BloggerCommand command) {
@@ -186,6 +216,22 @@ public class WxPusherAdminService {
       String bloggerName,
       List<String> aliases,
       boolean enabled) {
+  }
+
+  public record BloggerView(
+      String id,
+      String kolId,
+      String bloggerName,
+      List<String> aliases,
+      boolean enabled,
+      String historySeedMode,
+      String seedCompletedAt,
+      String createdAt,
+      String updatedAt,
+      int messageCount,
+      int importedMessageCount,
+      int failedMessageCount,
+      String latestMessageTime) {
   }
 
   public record StatusView(

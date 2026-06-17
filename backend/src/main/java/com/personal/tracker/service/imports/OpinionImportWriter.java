@@ -21,18 +21,14 @@ public class OpinionImportWriter {
   }
 
   public WriteResult write(
+      String sessionId,
       String kolId,
       String title,
       String sessionDate,
       String source,
       String rawText,
       List<ImportCandidate> items) {
-    LiveSession session = sessions.create(
-        value(kolId, KolRepository.DEFAULT_ID),
-        sessionDate,
-        value(title, "JSON 导入直播"),
-        source,
-        value(rawText, ""));
+    LiveSession session = existingOrCreateSession(sessionId, kolId, title, sessionDate, source, rawText);
     int saved = 0;
     for (ImportCandidate item : safe(items)) {
       opinions.create(new OpinionService.CreateOpinionCommand(
@@ -60,6 +56,44 @@ public class OpinionImportWriter {
       saved++;
     }
     return new WriteResult(session.id(), saved);
+  }
+
+  public WriteResult write(
+      String kolId,
+      String title,
+      String sessionDate,
+      String source,
+      String rawText,
+      List<ImportCandidate> items) {
+    return write("", kolId, title, sessionDate, source, rawText, items);
+  }
+
+  private LiveSession existingOrCreateSession(
+      String sessionId,
+      String kolId,
+      String title,
+      String sessionDate,
+      String source,
+      String rawText) {
+    if (sessionId != null && !sessionId.isBlank()) {
+      return sessions.findById(sessionId)
+          .orElseGet(() -> createSession(kolId, title, sessionDate, source, rawText));
+    }
+    return createSession(kolId, title, sessionDate, source, rawText);
+  }
+
+  private LiveSession createSession(
+      String kolId,
+      String title,
+      String sessionDate,
+      String source,
+      String rawText) {
+    return sessions.create(
+        value(kolId, KolRepository.DEFAULT_ID),
+        sessionDate,
+        value(title, "JSON 导入直播"),
+        source,
+        value(rawText, ""));
   }
 
   private static List<ImportCandidate> safe(List<ImportCandidate> items) {

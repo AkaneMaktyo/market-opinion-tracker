@@ -153,6 +153,16 @@ export interface WxPusherSettings {
   updatedAt?: string;
 }
 
+export interface WxPusherNotifySettings {
+  id?: string;
+  spt: string;
+  appToken: string;
+  uids: string;
+  topicIds: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface WxPusherStatus {
   running: boolean;
   websocketState: string;
@@ -179,6 +189,10 @@ export interface WxPusherBlogger {
   seedCompletedAt?: string;
   createdAt: string;
   updatedAt: string;
+  messageCount: number;
+  importedMessageCount: number;
+  failedMessageCount: number;
+  latestMessageTime?: string;
 }
 
 export interface WxPusherMessage {

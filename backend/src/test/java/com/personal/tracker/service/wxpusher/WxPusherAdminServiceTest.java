@@ -17,9 +17,11 @@ import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository.SaveCommand;
 import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository.WxPusherBlogger;
 import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository;
+import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository.MessageSummary;
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository.WxPusherSettings;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -44,7 +46,12 @@ class WxPusherAdminServiceTest {
     when(kols.save(anyString(), anyString()))
         .thenAnswer(call -> new Kol("kol-" + call.getArgument(0), call.getArgument(0), call.getArgument(1), "now"));
     when(bloggerRepository.list()).thenReturn(List.of(), List.of(
-        blogger("华尔街阿宝分享"), blogger("猫姐会员频道"), blogger("幂笈投资"), blogger("牛顿师兄"), blogger("美股投资网")));
+        blogger("华尔街阿宝分享"),
+        blogger("猫姐会员频道"),
+        blogger("幂笈投资"),
+        blogger("牛顿师兄"),
+        blogger("美股投资网")));
+    when(messageRepository.summaryByKolIds(any())).thenReturn(Map.of());
 
     var bloggers = service.bloggers();
 
@@ -75,6 +82,9 @@ class WxPusherAdminServiceTest {
     when(bloggerRepository.create(any(SaveCommand.class)))
         .thenReturn(new WxPusherBlogger(
             "b1", "kol-1", "Alpha", List.of("Alpha VIP"), true, "LAST_30", null, "now", "now"));
+    when(messageRepository.summaryByKolIds(List.of("kol-1"))).thenReturn(Map.of(
+        "kol-1",
+        new MessageSummary("kol-1", 2, 1, 1, "2026-05-31T06:00:00Z")));
 
     var created = service.createBlogger(
         new WxPusherAdminService.BloggerCommand(null, "Alpha", List.of("Alpha VIP"), true));
@@ -83,6 +93,7 @@ class WxPusherAdminServiceTest {
     verify(bloggerRepository).create(captor.capture());
     assertEquals("kol-1", captor.getValue().kolId());
     assertEquals("Alpha", created.bloggerName());
+    assertEquals(2, created.messageCount());
     assertNull(captor.getValue().seedCompletedAt());
     verify(lifecycle).refresh();
   }
@@ -112,6 +123,7 @@ class WxPusherAdminServiceTest {
     when(bloggerRepository.update(any(SaveCommand.class)))
         .thenReturn(new WxPusherBlogger(
             "b1", "kol-2", "Alpha Pro", List.of("Alpha", "AP"), true, "LAST_30", null, "now", "later"));
+    when(messageRepository.summaryByKolIds(List.of("kol-2"))).thenReturn(Map.of());
 
     service.updateBlogger(
         new WxPusherAdminService.BloggerCommand("b1", "Alpha Pro", List.of("Alpha", "AP"), true));
@@ -149,7 +161,6 @@ class WxPusherAdminServiceTest {
         blogger("幂笈投资"),
         blogger("牛顿师兄"),
         blogger("美股投资网")));
-    when(bloggerRepository.enabled()).thenReturn(List.of());
     when(aiExtractor.health()).thenReturn(new OpenAiJsonExtractor.HealthStatus(false, false, "未配置", null));
     when(lifecycle.runtimeState()).thenReturn(new WxPusherMonitorLifecycle.RuntimeState(
         true, "CONNECTED", "", "", "旧错误"));

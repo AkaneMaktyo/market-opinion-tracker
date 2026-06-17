@@ -1,14 +1,9 @@
 import { RadioTower } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
-import type { PositionsByKol, BloggerDraft } from './sourceTypes';
-import type {
-  WxPusherBlogger,
-  WxPusherMessage,
-  WxPusherSettings,
-  WxPusherStatus,
-} from '../../types';
+import type { WxPusherBlogger, WxPusherMessage, WxPusherNotifySettings, WxPusherSettings, WxPusherStatus } from '../../types';
 import { SourceManagerModal } from './SourceManagerModal';
+import type { BloggerDraft, PositionsByKol } from './sourceTypes';
 
 const defaultSettings: WxPusherSettings = {
   deviceToken: '',
@@ -21,24 +16,39 @@ const defaultSettings: WxPusherSettings = {
   enableWebsocket: false,
 };
 
+const defaultNotifySettings: WxPusherNotifySettings = {
+  spt: '',
+  appToken: '',
+  uids: '',
+  topicIds: '',
+};
+
 const emptyDraft: BloggerDraft = { id: '', bloggerName: '', aliasesText: '', enabled: true };
 
 export function SourceManagerButton({ onChanged }: { onChanged: () => void }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [settings, setSettings] = useState<WxPusherSettings>(defaultSettings);
+  const [settings, setSettings] = useState(defaultSettings);
+  const [notifySettings, setNotifySettings] = useState(defaultNotifySettings);
   const [status, setStatus] = useState<WxPusherStatus | null>(null);
   const [bloggers, setBloggers] = useState<WxPusherBlogger[]>([]);
   const [messages, setMessages] = useState<WxPusherMessage[]>([]);
   const [draft, setDraft] = useState(emptyDraft);
   const [positionsByKol, setPositionsByKol] = useState<PositionsByKol>({});
 
+  useEffect(() => {
+    if (open) {
+      void loadAll();
+    }
+  }, [open]);
+
   async function loadAll() {
     setLoading(true);
     try {
-      const [nextSettings, nextStatus, nextBloggers, nextMessages] = await Promise.all([
+      const [nextSettings, nextNotifySettings, nextStatus, nextBloggers, nextMessages] = await Promise.all([
         api.wxpusherSettings(),
+        api.wxpusherNotifySettings(),
         api.wxpusherStatus(),
         api.wxpusherBloggers(),
         api.wxpusherMessages('FAILED', '', 30),
@@ -47,6 +57,7 @@ export function SourceManagerButton({ onChanged }: { onChanged: () => void }) {
         nextBloggers.map(async (blogger) => [blogger.kolId, await api.positions(blogger.kolId)] as const),
       );
       setSettings({ ...defaultSettings, ...nextSettings });
+      setNotifySettings({ ...defaultNotifySettings, ...nextNotifySettings });
       setStatus(nextStatus);
       setBloggers(nextBloggers);
       setMessages(nextMessages);
@@ -58,17 +69,14 @@ export function SourceManagerButton({ onChanged }: { onChanged: () => void }) {
     }
   }
 
-  useEffect(() => {
-    if (open) {
-      void loadAll();
-    }
-  }, [open]);
-
   async function saveSettings() {
     setMessage('');
     setLoading(true);
     try {
-      await api.updateWxPusherSettings(settings);
+      await Promise.all([
+        api.updateWxPusherSettings(settings),
+        api.updateWxPusherNotifySettings(notifySettings),
+      ]);
       await loadAll();
       setMessage('WxPusher 配置已保存');
     } catch (error) {
@@ -84,11 +92,7 @@ export function SourceManagerButton({ onChanged }: { onChanged: () => void }) {
     }
     setMessage('');
     setLoading(true);
-    const body = {
-      bloggerName: draft.bloggerName.trim(),
-      aliases: splitAliases(draft.aliasesText),
-      enabled: draft.enabled,
-    };
+    const body = { bloggerName: draft.bloggerName.trim(), aliases: splitAliases(draft.aliasesText), enabled: draft.enabled };
     try {
       if (draft.id) {
         await api.updateWxPusherBlogger({ id: draft.id, ...body });
@@ -138,15 +142,6 @@ export function SourceManagerButton({ onChanged }: { onChanged: () => void }) {
     }
   }
 
-  function editBlogger(blogger: WxPusherBlogger) {
-    setDraft({
-      id: blogger.id,
-      bloggerName: blogger.bloggerName,
-      aliasesText: blogger.aliases.join(', '),
-      enabled: blogger.enabled,
-    });
-  }
-
   async function retryMessage(id: string) {
     setMessage('');
     setLoading(true);
@@ -174,10 +169,11 @@ export function SourceManagerButton({ onChanged }: { onChanged: () => void }) {
           loading={loading}
           message={message}
           messages={messages}
+          notifySettings={notifySettings}
           onAddPosition={(kolId, symbol) => void addPosition(kolId, symbol)}
-          onClosePosition={(id) => void closePosition(id)}
           onClose={() => setOpen(false)}
-          onEditBlogger={editBlogger}
+          onClosePosition={(id) => void closePosition(id)}
+          onEditBlogger={(blogger) => setDraft({ id: blogger.id, bloggerName: blogger.bloggerName, aliasesText: blogger.aliases.join(', '), enabled: blogger.enabled })}
           onRefresh={() => void loadAll()}
           onRetryMessage={(id) => void retryMessage(id)}
           onSaveBlogger={() => void saveBlogger()}
@@ -185,6 +181,7 @@ export function SourceManagerButton({ onChanged }: { onChanged: () => void }) {
           positionsByKol={positionsByKol}
           setDraft={setDraft}
           setMessage={setMessage}
+          setNotifySettings={setNotifySettings}
           setSettings={setSettings}
           settings={settings}
           status={status}
@@ -195,8 +192,5 @@ export function SourceManagerButton({ onChanged }: { onChanged: () => void }) {
 }
 
 function splitAliases(value: string) {
-  return value
-    .split(/[,\n，]/)
-    .map((item) => item.trim())
-    .filter(Boolean);
+  return value.split(/[,，\n]/).map((item) => item.trim()).filter(Boolean);
 }
