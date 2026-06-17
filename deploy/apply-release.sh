@@ -8,6 +8,29 @@ ENV_DIR="${ENV_DIR:-/etc/market-opinion-tracker}"
 WWW_ROOT="${WWW_ROOT:-/var/www/market-opinion-tracker}"
 SERVICE_NAME="${SERVICE_NAME:-market-opinion-tracker}"
 
+validate_frontend_archive() {
+  local archive="$1"
+  local entries
+  entries="$(tar -tzf "$archive")"
+
+  if [[ -z "$entries" ]]; then
+    echo "Frontend archive is empty: $archive" >&2
+    exit 1
+  fi
+
+  if ! grep -qx 'index.html' <<<"$entries"; then
+    echo "Frontend archive missing index.html: $archive" >&2
+    exit 1
+  fi
+
+  if ! grep -Eq '^assets/index-.*\.js$' <<<"$entries"; then
+    echo "Frontend archive missing main JS bundle: $archive" >&2
+    exit 1
+  fi
+}
+
+validate_frontend_archive "$DIST_ARCHIVE"
+
 id -u markettracker >/dev/null 2>&1 || \
   useradd --system --home "$APP_BASE" --shell /usr/sbin/nologin markettracker
 
