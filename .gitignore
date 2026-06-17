@@ -3,6 +3,7 @@ backend/data/*.db-*
 backend/target/
 frontend/node_modules/
 frontend/dist/
+frontend-dist.tar.gz
 logs/
 .codex-logs/
 .claude/
