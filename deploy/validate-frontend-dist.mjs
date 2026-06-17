@@ -18,7 +18,7 @@ if (jsMatches.length === 0) {
 }
 
 for (const [, assetRef] of jsMatches) {
-  const assetPath = path.join(distDir, assetRef.replace(/^\//, ''));
+  const assetPath = resolveAssetPath(distDir, assetRef);
   if (!existsSync(assetPath)) {
     throw new Error(`Missing JS asset: ${assetRef}`);
   }
@@ -26,7 +26,7 @@ for (const [, assetRef] of jsMatches) {
 }
 
 for (const [, assetRef] of cssMatches) {
-  const assetPath = path.join(distDir, assetRef.replace(/^\//, ''));
+  const assetPath = resolveAssetPath(distDir, assetRef);
   if (!existsSync(assetPath)) {
     throw new Error(`Missing CSS asset: ${assetRef}`);
   }
@@ -43,3 +43,10 @@ if (!assetNames.some((name) => /^index-.*\.js$/.test(name))) {
 }
 
 console.log(`Frontend dist validation passed: ${distDir}`);
+
+function resolveAssetPath(rootDir, assetRef) {
+  const cleanRef = assetRef.replace(/^https?:\/\/[^/]+/i, '');
+  const normalized = cleanRef.replace(/^\/+/, '');
+  const withoutBase = normalized.replace(/^[^/]+\/assets\//, 'assets/');
+  return path.join(rootDir, withoutBase);
+}
