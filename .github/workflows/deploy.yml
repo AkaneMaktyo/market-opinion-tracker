@@ -52,7 +52,8 @@ jobs:
         run: |
           npm ci
           VITE_BASE_PATH=/market/ npm run build
-          tar -czf ../frontend-dist.tar.gz -C dist .
+          node ../deploy/validate-frontend-dist.mjs dist
+          tar -czf "$RUNNER_TEMP/frontend-dist.tar.gz" -C dist .
         working-directory: frontend
 
       - name: Upload and restart
@@ -67,7 +68,7 @@ jobs:
           sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
             "mkdir -p /root/market-opinion-deploy"
           sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no -P "$SSH_PORT" \
-            backend/target/market-opinion-tracker-0.1.0.jar frontend-dist.tar.gz deploy/apply-release.sh \
+            backend/target/market-opinion-tracker-0.1.0.jar "$RUNNER_TEMP/frontend-dist.tar.gz" deploy/apply-release.sh \
             "$SSH_USER@$SSH_HOST:/root/market-opinion-deploy/"
           sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
             "bash /root/market-opinion-deploy/apply-release.sh /root/market-opinion-deploy/market-opinion-tracker-0.1.0.jar /root/market-opinion-deploy/frontend-dist.tar.gz"
