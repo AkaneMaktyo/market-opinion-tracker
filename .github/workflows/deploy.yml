@@ -156,42 +156,42 @@ jobs:
           Details: $run_url"
           export title content
           if [ -n "${SPT:-}" ]; then
-            python - <<'PY'
-import os
-import urllib.parse
-import urllib.request
-content = os.environ["content"]
-spt = os.environ["SPT"]
-url = f"https://wxpusher.zjiecode.com/api/send/message/{spt}/{urllib.parse.quote(content)}"
-with urllib.request.urlopen(url, timeout=15) as resp:
-    body = resp.read().decode("utf-8", "ignore")
-print(body)
-PY
+          python - <<'PY'
+          import os
+          import urllib.parse
+          import urllib.request
+          content = os.environ["content"]
+          spt = os.environ["SPT"]
+          url = f"https://wxpusher.zjiecode.com/api/send/message/{spt}/{urllib.parse.quote(content)}"
+          with urllib.request.urlopen(url, timeout=15) as resp:
+              body = resp.read().decode("utf-8", "ignore")
+          print(body)
+          PY
             exit 0
           fi
           python - <<'PY'
-import json
-import os
-import urllib.request
-def split_items(value):
-    if not value:
-        return []
-    return [item.strip() for item in value.replace(";", ",").split(",") if item.strip()]
-payload = {
-    "appToken": os.environ["APP_TOKEN"],
-    "summary": os.environ["title"][:100],
-    "content": os.environ["content"],
-    "contentType": 1,
-    "uids": split_items(os.environ.get("UIDS", "")),
-    "topicIds": [int(item) for item in split_items(os.environ.get("TOPIC_IDS", "")) if item.isdigit()],
-}
-req = urllib.request.Request(
-    "https://wxpusher.zjiecode.com/api/send/message",
-    data=json.dumps(payload).encode("utf-8"),
-    headers={"Content-Type": "application/json"},
-    method="POST",
-)
-with urllib.request.urlopen(req, timeout=15) as resp:
-    body = resp.read().decode("utf-8", "ignore")
-print(body)
-PY
+          import json
+          import os
+          import urllib.request
+          def split_items(value):
+              if not value:
+                  return []
+              return [item.strip() for item in value.replace(";", ",").split(",") if item.strip()]
+          payload = {
+              "appToken": os.environ["APP_TOKEN"],
+              "summary": os.environ["title"][:100],
+              "content": os.environ["content"],
+              "contentType": 1,
+              "uids": split_items(os.environ.get("UIDS", "")),
+              "topicIds": [int(item) for item in split_items(os.environ.get("TOPIC_IDS", "")) if item.isdigit()],
+          }
+          req = urllib.request.Request(
+              "https://wxpusher.zjiecode.com/api/send/message",
+              data=json.dumps(payload).encode("utf-8"),
+              headers={"Content-Type": "application/json"},
+              method="POST",
+          )
+          with urllib.request.urlopen(req, timeout=15) as resp:
+              body = resp.read().decode("utf-8", "ignore")
+          print(body)
+          PY
