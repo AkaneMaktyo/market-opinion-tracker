@@ -162,7 +162,7 @@ jobs:
           import urllib.request
           content = os.environ["content"]
           spt = os.environ["SPT"]
-          url = f"https://wxpusher.zjiecode.com/api/send/message/{spt}/{urllib.parse.quote(content)}"
+          url = f"https://wxpusher.zjiecode.com/api/send/message/{spt}/{urllib.parse.quote(content, safe='')}"
           with urllib.request.urlopen(url, timeout=15) as resp:
               body = resp.read().decode("utf-8", "ignore")
           print(body)
