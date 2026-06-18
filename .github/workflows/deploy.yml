@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: market-prod-deploy
+  group: market-prod-deploy-self-hosted
   cancel-in-progress: false
 
 env:
