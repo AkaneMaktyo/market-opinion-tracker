@@ -13,92 +13,34 @@ env:
   APP_URL: http://103.236.98.149:8888/market/#/youtube
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Build backend
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Package backend
-        run: mvn -DskipTests package
-        working-directory: backend
-
-      - name: Build frontend
-        uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Package frontend
-        run: |
-          npm ci
-          VITE_BASE_PATH=/market/ npm run build
-          node ../deploy/validate-frontend-dist.mjs dist
-          tar -czf "$RUNNER_TEMP/frontend-dist.tar.gz" -C dist .
-        working-directory: frontend
-
-      - name: Upload backend artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-jar
-          path: backend/target/market-opinion-tracker-0.1.0.jar
-          if-no-files-found: error
-
-      - name: Upload frontend artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist
-          path: ${{ runner.temp }}/frontend-dist.tar.gz
-          if-no-files-found: error
-
   deploy:
-    needs: build
     runs-on: [self-hosted, windows, x64, market-deploy]
+    env:
+      SSH_HOST: ${{ secrets.KMT_SSH_HOST }}
+      SSH_PORT: ${{ secrets.KMT_SSH_PORT }}
+      SSH_USER: ${{ secrets.KMT_SSH_USER }}
+      SSH_PASSWORD: ${{ secrets.KMT_SSH_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download backend artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: backend-jar
-          path: ${{ runner.temp }}/release
-
-      - name: Download frontend artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-dist
-          path: ${{ runner.temp }}/release
-
-      - name: Upload and restart
+      - name: Validate deployment secrets
         shell: powershell
-        env:
-          SSH_HOST: ${{ secrets.KMT_SSH_HOST }}
-          SSH_PORT: ${{ secrets.KMT_SSH_PORT }}
-          SSH_USER: ${{ secrets.KMT_SSH_USER }}
-          SSH_PASSWORD: ${{ secrets.KMT_SSH_PASSWORD }}
         run: |
-          if ([string]::IsNullOrWhiteSpace($env:SSH_HOST) -or
-              [string]::IsNullOrWhiteSpace($env:SSH_PORT) -or
-              [string]::IsNullOrWhiteSpace($env:SSH_USER) -or
-              [string]::IsNullOrWhiteSpace($env:SSH_PASSWORD)) {
-            throw "Missing deployment secrets."
+          foreach ($name in 'SSH_HOST','SSH_PORT','SSH_USER','SSH_PASSWORD') {
+            if ([string]::IsNullOrWhiteSpace((Get-Item "Env:$name").Value)) {
+              throw "Missing deployment secret: $name"
+            }
           }
+
+      - name: Build and deploy
+        shell: powershell
+        run: |
           & .\deploy\manual-release.ps1 `
             -SshHost $env:SSH_HOST `
             -SshPort ([int]$env:SSH_PORT) `
             -SshUser $env:SSH_USER `
-            -SshPassword $env:SSH_PASSWORD `
-            -JarPath "$env:RUNNER_TEMP\release\market-opinion-tracker-0.1.0.jar" `
-            -FrontendArchivePath "$env:RUNNER_TEMP\release\frontend-dist.tar.gz" `
-            -SkipBuild
+            -SshPassword $env:SSH_PASSWORD
 
       - name: Verify public endpoints
         shell: powershell
@@ -106,91 +48,82 @@ jobs:
           curl.exe -fsS "http://103.236.98.149:8888/market/api/health" > $null
           curl.exe -fsS "http://103.236.98.149:8888/market/" > $null
 
-  notify:
-    if: always()
-    needs: [build, deploy]
-    runs-on: ubuntu-latest
-    env:
-      BUILD_RESULT: ${{ needs.build.result }}
-      DEPLOY_RESULT: ${{ needs.deploy.result }}
-      REPO: ${{ github.repository }}
-      BRANCH: ${{ github.ref_name }}
-      ACTOR: ${{ github.actor }}
-      SHA: ${{ github.sha }}
-      RUN_ID: ${{ github.run_id }}
-      SPT: ${{ secrets.DEPLOY_WXPUSHER_SPT }}
-      APP_TOKEN: ${{ secrets.DEPLOY_WXPUSHER_APP_TOKEN }}
-      UIDS: ${{ secrets.DEPLOY_WXPUSHER_UIDS }}
-      TOPIC_IDS: ${{ secrets.DEPLOY_WXPUSHER_TOPIC_IDS }}
-    steps:
-      - name: Write summary and notify
+      - name: Write summary
+        if: always()
+        shell: powershell
+        env:
+          JOB_STATUS: ${{ job.status }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
         run: |
-          short_sha="${SHA::7}"
-          run_url="https://github.com/$REPO/actions/runs/$RUN_ID"
-          status_text="Deploy failed"
-          title="Market deploy failed"
-          if [ "$BUILD_RESULT" = "success" ] && [ "$DEPLOY_RESULT" = "success" ]; then
-            status_text="Deploy succeeded"
-            title="Market deploy succeeded"
-          fi
-          {
-            echo "## $status_text"
-            echo
-            echo "- Branch: \`$BRANCH\`"
-            echo "- Commit: \`$short_sha\`"
-            echo "- Actor: \`$ACTOR\`"
-            echo "- Build: \`$BUILD_RESULT\`"
-            echo "- Deploy: \`$DEPLOY_RESULT\`"
-            echo "- Page: $APP_URL"
-            echo "- Details: $run_url"
-          } >> "$GITHUB_STEP_SUMMARY"
-          if [ -z "${SPT:-}" ] && [ -z "${APP_TOKEN:-}" ]; then
-            echo "WxPusher secrets not configured, skipping notification."
-            exit 0
-          fi
-          content="$title
+          $shortSha = $env:SHA.Substring(0, 7)
+          $runUrl = "https://github.com/$($env:REPO)/actions/runs/$($env:RUN_ID)"
+          $statusText = if ($env:JOB_STATUS -eq 'success') { 'Deploy succeeded' } else { 'Deploy failed' }
+          @(
+            "## $statusText"
+            ""
+            "- Branch: ``$($env:BRANCH)``"
+            "- Commit: ``$shortSha``"
+            "- Actor: ``$($env:ACTOR)``"
+            "- Page: $env:APP_URL"
+            "- Details: $runUrl"
+          ) | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
 
-          Build: $BUILD_RESULT
-          Deploy: $DEPLOY_RESULT
-          Repo: $REPO
-          Branch: $BRANCH
-          Commit: $short_sha
-          Actor: $ACTOR
-          Page: $APP_URL
-          Details: $run_url"
-          export title content
-          python - <<'PY'
-          import json, os, urllib.parse, urllib.request
-          def split_items(value):
-              if not value:
-                  return []
-              return [item.strip() for item in value.replace(";", ",").split(",") if item.strip()]
-          try:
-              spt = os.environ.get("SPT", "")
-              if spt:
-                  url = "https://wxpusher.zjiecode.com/api/send/message/%s/%s" % (
-                      spt,
-                      urllib.parse.quote(os.environ["content"], safe=""),
-                  )
-                  with urllib.request.urlopen(url, timeout=15) as resp:
-                      print(resp.read().decode("utf-8", "ignore"))
-              elif os.environ.get("APP_TOKEN"):
-                  payload = {
-                      "appToken": os.environ["APP_TOKEN"],
-                      "summary": os.environ["title"][:100],
-                      "content": os.environ["content"],
-                      "contentType": 1,
-                      "uids": split_items(os.environ.get("UIDS", "")),
-                      "topicIds": [int(x) for x in split_items(os.environ.get("TOPIC_IDS", "")) if x.isdigit()],
-                  }
-                  req = urllib.request.Request(
-                      "https://wxpusher.zjiecode.com/api/send/message",
-                      data=json.dumps(payload).encode("utf-8"),
-                      headers={"Content-Type": "application/json"},
-                      method="POST",
-                  )
-                  with urllib.request.urlopen(req, timeout=15) as resp:
-                      print(resp.read().decode("utf-8", "ignore"))
-          except Exception as exc:
-              print(f"WxPusher notify skipped: {exc}")
-          PY
+      - name: Notify WxPusher
+        if: always()
+        shell: powershell
+        env:
+          JOB_STATUS: ${{ job.status }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          SPT: ${{ secrets.DEPLOY_WXPUSHER_SPT }}
+          APP_TOKEN: ${{ secrets.DEPLOY_WXPUSHER_APP_TOKEN }}
+          UIDS: ${{ secrets.DEPLOY_WXPUSHER_UIDS }}
+          TOPIC_IDS: ${{ secrets.DEPLOY_WXPUSHER_TOPIC_IDS }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:SPT) -and [string]::IsNullOrWhiteSpace($env:APP_TOKEN)) { exit 0 }
+          $title = if ($env:JOB_STATUS -eq 'success') { 'Market deploy succeeded' } else { 'Market deploy failed' }
+          $content = @"
+          $title
+
+          Status: $($env:JOB_STATUS)
+          Repo: $($env:REPO)
+          Branch: $($env:BRANCH)
+          Commit: $($env:SHA.Substring(0, 7))
+          Actor: $($env:ACTOR)
+          Page: $($env:APP_URL)
+          Details: https://github.com/$($env:REPO)/actions/runs/$($env:RUN_ID)
+          "@
+          if (-not [string]::IsNullOrWhiteSpace($env:SPT)) {
+            try {
+              $encoded = [System.Uri]::EscapeDataString($content)
+              $url = "https://wxpusher.zjiecode.com/api/send/message/$($env:SPT)/$encoded"
+              Invoke-RestMethod -Uri $url -TimeoutSec 15 | Out-Null
+            } catch {
+              Write-Host "WxPusher SPT notify skipped: $($_.Exception.Message)"
+            }
+            exit 0
+          }
+          try {
+            $uids = @()
+            if (-not [string]::IsNullOrWhiteSpace($env:UIDS)) { $uids = ($env:UIDS -replace ';', ',').Split(',').Trim() | Where-Object { $_ } }
+            $topicIds = @()
+            if (-not [string]::IsNullOrWhiteSpace($env:TOPIC_IDS)) { $topicIds = ($env:TOPIC_IDS -replace ';', ',').Split(',').Trim() | Where-Object { $_ -match '^\d+$' } | ForEach-Object { [int]$_ } }
+            $payload = @{
+              appToken = $env:APP_TOKEN
+              summary = $title.Substring(0, [Math]::Min(100, $title.Length))
+              content = $content
+              contentType = 1
+              uids = $uids
+              topicIds = $topicIds
+            } | ConvertTo-Json -Depth 4
+            Invoke-RestMethod -Uri 'https://wxpusher.zjiecode.com/api/send/message' -Method Post -ContentType 'application/json' -Body $payload -TimeoutSec 15 | Out-Null
+          } catch {
+            Write-Host "WxPusher app-token notify skipped: $($_.Exception.Message)"
+          }
