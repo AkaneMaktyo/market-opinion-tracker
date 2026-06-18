@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       APP_URL: http://103.236.98.149:8888/market/#/youtube
+      DEPLOY_SSH_PORT: 8888
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,12 +19,11 @@ jobs:
       - name: Validate deployment secrets
         env:
           SSH_HOST: ${{ secrets.KMT_SSH_HOST }}
-          SSH_PORT: ${{ secrets.KMT_SSH_PORT }}
           SSH_USER: ${{ secrets.KMT_SSH_USER }}
           SSH_PASSWORD: ${{ secrets.KMT_SSH_PASSWORD }}
         run: |
           missing=()
-          for name in SSH_HOST SSH_PORT SSH_USER SSH_PASSWORD; do
+          for name in SSH_HOST SSH_USER SSH_PASSWORD; do
             if [ -z "${!name:-}" ]; then
               missing+=("$name")
             fi
@@ -61,7 +61,7 @@ jobs:
       - name: Upload and restart
         env:
           SSH_HOST: ${{ secrets.KMT_SSH_HOST }}
-          SSH_PORT: ${{ secrets.KMT_SSH_PORT }}
+          SSH_PORT: ${{ env.DEPLOY_SSH_PORT }}
           SSH_USER: ${{ secrets.KMT_SSH_USER }}
           SSH_PASSWORD: ${{ secrets.KMT_SSH_PASSWORD }}
         run: |
@@ -72,7 +72,7 @@ jobs:
           }
           copy_remote() {
             sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no -o ConnectTimeout=15 -P "$SSH_PORT" \
-              backend/target/market-opinion-tracker-0.1.0.jar "$RUNNER_TEMP/frontend-dist.tar.gz" deploy/apply-release.sh \
+              backend/target/market-opinion-tracker-0.1.0.jar "$RUNNER_TEMP/frontend-dist.tar.gz" deploy/apply-release.sh deploy/ssh_http_mux.py \
               "$SSH_USER@$SSH_HOST:/root/market-opinion-deploy/"
           }
           for attempt in 1 2 3; do

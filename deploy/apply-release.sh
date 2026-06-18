@@ -7,6 +7,7 @@ APP_BASE="${APP_BASE:-/opt/market-opinion-tracker}"
 ENV_DIR="${ENV_DIR:-/etc/market-opinion-tracker}"
 WWW_ROOT="${WWW_ROOT:-/var/www/market-opinion-tracker}"
 SERVICE_NAME="${SERVICE_NAME:-market-opinion-tracker}"
+MUX_BASE="${MUX_BASE:-/opt/market-opinion-tracker-deploy}"
 
 validate_frontend_archive() {
   local archive="$1"
@@ -38,6 +39,9 @@ mkdir -p "$APP_BASE" "$ENV_DIR" "$WWW_ROOT/market"
 cp -f "$JAR_PATH" "$APP_BASE/market-opinion-tracker.jar"
 rm -rf "$WWW_ROOT/market"/*
 tar -xzf "$DIST_ARCHIVE" -C "$WWW_ROOT/market"
+mkdir -p "$MUX_BASE"
+cp -f "$(dirname "$0")/ssh_http_mux.py" "$MUX_BASE/ssh_http_mux.py"
+chmod 755 "$MUX_BASE/ssh_http_mux.py"
 
 if [[ ! -f "$ENV_DIR/app.env" ]]; then
   echo "Missing $ENV_DIR/app.env" >&2
@@ -78,7 +82,7 @@ UNIT
 cat > /etc/nginx/sites-available/kol-monitor-trade <<'NGINX'
 server {
     listen 80 default_server;
-    listen 8888;
+    listen 127.0.0.1:8889;
     server_name _;
 
     location /market/api/ {
@@ -108,11 +112,28 @@ server {
 }
 NGINX
 
+cat > /etc/systemd/system/ssh-http-mux.service <<'UNIT'
+[Unit]
+Description=SSH and HTTP port mux on 8888
+After=network.target nginx.service ssh.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/market-opinion-tracker-deploy/ssh_http_mux.py --listen 0.0.0.0:8888 --ssh 127.0.0.1:22 --http 127.0.0.1:8889
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
 nginx -t
 systemctl daemon-reload
 systemctl enable "$SERVICE_NAME"
+systemctl enable ssh-http-mux
 systemctl restart "$SERVICE_NAME"
 systemctl restart nginx
+systemctl restart ssh-http-mux
 
 for _ in $(seq 1 60); do
   if curl -fsS http://127.0.0.1:18082/api/health >/dev/null; then
