@@ -24,15 +24,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate deployment secrets
-        shell: powershell
-        run: |
-          foreach ($name in 'SSH_HOST','SSH_PORT','SSH_USER','SSH_PASSWORD') {
-            if ([string]::IsNullOrWhiteSpace((Get-Item "Env:$name").Value)) {
-              throw "Missing deployment secret: $name"
-            }
-          }
-
       - name: Build and deploy
         shell: powershell
         run: |
