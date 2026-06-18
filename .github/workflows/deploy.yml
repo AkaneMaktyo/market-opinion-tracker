@@ -15,6 +15,9 @@ env:
 jobs:
   deploy:
     runs-on: [self-hosted, windows, x64, market-deploy]
+    defaults:
+      run:
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command ". '{0}'"
     env:
       SSH_HOST: ${{ secrets.KMT_SSH_HOST }}
       SSH_PORT: ${{ secrets.KMT_SSH_PORT }}
@@ -25,7 +28,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build and deploy
-        shell: powershell
         run: |
           & .\deploy\manual-release.ps1 `
             -SshHost $env:SSH_HOST `
@@ -34,14 +36,12 @@ jobs:
             -SshPassword $env:SSH_PASSWORD
 
       - name: Verify public endpoints
-        shell: powershell
         run: |
           curl.exe -fsS "http://103.236.98.149:8888/market/api/health" > $null
           curl.exe -fsS "http://103.236.98.149:8888/market/" > $null
 
       - name: Write summary
         if: always()
-        shell: powershell
         env:
           JOB_STATUS: ${{ job.status }}
           REPO: ${{ github.repository }}
@@ -65,7 +65,6 @@ jobs:
 
       - name: Notify WxPusher
         if: always()
-        shell: powershell
         env:
           JOB_STATUS: ${{ job.status }}
           REPO: ${{ github.repository }}
