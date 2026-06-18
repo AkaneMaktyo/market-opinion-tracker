@@ -103,11 +103,8 @@ jobs:
         run: |
           short_sha="${SHA::7}"
           run_url="https://github.com/$REPO/actions/runs/$RUN_ID"
-          if [ "$JOB_STATUS" = "success" ]; then
-            status_text="Deploy succeeded"
-          else
-            status_text="Deploy failed"
-          fi
+          status_text="Deploy failed"
+          [ "$JOB_STATUS" = "success" ] && status_text="Deploy succeeded"
           {
             echo "## $status_text"
             echo
@@ -138,13 +135,9 @@ jobs:
           fi
           short_sha="${SHA::7}"
           run_url="https://github.com/$REPO/actions/runs/$RUN_ID"
-          if [ "$JOB_STATUS" = "success" ]; then
-            title="Market deploy succeeded"
-            status_line="Deploy succeeded"
-          else
-            title="Market deploy failed"
-            status_line="Deploy failed"
-          fi
+          title="Market deploy failed"
+          status_line="Deploy failed"
+          if [ "$JOB_STATUS" = "success" ]; then title="Market deploy succeeded"; status_line="Deploy succeeded"; fi
           content="$title
 
           Status: $status_line
@@ -160,12 +153,15 @@ jobs:
           import os
           import urllib.parse
           import urllib.request
-          content = os.environ["content"]
-          spt = os.environ["SPT"]
-          url = f"https://wxpusher.zjiecode.com/api/send/message/{spt}/{urllib.parse.quote(content, safe='')}"
-          with urllib.request.urlopen(url, timeout=15) as resp:
-              body = resp.read().decode("utf-8", "ignore")
-          print(body)
+          try:
+              content = os.environ["content"]
+              spt = os.environ["SPT"]
+              url = f"https://wxpusher.zjiecode.com/api/send/message/{spt}/{urllib.parse.quote(content, safe='')}"
+              with urllib.request.urlopen(url, timeout=15) as resp:
+                  body = resp.read().decode("utf-8", "ignore")
+              print(body)
+          except Exception as exc:
+              print(f"WxPusher SPT notify skipped: {exc}")
           PY
             exit 0
           fi
@@ -185,13 +181,16 @@ jobs:
               "uids": split_items(os.environ.get("UIDS", "")),
               "topicIds": [int(item) for item in split_items(os.environ.get("TOPIC_IDS", "")) if item.isdigit()],
           }
-          req = urllib.request.Request(
-              "https://wxpusher.zjiecode.com/api/send/message",
-              data=json.dumps(payload).encode("utf-8"),
-              headers={"Content-Type": "application/json"},
-              method="POST",
-          )
-          with urllib.request.urlopen(req, timeout=15) as resp:
-              body = resp.read().decode("utf-8", "ignore")
-          print(body)
+          try:
+              req = urllib.request.Request(
+                  "https://wxpusher.zjiecode.com/api/send/message",
+                  data=json.dumps(payload).encode("utf-8"),
+                  headers={"Content-Type": "application/json"},
+                  method="POST",
+              )
+              with urllib.request.urlopen(req, timeout=15) as resp:
+                  body = resp.read().decode("utf-8", "ignore")
+              print(body)
+          except Exception as exc:
+              print(f"WxPusher app-token notify skipped: {exc}")
           PY

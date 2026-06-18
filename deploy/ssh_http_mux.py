@@ -11,15 +11,15 @@ def parse_addr(raw: str) -> tuple[str, int]:
 
 
 def choose_target(client: socket.socket, ssh_addr: tuple[str, int], http_addr: tuple[str, int]) -> tuple[str, int]:
-    client.settimeout(5)
+    client.settimeout(0.5)
     try:
-      initial = client.recv(16, socket.MSG_PEEK)
+        initial = client.recv(16, socket.MSG_PEEK)
     except TimeoutError:
-      initial = b""
+        return ssh_addr
     finally:
-      client.settimeout(None)
+        client.settimeout(None)
     if initial.startswith(b"SSH-"):
-      return ssh_addr
+        return ssh_addr
     return http_addr
 
 
