@@ -23,6 +23,47 @@ import org.mockito.ArgumentCaptor;
 
 class YouTubeAdminServiceTest {
   @Test
+  void listDashboardOmitsHeavyTranscriptPayloads() {
+    var repository = mock(YouTubeRepository.class);
+    var service = new YouTubeAdminService(
+        repository,
+        mock(YouTubeClient.class),
+        mock(YouTubeAudioDownloader.class),
+        mock(AliyunOssClient.class),
+        mock(AliyunSpeechTranscriber.class),
+        notifier(),
+        1,
+        20);
+    ChannelRecord channel = channel("2026-06-12T08:00:00Z");
+    VideoRecord video = new VideoRecord(
+        "vid-1",
+        "channel-row",
+        "channel-id",
+        "Video",
+        "https://example.com/watch?v=1",
+        "2026-06-12T08:00:00Z",
+        "audio.m4a",
+        1234,
+        YouTubeAdminService.TRANSCRIPT_READY,
+        "zh",
+        "aliyun_filetrans",
+        "完整转写正文",
+        List.of(new YouTubeRepository.TranscriptSegment(0, 1000, "第一段")),
+        "",
+        "2026-06-12T08:05:00Z",
+        "created",
+        "updated");
+    when(repository.listChannels()).thenReturn(List.of(channel));
+    when(repository.listVideos("channel-row", 8)).thenReturn(List.of(video));
+
+    List<YouTubeAdminService.DashboardChannel> dashboard = service.listDashboard();
+
+    assertEquals(1, dashboard.size());
+    assertEquals("", dashboard.get(0).videos().get(0).transcriptText());
+    assertEquals(List.of(), dashboard.get(0).videos().get(0).transcriptSegments());
+  }
+
+  @Test
   void getCloudAudioLinkOnlySignsAliyunVideos() {
     var repository = mock(YouTubeRepository.class);
     var ossClient = mock(AliyunOssClient.class);

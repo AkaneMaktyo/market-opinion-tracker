@@ -70,7 +70,9 @@ public class YouTubeAdminService {
 
   public List<DashboardChannel> listDashboard() {
     return repository.listChannels().stream()
-        .map(channel -> new DashboardChannel(channel, repository.listVideos(channel.id(), 8)))
+        .map(channel -> new DashboardChannel(
+            channel,
+            repository.listVideos(channel.id(), 8).stream().map(this::summaryVideo).toList()))
         .toList();
   }
 
@@ -364,6 +366,27 @@ public class YouTubeAdminService {
       return true;
     }
     return video.transcriptText() != null && !video.transcriptText().isBlank();
+  }
+
+  private VideoRecord summaryVideo(VideoRecord video) {
+    return new VideoRecord(
+        video.videoId(),
+        video.channelRowId(),
+        video.channelId(),
+        video.title(),
+        video.videoUrl(),
+        video.publishedAt(),
+        video.audioPath(),
+        video.audioDurationMs(),
+        video.transcriptStatus(),
+        video.transcriptLanguage(),
+        video.transcriptSource(),
+        "",
+        List.of(),
+        video.errorMessage(),
+        video.syncedAt(),
+        video.createdAt(),
+        video.updatedAt());
   }
 
   private static Path audioPath(String rawPath) {
