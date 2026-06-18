@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.List;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -27,9 +28,13 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/youtube")
 public class YouTubeController {
   private final YouTubeAdminService service;
+  private final Path audioRoot;
 
-  public YouTubeController(YouTubeAdminService service) {
+  public YouTubeController(YouTubeAdminService service, Environment environment) {
     this.service = service;
+    this.audioRoot = Path.of(environment.getProperty("YOUTUBE_AUDIO_DIR", "data/youtube_audio"))
+        .toAbsolutePath()
+        .normalize();
   }
 
   @GetMapping("/channels")
@@ -67,22 +72,18 @@ public class YouTubeController {
     if (video == null) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "音频不存在");
     }
-    Path path = video.audioPath() == null || video.audioPath().isBlank()
-        ? null
-        : Path.of(video.audioPath().replace("\\", "/"));
+    Path path = resolveAudioPath(video.audioPath());
     if (path != null && Files.exists(path)) {
       return fileResponse(path);
     }
-    String link = service.getCloudAudioLink(videoId);
+    String link = cloudAudioLink(videoId);
     if (!link.isBlank()) {
       return ResponseEntity.status(HttpStatus.TEMPORARY_REDIRECT)
           .header(HttpHeaders.LOCATION, link)
           .build();
     }
     VideoRecord refreshed = service.ensureAudio(videoId);
-    Path refreshedPath = refreshed == null || refreshed.audioPath() == null || refreshed.audioPath().isBlank()
-        ? null
-        : Path.of(refreshed.audioPath().replace("\\", "/"));
+    Path refreshedPath = refreshed == null ? null : resolveAudioPath(refreshed.audioPath());
     if (refreshedPath != null && Files.exists(refreshedPath)) {
       return fileResponse(refreshedPath);
     }
@@ -103,6 +104,30 @@ public class YouTubeController {
     return ResponseEntity.ok()
         .contentType(contentType)
         .body(new FileSystemResource(path));
+  }
+
+  private String cloudAudioLink(String videoId) {
+    try {
+      return service.getCloudAudioLink(videoId);
+    } catch (IllegalArgumentException error) {
+      return "";
+    }
+  }
+
+  private Path resolveAudioPath(String rawPath) {
+    if (rawPath == null || rawPath.isBlank()) {
+      return null;
+    }
+    Path direct = Path.of(rawPath.replace("\\", "/"));
+    if (Files.exists(direct)) {
+      return direct;
+    }
+    Path fileName = direct.getFileName();
+    if (fileName == null) {
+      return direct;
+    }
+    Path fallback = audioRoot.resolve(fileName.toString()).normalize();
+    return Files.exists(fallback) ? fallback : direct;
   }
 
   public record CreateChannelRequest(String sourceUrl, String name) {

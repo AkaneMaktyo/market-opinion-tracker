@@ -9,6 +9,8 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      APP_URL: http://103.236.98.149:8888/market/#/youtube
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -65,10 +67,127 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y sshpass
-          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
-            "mkdir -p /root/market-opinion-deploy"
-          sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no -P "$SSH_PORT" \
-            backend/target/market-opinion-tracker-0.1.0.jar "$RUNNER_TEMP/frontend-dist.tar.gz" deploy/apply-release.sh \
-            "$SSH_USER@$SSH_HOST:/root/market-opinion-deploy/"
-          sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
-            "bash /root/market-opinion-deploy/apply-release.sh /root/market-opinion-deploy/market-opinion-tracker-0.1.0.jar /root/market-opinion-deploy/frontend-dist.tar.gz"
+          run_remote() {
+            sshpass -p "$SSH_PASSWORD" ssh -o StrictHostKeyChecking=no -o ConnectTimeout=15 -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "$1"
+          }
+          copy_remote() {
+            sshpass -p "$SSH_PASSWORD" scp -o StrictHostKeyChecking=no -o ConnectTimeout=15 -P "$SSH_PORT" \
+              backend/target/market-opinion-tracker-0.1.0.jar "$RUNNER_TEMP/frontend-dist.tar.gz" deploy/apply-release.sh \
+              "$SSH_USER@$SSH_HOST:/root/market-opinion-deploy/"
+          }
+          for attempt in 1 2 3; do
+            if run_remote "mkdir -p /root/market-opinion-deploy" && copy_remote && \
+              run_remote "bash /root/market-opinion-deploy/apply-release.sh /root/market-opinion-deploy/market-opinion-tracker-0.1.0.jar /root/market-opinion-deploy/frontend-dist.tar.gz"; then
+              exit 0
+            fi
+            echo "Deploy attempt $attempt failed." >&2
+            sleep 10
+          done
+          echo "GitHub runner could not reach the server. Use deploy/manual-release.ps1 from a trusted local machine." >&2
+          exit 1
+
+      - name: Verify public endpoints
+        run: |
+          curl -fsS "http://103.236.98.149:8888/market/api/health" >/dev/null
+          curl -fsS "http://103.236.98.149:8888/market/" >/dev/null
+
+      - name: Write deployment summary
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          short_sha="${SHA::7}"
+          run_url="https://github.com/$REPO/actions/runs/$RUN_ID"
+          if [ "$JOB_STATUS" = "success" ]; then
+            status_text="Deploy succeeded"
+          else
+            status_text="Deploy failed"
+          fi
+          {
+            echo "## $status_text"
+            echo
+            echo "- Branch: \`$BRANCH\`"
+            echo "- Commit: \`$short_sha\`"
+            echo "- Actor: \`$ACTOR\`"
+            echo "- Page: $APP_URL"
+            echo "- Details: $run_url"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Notify WxPusher
+        if: always() && (secrets.DEPLOY_WXPUSHER_SPT != '' || secrets.DEPLOY_WXPUSHER_APP_TOKEN != '')
+        env:
+          JOB_STATUS: ${{ job.status }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          ACTOR: ${{ github.actor }}
+          SHA: ${{ github.sha }}
+          RUN_ID: ${{ github.run_id }}
+          SPT: ${{ secrets.DEPLOY_WXPUSHER_SPT }}
+          APP_TOKEN: ${{ secrets.DEPLOY_WXPUSHER_APP_TOKEN }}
+          UIDS: ${{ secrets.DEPLOY_WXPUSHER_UIDS }}
+          TOPIC_IDS: ${{ secrets.DEPLOY_WXPUSHER_TOPIC_IDS }}
+        run: |
+          short_sha="${SHA::7}"
+          run_url="https://github.com/$REPO/actions/runs/$RUN_ID"
+          if [ "$JOB_STATUS" = "success" ]; then
+            title="Market deploy succeeded"
+            status_line="Deploy succeeded"
+          else
+            title="Market deploy failed"
+            status_line="Deploy failed"
+          fi
+          content="$title
+
+          Status: $status_line
+          Repo: $REPO
+          Branch: $BRANCH
+          Commit: $short_sha
+          Actor: $ACTOR
+          Page: $APP_URL
+          Details: $run_url"
+          export title content
+          if [ -n "${SPT:-}" ]; then
+            python - <<'PY'
+import os
+import urllib.parse
+import urllib.request
+content = os.environ["content"]
+spt = os.environ["SPT"]
+url = f"https://wxpusher.zjiecode.com/api/send/message/{spt}/{urllib.parse.quote(content)}"
+with urllib.request.urlopen(url, timeout=15) as resp:
+    body = resp.read().decode("utf-8", "ignore")
+print(body)
+PY
+            exit 0
+          fi
+          python - <<'PY'
+import json
+import os
+import urllib.request
+def split_items(value):
+    if not value:
+        return []
+    return [item.strip() for item in value.replace(";", ",").split(",") if item.strip()]
+payload = {
+    "appToken": os.environ["APP_TOKEN"],
+    "summary": os.environ["title"][:100],
+    "content": os.environ["content"],
+    "contentType": 1,
+    "uids": split_items(os.environ.get("UIDS", "")),
+    "topicIds": [int(item) for item in split_items(os.environ.get("TOPIC_IDS", "")) if item.isdigit()],
+}
+req = urllib.request.Request(
+    "https://wxpusher.zjiecode.com/api/send/message",
+    data=json.dumps(payload).encode("utf-8"),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+with urllib.request.urlopen(req, timeout=15) as resp:
+    body = resp.read().decode("utf-8", "ignore")
+print(body)
+PY
