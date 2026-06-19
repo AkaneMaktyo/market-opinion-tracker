@@ -21,6 +21,7 @@ $remoteArchive = "$remoteDir/frontend-dist.tar.gz"
 $remoteScript = "$remoteDir/apply-release.sh"
 $remoteMuxScript = "$remoteDir/ssh_http_mux.py"
 $remoteTarget = "${SshUser}@${SshHost}:${remoteDir}/"
+$remoteArchiveTarget = "${SshUser}@${SshHost}:$remoteArchive"
 $remoteScriptTarget = "${SshUser}@${SshHost}:$remoteScript"
 $remoteMuxScriptTarget = "${SshUser}@${SshHost}:$remoteMuxScript"
 $resolvedJarPath = if ($JarPath) { (Resolve-Path $JarPath).Path } else { $defaultJarPath }
@@ -101,7 +102,7 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Jar upload failed."
     }
-    & $scp -P $SshPort -o PreferredAuthentications=password -o PubkeyAuthentication=no -o NumberOfPasswordPrompts=1 -o StrictHostKeyChecking=accept-new $resolvedArchivePath $remoteTarget
+    & $scp -P $SshPort -o PreferredAuthentications=password -o PubkeyAuthentication=no -o NumberOfPasswordPrompts=1 -o StrictHostKeyChecking=accept-new $resolvedArchivePath $remoteArchiveTarget
     if ($LASTEXITCODE -ne 0) {
         throw "Frontend upload failed."
     }
