@@ -175,7 +175,8 @@ public class YouTubeAudioDownloader {
     }
     return List.of(
         List.of("yt-dlp"),
-        List.of("python", "-m", "yt_dlp"));
+        List.of("python", "-m", "yt_dlp"),
+        List.of("python3", "-m", "yt_dlp"));
   }
 
   static List<String> parseCommand(String raw) {

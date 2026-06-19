@@ -25,6 +25,7 @@ class YouTubeAudioDownloaderTest {
 
     assertEquals(List.of("yt-dlp"), candidates.get(0));
     assertTrue(candidates.contains(List.of("python", "-m", "yt_dlp")));
+    assertTrue(candidates.contains(List.of("python3", "-m", "yt_dlp")));
   }
 
   @Test
