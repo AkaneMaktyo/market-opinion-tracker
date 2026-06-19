@@ -90,30 +90,51 @@ jobs:
           Page: $($env:APP_URL)
           Details: https://github.com/$($env:REPO)/actions/runs/$($env:RUN_ID)
           "@
+          $notified = $false
           if (-not [string]::IsNullOrWhiteSpace($env:SPT)) {
             try {
-              $encoded = [System.Uri]::EscapeDataString($content)
-              $url = "https://wxpusher.zjiecode.com/api/send/message/$($env:SPT)/$encoded"
-              Invoke-RestMethod -Uri $url -TimeoutSec 15 | Out-Null
+              $simplePayload = @{
+                spt = $env:SPT
+                summary = $title.Substring(0, [Math]::Min(100, $title.Length))
+                content = $content
+                contentType = 1
+                url = "https://github.com/$($env:REPO)/actions/runs/$($env:RUN_ID)"
+              } | ConvertTo-Json -Depth 4
+              $simpleResponse = Invoke-RestMethod -Uri 'https://wxpusher.zjiecode.com/api/send/message/simple-push' -Method Post -ContentType 'application/json' -Body $simplePayload -TimeoutSec 15
+              if ($simpleResponse.code -eq 1000) {
+                $notified = $true
+              } else {
+                throw "code=$($simpleResponse.code); msg=$($simpleResponse.msg)"
+              }
             } catch {
-              Write-Host "WxPusher SPT notify skipped: $($_.Exception.Message)"
+              Write-Host "WxPusher SPT notify failed: $($_.Exception.Message)"
             }
-            exit 0
           }
-          try {
-            $uids = @()
-            if (-not [string]::IsNullOrWhiteSpace($env:UIDS)) { $uids = ($env:UIDS -replace ';', ',').Split(',').Trim() | Where-Object { $_ } }
-            $topicIds = @()
-            if (-not [string]::IsNullOrWhiteSpace($env:TOPIC_IDS)) { $topicIds = ($env:TOPIC_IDS -replace ';', ',').Split(',').Trim() | Where-Object { $_ -match '^\d+$' } | ForEach-Object { [int]$_ } }
-            $payload = @{
-              appToken = $env:APP_TOKEN
-              summary = $title.Substring(0, [Math]::Min(100, $title.Length))
-              content = $content
-              contentType = 1
-              uids = $uids
-              topicIds = $topicIds
-            } | ConvertTo-Json -Depth 4
-            Invoke-RestMethod -Uri 'https://wxpusher.zjiecode.com/api/send/message' -Method Post -ContentType 'application/json' -Body $payload -TimeoutSec 15 | Out-Null
-          } catch {
-            Write-Host "WxPusher app-token notify skipped: $($_.Exception.Message)"
+          if (-not $notified -and -not [string]::IsNullOrWhiteSpace($env:APP_TOKEN)) {
+            try {
+              $uids = @()
+              if (-not [string]::IsNullOrWhiteSpace($env:UIDS)) { $uids = ($env:UIDS -replace ';', ',').Split(',').Trim() | Where-Object { $_ } }
+              $topicIds = @()
+              if (-not [string]::IsNullOrWhiteSpace($env:TOPIC_IDS)) { $topicIds = ($env:TOPIC_IDS -replace ';', ',').Split(',').Trim() | Where-Object { $_ -match '^\d+$' } | ForEach-Object { [int]$_ } }
+              $payload = @{
+                appToken = $env:APP_TOKEN
+                summary = $title.Substring(0, [Math]::Min(100, $title.Length))
+                content = $content
+                contentType = 1
+                uids = $uids
+                topicIds = $topicIds
+                url = "https://github.com/$($env:REPO)/actions/runs/$($env:RUN_ID)"
+              } | ConvertTo-Json -Depth 4
+              $response = Invoke-RestMethod -Uri 'https://wxpusher.zjiecode.com/api/send/message' -Method Post -ContentType 'application/json' -Body $payload -TimeoutSec 15
+              if ($response.code -eq 1000) {
+                $notified = $true
+              } else {
+                throw "code=$($response.code); msg=$($response.msg)"
+              }
+            } catch {
+              Write-Host "WxPusher app-token notify failed: $($_.Exception.Message)"
+            }
+          }
+          if (-not $notified) {
+            Write-Host "WxPusher notify not confirmed."
           }
