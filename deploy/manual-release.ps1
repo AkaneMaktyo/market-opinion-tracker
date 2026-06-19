@@ -21,6 +21,8 @@ $remoteArchive = "$remoteDir/frontend-dist.tar.gz"
 $remoteScript = "$remoteDir/apply-release.sh"
 $remoteMuxScript = "$remoteDir/ssh_http_mux.py"
 $remoteTarget = "${SshUser}@${SshHost}:${remoteDir}/"
+$remoteScriptTarget = "${SshUser}@${SshHost}:$remoteScript"
+$remoteMuxScriptTarget = "${SshUser}@${SshHost}:$remoteMuxScript"
 $resolvedJarPath = if ($JarPath) { (Resolve-Path $JarPath).Path } else { $defaultJarPath }
 $resolvedArchivePath = if ($FrontendArchivePath) { (Resolve-Path $FrontendArchivePath).Path } else { $defaultArchivePath }
 $localReleaseScript = Join-Path $env:TEMP "mot-apply-release-$PID.sh"
@@ -103,11 +105,11 @@ try {
     if ($LASTEXITCODE -ne 0) {
         throw "Frontend upload failed."
     }
-    & $scp -P $SshPort -o PreferredAuthentications=password -o PubkeyAuthentication=no -o NumberOfPasswordPrompts=1 -o StrictHostKeyChecking=accept-new $localReleaseScript $remoteScript
+    & $scp -P $SshPort -o PreferredAuthentications=password -o PubkeyAuthentication=no -o NumberOfPasswordPrompts=1 -o StrictHostKeyChecking=accept-new $localReleaseScript $remoteScriptTarget
     if ($LASTEXITCODE -ne 0) {
         throw "Release script upload failed."
     }
-    & $scp -P $SshPort -o PreferredAuthentications=password -o PubkeyAuthentication=no -o NumberOfPasswordPrompts=1 -o StrictHostKeyChecking=accept-new $localMuxScript $remoteMuxScript
+    & $scp -P $SshPort -o PreferredAuthentications=password -o PubkeyAuthentication=no -o NumberOfPasswordPrompts=1 -o StrictHostKeyChecking=accept-new $localMuxScript $remoteMuxScriptTarget
     if ($LASTEXITCODE -ne 0) {
         throw "Mux script upload failed."
     }
