@@ -12,7 +12,7 @@ MUX_BASE="${MUX_BASE:-/opt/market-opinion-tracker-deploy}"
 validate_frontend_archive() {
   local archive="$1"
   local entries
-  entries="$(tar -tzf "$archive")"
+  entries="$(tar -tzf "$archive" | sed 's#^\./##')"
 
   if [[ -z "$entries" ]]; then
     echo "Frontend archive is empty: $archive" >&2
