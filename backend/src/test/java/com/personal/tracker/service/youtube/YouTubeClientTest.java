@@ -3,8 +3,11 @@ package com.personal.tracker.service.youtube;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.net.InetSocketAddress;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 
 class YouTubeClientTest {
   @Test
@@ -40,5 +43,17 @@ class YouTubeClientTest {
     assertEquals(1, videos.size());
     assertEquals("vid-1", videos.get(0).videoId());
     assertTrue(videos.get(0).videoUrl().contains("vid-1"));
+  }
+
+  @Test
+  void proxyAddressReadsHostAndPortFromEnvironment() {
+    MockEnvironment environment = new MockEnvironment()
+        .withProperty("YOUTUBE_PROXY_URL", "http://127.0.0.1:17897");
+
+    Optional<InetSocketAddress> proxy = YouTubeClient.proxyAddress(environment);
+
+    assertTrue(proxy.isPresent());
+    assertEquals("127.0.0.1", proxy.get().getHostString());
+    assertEquals(17897, proxy.get().getPort());
   }
 }

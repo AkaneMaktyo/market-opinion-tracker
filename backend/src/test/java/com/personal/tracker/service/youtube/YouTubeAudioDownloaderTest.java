@@ -45,7 +45,7 @@ class YouTubeAudioDownloaderTest {
   void existingIgnoresPartFiles() throws Exception {
     Path root = Files.createTempDirectory("yt-audio-test");
     Files.writeString(root.resolve("abc123.m4a.part"), "partial");
-    var downloader = new YouTubeAudioDownloader(new ObjectMapper(), root, "python -m yt_dlp");
+    var downloader = new YouTubeAudioDownloader(new ObjectMapper(), root, "python -m yt_dlp", "");
 
     assertNull(downloader.existing("abc123"));
   }
@@ -55,8 +55,19 @@ class YouTubeAudioDownloaderTest {
     Path root = Files.createTempDirectory("yt-audio-test");
     Path target = root.resolve("abc123.m4a");
     Files.writeString(target, "done");
-    var downloader = new YouTubeAudioDownloader(new ObjectMapper(), root, "python -m yt_dlp");
+    var downloader = new YouTubeAudioDownloader(new ObjectMapper(), root, "python -m yt_dlp", "");
 
     assertEquals(target, downloader.existing("abc123"));
+  }
+
+  @Test
+  void withProxyArgsPrependsProxyWhenConfigured() throws Exception {
+    Path root = Files.createTempDirectory("yt-audio-test");
+    var downloader =
+        new YouTubeAudioDownloader(new ObjectMapper(), root, "python -m yt_dlp", "http://127.0.0.1:17897");
+
+    assertEquals(
+        List.of("--proxy", "http://127.0.0.1:17897", "--dump-single-json"),
+        downloader.withProxyArgs(List.of("--dump-single-json")));
   }
 }

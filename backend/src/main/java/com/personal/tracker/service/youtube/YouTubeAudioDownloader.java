@@ -24,6 +24,7 @@ public class YouTubeAudioDownloader {
   private final ObjectMapper objectMapper;
   private final Path root;
   private final String command;
+  private final String proxyUrl;
 
   @Autowired
   public YouTubeAudioDownloader(ObjectMapper objectMapper, Environment environment) {
@@ -32,13 +33,15 @@ public class YouTubeAudioDownloader {
         Paths.get(env(environment, "YOUTUBE_AUDIO_DIR", "data/youtube_audio"))
             .toAbsolutePath()
             .normalize(),
-        env(environment, "YOUTUBE_YT_DLP_COMMAND", ""));
+        env(environment, "YOUTUBE_YT_DLP_COMMAND", ""),
+        env(environment, "YOUTUBE_PROXY_URL", ""));
   }
 
-  YouTubeAudioDownloader(ObjectMapper objectMapper, Path root, String command) {
+  YouTubeAudioDownloader(ObjectMapper objectMapper, Path root, String command, String proxyUrl) {
     this.objectMapper = objectMapper;
     this.root = root;
     this.command = command;
+    this.proxyUrl = proxyUrl == null ? "" : proxyUrl.trim();
   }
 
   public AudioDownload download(String videoId, String videoUrl) {
@@ -65,7 +68,7 @@ public class YouTubeAudioDownloader {
   }
 
   private void runYtDlp(String videoId, String videoUrl) throws IOException {
-    List<String> arguments = List.of(
+    List<String> arguments = withProxyArgs(List.of(
         "--no-playlist",
         "--quiet",
         "--no-warnings",
@@ -73,7 +76,7 @@ public class YouTubeAudioDownloader {
         AUDIO_FORMAT,
         "-o",
         root.resolve(videoId + ".%(ext)s").toString(),
-        videoUrl);
+        videoUrl));
     try {
       runYtDlp(arguments);
     } catch (IllegalArgumentException error) {
@@ -89,7 +92,7 @@ public class YouTubeAudioDownloader {
 
   private long fetchDuration(String videoUrl) {
     try {
-      ProcessResult result = runYtDlp(List.of("--dump-single-json", "--no-playlist", videoUrl));
+      ProcessResult result = runYtDlp(withProxyArgs(List.of("--dump-single-json", "--no-playlist", videoUrl)));
       JsonNode rootNode = objectMapper.readTree(result.stdout());
       return Math.max(0, Math.round(rootNode.path("duration").asDouble(0) * 1000));
     } catch (Exception error) {
@@ -205,6 +208,17 @@ public class YouTubeAudioDownloader {
       throw new IllegalArgumentException("YOUTUBE_YT_DLP_COMMAND 不能为空");
     }
     return List.copyOf(parts);
+  }
+
+  List<String> withProxyArgs(List<String> arguments) {
+    if (proxyUrl.isBlank()) {
+      return arguments;
+    }
+    List<String> commandLine = new ArrayList<>();
+    commandLine.add("--proxy");
+    commandLine.add(proxyUrl);
+    commandLine.addAll(arguments);
+    return List.copyOf(commandLine);
   }
 
   private IllegalArgumentException missingCommand(String detail) {

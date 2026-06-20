@@ -1,6 +1,8 @@
 package com.personal.tracker.service.youtube;
 
 import java.io.ByteArrayInputStream;
+import java.net.InetSocketAddress;
+import java.net.ProxySelector;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -8,10 +10,12 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -20,9 +24,13 @@ import org.w3c.dom.NodeList;
 @Component
 public class YouTubeClient {
   private static final Pattern DIRECT_CHANNEL = Pattern.compile("/channel/(UC[\\w-]+)");
-  private final HttpClient client = HttpClient.newBuilder()
-      .followRedirects(HttpClient.Redirect.NORMAL)
-      .build();
+  private final HttpClient client;
+
+  public YouTubeClient(Environment environment) {
+    HttpClient.Builder builder = HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL);
+    proxyAddress(environment).ifPresent(address -> builder.proxy(ProxySelector.of(address)));
+    this.client = builder.build();
+  }
 
   public ChannelMetadata resolveChannel(String source) {
     String normalized = source == null ? "" : source.trim();
@@ -91,6 +99,24 @@ public class YouTubeClient {
   static String search(String text, String pattern) {
     Matcher matcher = Pattern.compile(pattern).matcher(text == null ? "" : text);
     return matcher.find() ? matcher.group(1) : "";
+  }
+
+  static Optional<InetSocketAddress> proxyAddress(Environment environment) {
+    String raw = environment == null ? "" : environment.getProperty("YOUTUBE_PROXY_URL", "");
+    if (raw == null || raw.isBlank()) {
+      return Optional.empty();
+    }
+    try {
+      URI uri = URI.create(raw.trim());
+      String host = uri.getHost();
+      int port = uri.getPort();
+      if (host == null || host.isBlank() || port <= 0) {
+        return Optional.empty();
+      }
+      return Optional.of(new InetSocketAddress(host, port));
+    } catch (Exception ignore) {
+      return Optional.empty();
+    }
   }
 
   private String fetch(String url, String accept) {
