@@ -1,3 +1,4 @@
+import base64
 import json
 import os
 import pathlib
@@ -13,6 +14,7 @@ import oss2
 
 AUDIO_FORMAT = "bestaudio[ext=m4a]/bestaudio[ext=mp4]/bestaudio[ext=mp3]/bestaudio"
 COMMON_EXTS = (".m4a", ".mp4", ".webm", ".mp3", ".opus")
+COOKIE_PATH = ""
 
 
 def env(name, fallback=""):
@@ -41,7 +43,19 @@ def utc_now():
 
 
 def yt_dlp_args():
-    return shlex.split(env("YOUTUBE_YT_DLP_EXTRA_ARGS"))
+    args = shlex.split(env("YOUTUBE_YT_DLP_EXTRA_ARGS"))
+    if COOKIE_PATH:
+        args.extend(["--cookies", COOKIE_PATH])
+    return args
+
+
+def write_cookies():
+    raw = env("YOUTUBE_COOKIES_B64")
+    if not raw:
+        return ""
+    path = pathlib.Path(tempfile.gettempdir()) / "youtube-cookies.txt"
+    path.write_bytes(base64.b64decode(raw))
+    return str(path)
 
 
 def fetch_feed(channel_id, limit):
@@ -125,6 +139,8 @@ def attach_audio(store, video):
 
 
 def main():
+    global COOKIE_PATH
+    COOKIE_PATH = write_cookies()
     store = bucket()
     channel_doc = read_json(store, bridge_key("channels.json"), {"channels": []})
     max_videos = max(1, int(env("YOUTUBE_FETCH_MAX_VIDEOS", "1")))
