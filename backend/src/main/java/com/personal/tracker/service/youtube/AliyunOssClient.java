@@ -2,8 +2,12 @@ package com.personal.tracker.service.youtube;
 
 import com.aliyun.oss.OSS;
 import com.aliyun.oss.OSSClientBuilder;
+import com.aliyun.oss.model.GetObjectRequest;
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Date;
 import org.springframework.core.env.Environment;
@@ -75,6 +79,57 @@ public class AliyunOssClient {
     }
   }
 
+  public boolean exists(String objectKey) {
+    OSS client = build();
+    try {
+      return client.doesObjectExist(bucketName, cleanKey(objectKey));
+    } finally {
+      client.shutdown();
+    }
+  }
+
+  public String readText(String objectKey) {
+    OSS client = build();
+    try {
+      String key = cleanKey(objectKey);
+      if (!client.doesObjectExist(bucketName, key)) {
+        return "";
+      }
+      try (InputStream input = client.getObject(bucketName, key).getObjectContent()) {
+        return new String(input.readAllBytes(), StandardCharsets.UTF_8);
+      }
+    } catch (Exception error) {
+      throw new IllegalArgumentException("读取 OSS 文本失败: " + objectKey, error);
+    } finally {
+      client.shutdown();
+    }
+  }
+
+  public void putText(String objectKey, String content) {
+    OSS client = build();
+    try {
+      byte[] bytes = (content == null ? "" : content).getBytes(StandardCharsets.UTF_8);
+      client.putObject(bucketName, cleanKey(objectKey), new ByteArrayInputStream(bytes));
+    } finally {
+      client.shutdown();
+    }
+  }
+
+  public void download(String objectKey, Path target) {
+    OSS client = build();
+    try {
+      Path parent = target.toAbsolutePath().getParent();
+      if (parent != null) {
+        Files.createDirectories(parent);
+      }
+      client.getObject(new GetObjectRequest(bucketName, cleanKey(objectKey)), target.toFile());
+    } catch (Exception error) {
+      throw new IllegalArgumentException("下载 OSS 音频失败: " + objectKey, error);
+    } finally {
+      client.shutdown();
+    }
+  }
+
   private OSS build() {
     if (accessKeyId.isBlank() || accessKeySecret.isBlank()) {
       throw new IllegalArgumentException("缺少阿里云凭证，请配置 ALIYUN_AK_ID 和 ALIYUN_AK_SECRET");
@@ -117,6 +172,10 @@ public class AliyunOssClient {
     }
     String value = raw.trim().replaceAll("/+$", "");
     return value.startsWith("http") ? value : "https://" + value;
+  }
+
+  private static String cleanKey(String objectKey) {
+    return objectKey == null ? "" : objectKey.replace("\\", "/").replaceAll("^/+", "");
   }
 
   public record UploadResult(String objectKey, String fileLink) {

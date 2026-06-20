@@ -1,0 +1,37 @@
+name: YouTube OSS fetch
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/youtube-oss-fetch.yml"
+      - ".github/scripts/youtube_oss_fetch.py"
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      ALIYUN_AK_ID: ${{ secrets.ALIYUN_AK_ID }}
+      ALIYUN_AK_SECRET: ${{ secrets.ALIYUN_AK_SECRET }}
+      ALIYUN_OSS_ENDPOINT: ${{ secrets.ALIYUN_OSS_ENDPOINT }}
+      ALIYUN_OSS_BUCKET: ${{ secrets.ALIYUN_OSS_BUCKET }}
+      YOUTUBE_OSS_BRIDGE_PREFIX: youtube-bridge
+      YOUTUBE_FETCH_MAX_VIDEOS: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: python -m pip install --disable-pip-version-check oss2 yt-dlp
+
+      - name: Fetch YouTube audio to OSS
+        run: python .github/scripts/youtube_oss_fetch.py

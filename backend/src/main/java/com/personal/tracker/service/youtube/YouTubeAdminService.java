@@ -7,6 +7,7 @@ import com.personal.tracker.repository.youtube.YouTubeRepository.SaveChannelComm
 import com.personal.tracker.repository.youtube.YouTubeRepository.SaveVideoCommand;
 import com.personal.tracker.repository.youtube.YouTubeRepository.TranscriptSegment;
 import com.personal.tracker.repository.youtube.YouTubeRepository.VideoRecord;
+import com.personal.tracker.service.youtube.model.ImportedVideo;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -101,6 +102,46 @@ public class YouTubeAdminService {
         .filter(ChannelRecord::enabled)
         .map(channel -> syncChannel(channel.id()))
         .toList();
+  }
+
+  public VideoRecord importFetchedVideo(ImportedVideo video) {
+    if (video == null || video.channelId() == null || video.channelId().isBlank()) {
+      throw new IllegalArgumentException("缺少 YouTube 频道 ID");
+    }
+    if (video.videoId() == null || video.videoId().isBlank() || video.audioPath() == null || video.audioPath().isBlank()) {
+      throw new IllegalArgumentException("缺少 YouTube 视频或音频信息");
+    }
+    ChannelRecord current = repository.findChannelByRemoteId(video.channelId()).orElse(null);
+    String currentLatest = current == null || current.lastVideoPublishedAt() == null ? "" : current.lastVideoPublishedAt();
+    String publishedAt = video.publishedAt() == null ? "" : video.publishedAt();
+    String nextLatest = publishedAt.compareTo(currentLatest) > 0 ? publishedAt : currentLatest;
+    String channelTitle = current == null ? video.channelId() : current.title();
+    if (video.channelTitle() != null && !video.channelTitle().isBlank()) {
+      channelTitle = video.channelTitle();
+    }
+    String handle = video.handle() == null || video.handle().isBlank()
+        ? current == null ? "" : current.handle()
+        : video.handle();
+    String sourceUrl = video.sourceUrl() == null || video.sourceUrl().isBlank()
+        ? "https://www.youtube.com/channel/" + video.channelId()
+        : video.sourceUrl();
+    ChannelRecord channel = repository.saveChannel(new SaveChannelCommand(
+        video.channelId(),
+        channelTitle,
+        handle,
+        sourceUrl,
+        current == null || current.enabled(),
+        now(),
+        nextLatest,
+        now()));
+    VideoRecord existing = repository.findVideo(video.videoId()).orElse(null);
+    if (hasReadyTranscript(existing)) {
+      return existing;
+    }
+    VideoRecord base = existing == null
+        ? baseVideo(channel, video.videoId(), video.title(), video.videoUrl(), publishedAt)
+        : existing;
+    return transcribeAndSave(base, channel, video.audioPath(), video.audioDurationMs(), now());
   }
 
   public AutoSyncSummary syncUpdatedChannels() {

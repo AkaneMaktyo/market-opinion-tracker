@@ -4,6 +4,8 @@ import com.personal.tracker.repository.youtube.YouTubeRepository.VideoRecord;
 import com.personal.tracker.service.youtube.YouTubeAdminService;
 import com.personal.tracker.service.youtube.YouTubeAdminService.DashboardChannel;
 import com.personal.tracker.service.youtube.YouTubeAdminService.SyncResult;
+import com.personal.tracker.service.youtube.bridge.YouTubeOssBridgeService;
+import com.personal.tracker.service.youtube.bridge.YouTubeOssBridgeService.BridgeSummary;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -28,10 +30,15 @@ import org.springframework.web.server.ResponseStatusException;
 @RequestMapping("/api/youtube")
 public class YouTubeController {
   private final YouTubeAdminService service;
+  private final YouTubeOssBridgeService bridgeService;
   private final Path audioRoot;
 
-  public YouTubeController(YouTubeAdminService service, Environment environment) {
+  public YouTubeController(
+      YouTubeAdminService service,
+      YouTubeOssBridgeService bridgeService,
+      Environment environment) {
     this.service = service;
+    this.bridgeService = bridgeService;
     this.audioRoot = Path.of(environment.getProperty("YOUTUBE_AUDIO_DIR", "data/youtube_audio"))
         .toAbsolutePath()
         .normalize();
@@ -55,6 +62,11 @@ public class YouTubeController {
   @PostMapping("/sync")
   SyncAllResponse syncAll() {
     return new SyncAllResponse(true, service.syncAll());
+  }
+
+  @PostMapping("/oss-bridge/sync")
+  BridgeResponse syncOssBridge() {
+    return new BridgeResponse(true, bridgeService.sync());
   }
 
   @GetMapping("/videos/{videoId}")
@@ -140,6 +152,9 @@ public class YouTubeController {
   }
 
   public record SyncAllResponse(boolean ok, List<SyncResult> results) {
+  }
+
+  public record BridgeResponse(boolean ok, BridgeSummary summary) {
   }
 
   public record VideoResponse(boolean ok, VideoRecord video) {

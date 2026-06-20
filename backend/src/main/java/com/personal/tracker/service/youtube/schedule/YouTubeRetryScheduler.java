@@ -1,5 +1,6 @@
-package com.personal.tracker.service.youtube;
+package com.personal.tracker.service.youtube.schedule;
 
+import com.personal.tracker.service.youtube.YouTubeAdminService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
