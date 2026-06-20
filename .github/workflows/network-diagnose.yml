@@ -1,0 +1,24 @@
+name: Network diagnose
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check YouTube and server
+        run: |
+          set -x
+          curl -I -L --connect-timeout 10 --max-time 30 https://www.youtube.com/ | sed -n '1,20p'
+          curl -I -L --connect-timeout 10 --max-time 30 https://www.google.com/ | sed -n '1,20p'
+          curl -i --connect-timeout 10 --max-time 30 http://103.236.98.149:8888/market/api/health
+          python3 - <<'PY'
+          import socket
+          for host, port in [("103.236.98.149", 8888), ("103.236.98.149", 29453)]:
+              try:
+                  with socket.create_connection((host, port), timeout=15):
+                      print(f"TCP_OK {host}:{port}")
+              except Exception as error:
+                  print(f"TCP_FAIL {host}:{port} {type(error).__name__}: {error}")
+          PY
