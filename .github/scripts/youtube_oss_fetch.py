@@ -1,6 +1,7 @@
 import json
 import os
 import pathlib
+import shlex
 import subprocess
 import sys
 import tempfile
@@ -39,6 +40,10 @@ def utc_now():
     return datetime.now(timezone.utc).isoformat()
 
 
+def yt_dlp_args():
+    return shlex.split(env("YOUTUBE_YT_DLP_EXTRA_ARGS"))
+
+
 def fetch_feed(channel_id, limit):
     url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
     request = urllib.request.Request(url, headers={"User-Agent": "market-opinion-tracker/1.0"})
@@ -74,7 +79,7 @@ def existing_audio_key(store, video_id):
 
 
 def duration_ms(video_url):
-    command = [sys.executable, "-m", "yt_dlp", "--dump-single-json", "--no-playlist", video_url]
+    command = [sys.executable, "-m", "yt_dlp", *yt_dlp_args(), "--dump-single-json", "--no-playlist", video_url]
     try:
         result = subprocess.run(command, check=True, capture_output=True, text=True, timeout=90)
         return max(0, round(float(json.loads(result.stdout).get("duration") or 0) * 1000))
@@ -90,6 +95,7 @@ def download_audio(video):
             sys.executable,
             "-m",
             "yt_dlp",
+            *yt_dlp_args(),
             "--no-playlist",
             "--quiet",
             "--no-warnings",
@@ -123,20 +129,27 @@ def main():
     channel_doc = read_json(store, bridge_key("channels.json"), {"channels": []})
     max_videos = max(1, int(env("YOUTUBE_FETCH_MAX_VIDEOS", "1")))
     manifest = {"generatedAt": utc_now(), "channels": []}
+    attempted = 0
+    failed = 0
     for channel in channel_doc.get("channels", []):
         channel_id = (channel.get("channelId") or "").strip()
         if not channel_id:
             continue
         fetched = []
         for video in fetch_feed(channel_id, max_videos):
+            attempted += 1
             try:
                 fetched.append(attach_audio(store, video))
             except Exception as error:
+                failed += 1
                 print(f"skip {video.get('videoId')}: {error}", file=sys.stderr)
         manifest["channels"].append({**channel, "videos": fetched})
     payload = json.dumps(manifest, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     store.put_object(bridge_key("latest.json"), payload)
-    print(f"channels={len(manifest['channels'])} videos={sum(len(c['videos']) for c in manifest['channels'])}")
+    total = sum(len(c["videos"]) for c in manifest["channels"])
+    print(f"channels={len(manifest['channels'])} videos={total} failed={failed}")
+    if attempted and total == 0:
+        raise RuntimeError("all YouTube audio downloads failed")
 
 
 if __name__ == "__main__":
