@@ -56,6 +56,58 @@ jobs:
           mkdir -p /tmp/mihomo-home
           nohup /tmp/mihomo -d /tmp/mihomo-home -f /tmp/mihomo.yaml > /tmp/mihomo.log 2>&1 &
           sleep 8
+          python - <<'PY'
+          import concurrent.futures
+          import json
+          import urllib.parse
+          import urllib.request
+
+          controller = "http://127.0.0.1:9090"
+          group = "\u7ea2\u674f\u4e91"
+          blocked = ("\u5269\u4f59\u6d41\u91cf\uff1a", "\u5957\u9910\u5230\u671f\uff1a")
+          skip_types = {"Selector", "URLTest", "Fallback", "Direct", "Reject"}
+
+          def request_json(path, timeout=5):
+              with urllib.request.urlopen(controller + path, timeout=timeout) as response:
+                  return json.loads(response.read().decode("utf-8"))
+
+          def delay(name):
+              query = urllib.parse.urlencode({
+                  "timeout": "3500",
+                  "url": "http://www.gstatic.com/generate_204",
+              })
+              path = "/proxies/" + urllib.parse.quote(name, safe="") + "/delay?" + query
+              try:
+                  body = request_json(path, timeout=6)
+                  return body.get("delay"), name
+              except Exception:
+                  return None, name
+
+          proxies = request_json("/proxies").get("proxies", {})
+          names = [
+              name for name, item in proxies.items()
+              if item.get("type") not in skip_types
+              and not any(name.startswith(prefix) for prefix in blocked)
+          ]
+          with concurrent.futures.ThreadPoolExecutor(max_workers=24) as pool:
+              results = list(pool.map(delay, names))
+          usable = sorted((ms, name) for ms, name in results if isinstance(ms, int))
+          if not usable:
+              raise SystemExit("No usable Mihomo proxy nodes passed delay test.")
+          ms, selected = usable[0]
+          payload = json.dumps({"name": selected}).encode("utf-8")
+          path = "/proxies/" + urllib.parse.quote(group, safe="")
+          request = urllib.request.Request(
+              controller + path,
+              data=payload,
+              method="PUT",
+              headers={"Content-Type": "application/json"},
+          )
+          with urllib.request.urlopen(request, timeout=5) as response:
+              if response.status != 204:
+                  raise SystemExit(f"Failed to select proxy: {response.status}")
+          print("selected_proxy", selected.encode("unicode_escape").decode("ascii"), ms)
+          PY
           curl -x http://127.0.0.1:7897 -fsS -o /dev/null --max-time 25 https://www.youtube.com/generate_204 || (tail -n 100 /tmp/mihomo.log; exit 1)
 
       - name: Start PO token provider
