@@ -19,6 +19,7 @@ jobs:
       run:
         shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command ". '{0}'"
     env:
+      PSExecutionPolicyPreference: Bypass
       SSH_HOST: ${{ secrets.KMT_SSH_HOST }}
       SSH_PORT: ${{ secrets.KMT_SSH_PORT }}
       SSH_USER: ${{ secrets.KMT_SSH_USER }}
