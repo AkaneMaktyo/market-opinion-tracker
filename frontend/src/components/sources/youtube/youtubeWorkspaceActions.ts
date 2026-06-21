@@ -58,6 +58,7 @@ export async function removeOneChannel(
 
 export async function openVideoDetail(
   videoId: string,
+  activeVideoId: string,
   setActiveVideoId: (value: string) => void,
   setActiveVideo: (value: YouTubeVideo | null) => void,
   setActiveMs: (value: number) => void,
@@ -65,6 +66,9 @@ export async function openVideoDetail(
   setPlaying: (value: boolean) => void,
   setMessage: (value: string) => void,
 ) {
+  if (videoId === activeVideoId) {
+    return;
+  }
   setActiveVideoId(videoId);
   setActiveMs(0);
   setDurationMs(0);
@@ -72,6 +76,7 @@ export async function openVideoDetail(
   try {
     const detail = await api.youtubeVideo(videoId);
     setActiveVideo(detail.video);
+    setDurationMs(detail.video.audioDurationMs || 0);
   } catch (error) {
     setMessage(error instanceof Error ? error.message : '读取视频转写失败');
   }

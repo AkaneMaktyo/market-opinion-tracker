@@ -14,7 +14,6 @@ import {
   syncOneChannel,
   toggleAudio,
 } from './youtubeWorkspaceActions';
-
 export function YouTubeWorkspace({ mode }: { mode: 'page' | 'panel' }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [channels, setChannels] = useState<YouTubeChannel[]>([]);
@@ -28,17 +27,27 @@ export function YouTubeWorkspace({ mode }: { mode: 'page' | 'panel' }) {
   const [durationMs, setDurationMs] = useState(0);
   const [playing, setPlaying] = useState(false);
   const videos = channels.flatMap((item) => item.videos || []);
-
   useEffect(() => {
     void loadChannels();
   }, []);
 
   useEffect(() => {
-    if (playing) {
-      return;
-    }
+    if (playing) return;
     const timer = window.setInterval(() => void loadChannels(activeVideoId), 60000);
     return () => window.clearInterval(timer);
+  }, [activeVideoId, playing]);
+
+  useEffect(() => {
+    if (!playing || !audioRef.current) return;
+    let frameId = 0;
+    const sync = () => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      setActiveMs(Math.round(audio.currentTime * 20) * 50);
+      frameId = window.requestAnimationFrame(sync);
+    };
+    sync();
+    return () => window.cancelAnimationFrame(frameId);
   }, [activeVideoId, playing]);
 
   async function loadChannels(nextVideoId = activeVideoId) {
@@ -54,6 +63,7 @@ export function YouTubeWorkspace({ mode }: { mode: 'page' | 'panel' }) {
       const detail = await api.youtubeVideo(nextVideoId);
       setActiveVideoId(nextVideoId);
       setActiveVideo(detail.video);
+      setDurationMs(detail.video.audioDurationMs || 0);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '读取 YouTube 转写失败');
     } finally {
@@ -153,6 +163,7 @@ export function YouTubeWorkspace({ mode }: { mode: 'page' | 'panel' }) {
           onOpenVideo={(videoId) =>
             void openVideoDetail(
               videoId,
+              activeVideoId,
               setActiveVideoId,
               setActiveVideo,
               setActiveMs,
@@ -185,10 +196,5 @@ export function YouTubeWorkspace({ mode }: { mode: 'page' | 'panel' }) {
   );
 }
 
-function panelClass(mode: 'page' | 'panel') {
-  return `source-panel youtube-panel${mode === 'page' ? ' youtube-panel-page youtube-panel-docked' : ''}`;
-}
-
-function StatItem({ label, value }: { label: string; value: number }) {
-  return <div><span className="muted">{label}</span><strong>{value}</strong></div>;
-}
+function panelClass(mode: 'page' | 'panel') { return `source-panel youtube-panel${mode === 'page' ? ' youtube-panel-page youtube-panel-docked' : ''}`; }
+function StatItem({ label, value }: { label: string; value: number }) { return <div><span className="muted">{label}</span><strong>{value}</strong></div>; }

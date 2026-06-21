@@ -102,6 +102,23 @@ npm run dev
 
 默认地址：`http://localhost:5173`
 
+## 发布
+
+### 自动发布
+
+- 推送到 `main` 会触发 GitHub Actions 自动构建并发布。
+- 自动发布现在会先校验前端产物，再做 3 次 SSH 上传重试。
+
+### 本机直连发布
+
+- 如果 GitHub runner 连不上云服务器，可在本机执行：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File deploy/manual-release.ps1 -SshPassword "<你的 SSH 密码>"
+```
+
+- 这条路径会在本机构建后端和前端、校验前端产物，然后直接上传到服务器执行同一份 `deploy/apply-release.sh`。
+
 ## 关键交互路径
 
 ### 导入观点
