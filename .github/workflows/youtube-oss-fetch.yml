@@ -18,6 +18,7 @@ jobs:
       ALIYUN_OSS_BUCKET: ${{ secrets.ALIYUN_OSS_BUCKET }}
       YOUTUBE_OSS_BRIDGE_PREFIX: youtube-bridge
       YOUTUBE_FETCH_MAX_VIDEOS: "3"
+      YOUTUBE_DOWNLOAD_TIMEOUT_SECONDS: "240"
       YOUTUBE_YT_DLP_EXTRA_ARGS: "--extractor-args youtube:player_client=ios,android,mweb --extractor-args youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416"
       YOUTUBE_COOKIES_B64: ${{ secrets.YOUTUBE_COOKIES_B64 }}
       MIHOMO_CONFIG_GZ_B64: ${{ secrets.MIHOMO_CONFIG_GZ_B64 }}

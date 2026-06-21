@@ -21,6 +21,13 @@ def env(name, fallback=""):
     return os.environ.get(name, fallback).strip()
 
 
+def int_env(name, fallback):
+    try:
+        return int(env(name, str(fallback)))
+    except ValueError:
+        return fallback
+
+
 def bridge_key(name):
     prefix = env("YOUTUBE_OSS_BRIDGE_PREFIX", "youtube-bridge").strip("/")
     return f"{prefix}/{name}" if prefix else name
@@ -44,6 +51,7 @@ def utc_now():
 
 def yt_dlp_args():
     args = shlex.split(env("YOUTUBE_YT_DLP_EXTRA_ARGS"))
+    args.extend(["--socket-timeout", "30", "--retries", "2", "--fragment-retries", "2"])
     proxy = env("YOUTUBE_PROXY_URL")
     if proxy:
         args.extend(["--proxy", proxy])
@@ -114,7 +122,8 @@ def download_audio(video):
             "yt_dlp",
             *yt_dlp_args(),
             "--no-playlist",
-            "--quiet",
+            "--progress",
+            "--newline",
             "--no-warnings",
             "-f",
             AUDIO_FORMAT,
@@ -122,7 +131,8 @@ def download_audio(video):
             str(output),
             video["videoUrl"],
         ]
-        subprocess.run(command, check=True, timeout=600)
+        print(f"download {video['videoId']}", flush=True)
+        subprocess.run(command, check=True, timeout=int_env("YOUTUBE_DOWNLOAD_TIMEOUT_SECONDS", 240))
         files = sorted(path for path in root.glob(f"{video['videoId']}.*") if not path.name.endswith(".part"))
         if not files:
             raise RuntimeError(f"audio missing: {video['videoId']}")
