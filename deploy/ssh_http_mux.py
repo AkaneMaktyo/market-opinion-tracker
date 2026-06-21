@@ -11,9 +11,9 @@ def parse_addr(raw: str) -> tuple[str, int]:
 
 
 def choose_target(client: socket.socket, ssh_addr: tuple[str, int], http_addr: tuple[str, int]) -> tuple[str, int]:
-    client.settimeout(0.5)
+    client.settimeout(2.0)
     try:
-        initial = client.recv(16, socket.MSG_PEEK)
+        initial = client.recv(64, socket.MSG_PEEK)
     except TimeoutError:
         return ssh_addr
     finally:
