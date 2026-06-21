@@ -43,7 +43,7 @@ function Find-PythonCommand {
         try {
             & $command[0] @($command | Select-Object -Skip 1) -c "import paramiko" | Out-Null
             if ($LASTEXITCODE -eq 0) {
-                return $command
+                return ,$command
             }
         } catch {
             continue
