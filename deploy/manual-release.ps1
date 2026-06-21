@@ -25,6 +25,33 @@ $localReleaseScript = Join-Path $env:TEMP "mot-apply-release-$PID.sh"
 $localMuxScript = Join-Path $PSScriptRoot "ssh_http_mux.py"
 $releaseClient = Join-Path $PSScriptRoot "ssh-release.py"
 
+function Find-PythonCommand {
+    $commands = @()
+    $python = Get-Command python -ErrorAction SilentlyContinue
+    if ($python) {
+        $commands += ,@($python.Source)
+    }
+    $py = Get-Command py -ErrorAction SilentlyContinue
+    if ($py) {
+        $commands += ,@($py.Source, "-3")
+    }
+    $windowsAppsPython = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "Microsoft\WindowsApps\python.exe"
+    if (Test-Path $windowsAppsPython) {
+        $commands += ,@($windowsAppsPython)
+    }
+    foreach ($command in $commands) {
+        try {
+            & $command[0] @($command | Select-Object -Skip 1) -c "import paramiko" | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                return $command
+            }
+        } catch {
+            continue
+        }
+    }
+    throw "Python with paramiko was not found."
+}
+
 if ([string]::IsNullOrWhiteSpace($SshPassword)) {
     throw "Missing -SshPassword."
 }
@@ -87,8 +114,8 @@ if (-not (Test-Path $releaseClient)) {
 
 try {
     $env:MOT_SSH_PASSWORD = $SshPassword
-    $python = (Get-Command python -ErrorAction Stop).Source
-    & $python $releaseClient `
+    $pythonCommand = Find-PythonCommand
+    & $pythonCommand[0] @($pythonCommand | Select-Object -Skip 1) $releaseClient `
         --host $SshHost `
         --port $SshPort `
         --user $SshUser `
