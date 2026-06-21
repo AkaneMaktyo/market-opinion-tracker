@@ -3,6 +3,7 @@ package com.personal.tracker.service.youtube.bridge;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.personal.tracker.repository.JdbcSupport;
 import com.personal.tracker.repository.youtube.YouTubeRepository;
+import com.personal.tracker.repository.youtube.YouTubeRepository.VideoRecord;
 import com.personal.tracker.service.youtube.AliyunOssClient;
 import com.personal.tracker.service.youtube.YouTubeAdminService;
 import com.personal.tracker.service.youtube.model.ImportedVideo;
@@ -72,6 +73,10 @@ public class YouTubeOssBridgeService {
 
   private boolean importVideo(FetchedChannel channel, FetchedVideo video) {
     if (video.videoId() == null || video.audioObjectKey() == null || video.audioObjectKey().isBlank()) {
+      return false;
+    }
+    VideoRecord existing = repository.findVideo(video.videoId()).orElse(null);
+    if (existing != null && existing.audioPath() != null && !existing.audioPath().isBlank()) {
       return false;
     }
     Path audioPath = audioRoot.resolve(video.videoId() + extension(video.audioObjectKey())).normalize();
