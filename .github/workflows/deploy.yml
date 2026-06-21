@@ -46,8 +46,24 @@ jobs:
 
       - name: Verify public endpoints
         run: |
-          curl.exe -fsS "http://103.236.98.149:8888/market/api/health" > $null
-          curl.exe -fsS "http://103.236.98.149:8888/market/" > $null
+          $urls = @(
+            "http://103.236.98.149:8888/market/api/health",
+            "http://103.236.98.149:8888/market/"
+          )
+          foreach ($url in $urls) {
+            $ok = $false
+            for ($i = 1; $i -le 12; $i++) {
+              curl.exe -fsS --http1.1 --max-time 20 $url > $null
+              if ($LASTEXITCODE -eq 0) {
+                $ok = $true
+                break
+              }
+              Start-Sleep -Seconds 5
+            }
+            if (-not $ok) {
+              throw "Endpoint verification failed: $url"
+            }
+          }
 
       - name: Write summary
         if: always()

@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 import oss2
 
-AUDIO_FORMAT = "bestaudio[ext=m4a]/bestaudio[ext=mp4]/bestaudio[ext=mp3]/bestaudio"
+AUDIO_FORMAT = "bestaudio[ext=m4a]/bestaudio[ext=mp4]/bestaudio[ext=mp3]/bestaudio/best"
 COMMON_EXTS = (".m4a", ".mp4", ".webm", ".mp3", ".opus")
 COOKIE_PATH = ""
 
