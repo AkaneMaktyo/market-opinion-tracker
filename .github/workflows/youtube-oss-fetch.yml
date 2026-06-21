@@ -20,6 +20,8 @@ jobs:
       YOUTUBE_FETCH_MAX_VIDEOS: "3"
       YOUTUBE_YT_DLP_EXTRA_ARGS: "--extractor-args youtube:player_client=ios,android,mweb --extractor-args youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416"
       YOUTUBE_COOKIES_B64: ${{ secrets.YOUTUBE_COOKIES_B64 }}
+      MIHOMO_CONFIG_GZ_B64: ${{ secrets.MIHOMO_CONFIG_GZ_B64 }}
+      YOUTUBE_PROXY_URL: ${{ secrets.MIHOMO_CONFIG_GZ_B64 != '' && 'http://127.0.0.1:7897' || '' }}
     steps:
       - name: Checkout
         if: ${{ env.YOUTUBE_COOKIES_B64 != '' }}
@@ -41,6 +43,20 @@ jobs:
       - name: Install dependencies
         if: ${{ env.YOUTUBE_COOKIES_B64 != '' }}
         run: python -m pip install --disable-pip-version-check oss2 yt-dlp bgutil-ytdlp-pot-provider
+
+      - name: Start Mihomo proxy
+        if: ${{ env.YOUTUBE_COOKIES_B64 != '' && env.MIHOMO_CONFIG_GZ_B64 != '' }}
+        run: |
+          echo "$MIHOMO_CONFIG_GZ_B64" | base64 -d | gzip -d > /tmp/mihomo.yaml
+          sed -i 's/^mixed-port:.*/mixed-port: 7897/' /tmp/mihomo.yaml
+          sed -i 's/^external-controller:.*/external-controller: 127.0.0.1:9090/' /tmp/mihomo.yaml
+          curl -fsSL -o /tmp/mihomo.gz https://github.com/MetaCubeX/mihomo/releases/download/v1.19.25/mihomo-linux-amd64-v1.19.25.gz
+          gunzip -c /tmp/mihomo.gz > /tmp/mihomo
+          chmod +x /tmp/mihomo
+          mkdir -p /tmp/mihomo-home
+          nohup /tmp/mihomo -d /tmp/mihomo-home -f /tmp/mihomo.yaml > /tmp/mihomo.log 2>&1 &
+          sleep 8
+          curl -x http://127.0.0.1:7897 -fsS -o /dev/null --max-time 25 https://www.youtube.com/generate_204 || (tail -n 100 /tmp/mihomo.log; exit 1)
 
       - name: Start PO token provider
         if: ${{ env.YOUTUBE_COOKIES_B64 != '' }}

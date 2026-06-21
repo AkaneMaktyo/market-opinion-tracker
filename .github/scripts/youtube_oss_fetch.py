@@ -44,6 +44,9 @@ def utc_now():
 
 def yt_dlp_args():
     args = shlex.split(env("YOUTUBE_YT_DLP_EXTRA_ARGS"))
+    proxy = env("YOUTUBE_PROXY_URL")
+    if proxy:
+        args.extend(["--proxy", proxy])
     if COOKIE_PATH:
         args.extend(["--cookies", COOKIE_PATH])
     return args
