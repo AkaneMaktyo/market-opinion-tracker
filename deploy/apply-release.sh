@@ -54,6 +54,10 @@ else
   printf '\nSERVER_ADDRESS=127.0.0.1\n' >> "$ENV_DIR/app.env"
 fi
 
+if ! grep -q '^YOUTUBE_PROXY_URL=' "$ENV_DIR/app.env"; then
+  printf 'YOUTUBE_PROXY_URL=http://127.0.0.1:7897\n' >> "$ENV_DIR/app.env"
+fi
+
 chown -R markettracker:markettracker "$APP_BASE"
 chown -R www-data:www-data "$WWW_ROOT"
 chown root:markettracker "$ENV_DIR/app.env"
