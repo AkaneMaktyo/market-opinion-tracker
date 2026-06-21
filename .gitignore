@@ -11,6 +11,8 @@ logs/
 !.codex/
 !.codex/scripts/
 !.codex/scripts/start-dev.ps1
+.codex/environments/
+.codex-remote-attachments/
 .codegraph/
 .idea/
 .vscode/
@@ -20,3 +22,4 @@ logs/
 backend/.env
 backend/.env.*
 backend/application-local.yml
+backend/data/youtube_audio/
