@@ -19,15 +19,11 @@ $remoteDir = "/root/market-opinion-deploy"
 $remoteJar = "$remoteDir/market-opinion-tracker-0.1.0.jar"
 $remoteArchive = "$remoteDir/frontend-dist.tar.gz"
 $remoteScript = "$remoteDir/apply-release.sh"
-$remoteMuxScript = "$remoteDir/ssh_http_mux.py"
-$remoteTarget = "${SshUser}@${SshHost}:${remoteDir}/"
-$remoteArchiveTarget = "${SshUser}@${SshHost}:$remoteArchive"
-$remoteScriptTarget = "${SshUser}@${SshHost}:$remoteScript"
-$remoteMuxScriptTarget = "${SshUser}@${SshHost}:$remoteMuxScript"
 $resolvedJarPath = if ($JarPath) { (Resolve-Path $JarPath).Path } else { $defaultJarPath }
 $resolvedArchivePath = if ($FrontendArchivePath) { (Resolve-Path $FrontendArchivePath).Path } else { $defaultArchivePath }
 $localReleaseScript = Join-Path $env:TEMP "mot-apply-release-$PID.sh"
 $localMuxScript = Join-Path $PSScriptRoot "ssh_http_mux.py"
+$releaseClient = Join-Path $PSScriptRoot "ssh-release.py"
 
 if ([string]::IsNullOrWhiteSpace($SshPassword)) {
     throw "Missing -SshPassword."
@@ -79,9 +75,10 @@ if (-not (Test-Path $resolvedArchivePath)) {
 if (-not (Test-Path $localMuxScript)) {
     throw "Mux script not found: $localMuxScript"
 }
+if (-not (Test-Path $releaseClient)) {
+    throw "Release client not found: $releaseClient"
+}
 
-$askpass = "C:\Windows\Temp\mot-release-askpass-$PID.cmd"
-Set-Content -Path $askpass -Value @("@echo off", "echo $SshPassword") -Encoding Ascii
 [IO.File]::WriteAllText(
     $localReleaseScript,
     ([IO.File]::ReadAllText((Join-Path $PSScriptRoot "apply-release.sh")) -replace "`r`n", "`n"),
@@ -89,38 +86,22 @@ Set-Content -Path $askpass -Value @("@echo off", "echo $SshPassword") -Encoding 
 )
 
 try {
-    $env:SSH_ASKPASS = $askpass
-    $env:SSH_ASKPASS_REQUIRE = "force"
-    $env:DISPLAY = "codex"
-    $scp = (Get-Command scp -ErrorAction Stop).Source
-    $ssh = (Get-Command ssh -ErrorAction Stop).Source
-    & $ssh -p $SshPort -o PreferredAuthentications=password -o PubkeyAuthentication=no -o NumberOfPasswordPrompts=1 -o StrictHostKeyChecking=accept-new "${SshUser}@${SshHost}" "mkdir -p $remoteDir"
-    if ($LASTEXITCODE -ne 0) {
-        throw "Remote directory creation failed."
-    }
-    & $scp -P $SshPort -o PreferredAuthentications=password -o PubkeyAuthentication=no -o NumberOfPasswordPrompts=1 -o StrictHostKeyChecking=accept-new $resolvedJarPath $remoteTarget
-    if ($LASTEXITCODE -ne 0) {
-        throw "Jar upload failed."
-    }
-    & $scp -P $SshPort -o PreferredAuthentications=password -o PubkeyAuthentication=no -o NumberOfPasswordPrompts=1 -o StrictHostKeyChecking=accept-new $resolvedArchivePath $remoteArchiveTarget
-    if ($LASTEXITCODE -ne 0) {
-        throw "Frontend upload failed."
-    }
-    & $scp -P $SshPort -o PreferredAuthentications=password -o PubkeyAuthentication=no -o NumberOfPasswordPrompts=1 -o StrictHostKeyChecking=accept-new $localReleaseScript $remoteScriptTarget
-    if ($LASTEXITCODE -ne 0) {
-        throw "Release script upload failed."
-    }
-    & $scp -P $SshPort -o PreferredAuthentications=password -o PubkeyAuthentication=no -o NumberOfPasswordPrompts=1 -o StrictHostKeyChecking=accept-new $localMuxScript $remoteMuxScriptTarget
-    if ($LASTEXITCODE -ne 0) {
-        throw "Mux script upload failed."
-    }
-    & $ssh -p $SshPort -o PreferredAuthentications=password -o PubkeyAuthentication=no -o NumberOfPasswordPrompts=1 -o StrictHostKeyChecking=accept-new "${SshUser}@${SshHost}" "bash $remoteScript $remoteJar $remoteArchive"
+    $env:MOT_SSH_PASSWORD = $SshPassword
+    $python = (Get-Command python -ErrorAction Stop).Source
+    & $python $releaseClient `
+        --host $SshHost `
+        --port $SshPort `
+        --user $SshUser `
+        --remote-dir $remoteDir `
+        --jar $resolvedJarPath `
+        --archive $resolvedArchivePath `
+        --script $localReleaseScript `
+        --mux-script $localMuxScript
     if ($LASTEXITCODE -ne 0) {
         throw "Remote release failed."
     }
     Write-Output "Release complete: http://$($SshHost):8888/market/"
 } finally {
-    Remove-Item $askpass -ErrorAction SilentlyContinue
     Remove-Item $localReleaseScript -ErrorAction SilentlyContinue
-    Remove-Item Env:SSH_ASKPASS, Env:SSH_ASKPASS_REQUIRE, Env:DISPLAY -ErrorAction SilentlyContinue
+    Remove-Item Env:MOT_SSH_PASSWORD -ErrorAction SilentlyContinue
 }
