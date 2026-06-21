@@ -84,8 +84,10 @@ jobs:
                   return None, name
 
           proxies = request_json("/proxies").get("proxies", {})
+          group_items = proxies.get(group, {}).get("all", [])
           names = [
-              name for name, item in proxies.items()
+              name for name in group_items
+              for item in [proxies.get(name, {})]
               if item.get("type") not in skip_types
               and not any(name.startswith(prefix) for prefix in blocked)
           ]
