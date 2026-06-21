@@ -84,17 +84,19 @@ public class YouTubeController {
     if (video == null) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "音频不存在");
     }
+    String link = cloudAudioLink(videoId);
+    if (!link.isBlank()) {
+      return redirect(link);
+    }
     Path path = resolveAudioPath(video.audioPath());
     if (path != null && Files.exists(path)) {
       return fileResponse(path);
     }
-    String link = cloudAudioLink(videoId);
-    if (!link.isBlank()) {
-      return ResponseEntity.status(HttpStatus.TEMPORARY_REDIRECT)
-          .header(HttpHeaders.LOCATION, link)
-          .build();
-    }
     VideoRecord refreshed = service.ensureAudio(videoId);
+    link = cloudAudioLink(videoId);
+    if (!link.isBlank()) {
+      return redirect(link);
+    }
     Path refreshedPath = refreshed == null ? null : resolveAudioPath(refreshed.audioPath());
     if (refreshedPath != null && Files.exists(refreshedPath)) {
       return fileResponse(refreshedPath);
@@ -116,6 +118,12 @@ public class YouTubeController {
     return ResponseEntity.ok()
         .contentType(contentType)
         .body(new FileSystemResource(path));
+  }
+
+  private ResponseEntity<Resource> redirect(String link) {
+    return ResponseEntity.status(HttpStatus.TEMPORARY_REDIRECT)
+        .header(HttpHeaders.LOCATION, link)
+        .build();
   }
 
   private String cloudAudioLink(String videoId) {

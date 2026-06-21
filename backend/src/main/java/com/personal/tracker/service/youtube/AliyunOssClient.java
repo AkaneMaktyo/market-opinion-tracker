@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Date;
+import java.util.List;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
@@ -63,17 +64,38 @@ public class AliyunOssClient {
     if (audioPath == null || audioPath.isBlank()) {
       return "";
     }
+    String raw = audioPath.trim().replace("\\", "/");
+    if (raw.startsWith("oss://")) {
+      return signExisting(raw.substring("oss://".length()));
+    }
     Path path = Path.of(audioPath.replace("\\", "/"));
     if (path.getFileName() == null) {
       return "";
     }
-    String objectKey = prefix + "/" + path.getFileName().toString().replace(" ", "-");
+    String fileName = path.getFileName().toString().replace(" ", "-");
+    return signFirstExisting(List.of(prefix + "/" + fileName, "youtube-bridge/audio/" + fileName));
+  }
+
+  private String signFirstExisting(List<String> objectKeys) {
     OSS client = build();
     try {
-      if (!client.doesObjectExist(bucketName, objectKey)) {
-        return "";
+      for (String objectKey : objectKeys) {
+        String clean = cleanKey(objectKey);
+        if (client.doesObjectExist(bucketName, clean)) {
+          return sign(client, clean);
+        }
       }
-      return sign(client, objectKey);
+      return "";
+    } finally {
+      client.shutdown();
+    }
+  }
+
+  private String signExisting(String objectKey) {
+    OSS client = build();
+    try {
+      String clean = cleanKey(objectKey);
+      return client.doesObjectExist(bucketName, clean) ? sign(client, clean) : "";
     } finally {
       client.shutdown();
     }

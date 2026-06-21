@@ -151,6 +151,22 @@ def attach_audio(store, video):
     return video
 
 
+def video_count(manifest):
+    return sum(len(channel.get("videos") or []) for channel in manifest.get("channels") or [])
+
+
+def write_manifest(store, manifest):
+    total = video_count(manifest)
+    if manifest.get("channels") and total == 0:
+        raise RuntimeError("no videos fetched; keep existing manifest")
+    key = bridge_key("latest.json")
+    payload = json.dumps(manifest, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    store.put_object(key, payload)
+    saved = read_json(store, key, {})
+    if video_count(saved) != total:
+        raise RuntimeError("manifest write verification failed")
+
+
 def main():
     global COOKIE_PATH
     COOKIE_PATH = write_cookies()
@@ -158,7 +174,6 @@ def main():
     channel_doc = read_json(store, bridge_key("channels.json"), {"channels": []})
     max_videos = max(1, int(env("YOUTUBE_FETCH_MAX_VIDEOS", "1")))
     manifest = {"generatedAt": utc_now(), "channels": []}
-    attempted = 0
     failed = 0
     for channel in channel_doc.get("channels", []):
         channel_id = (channel.get("channelId") or "").strip()
@@ -166,19 +181,15 @@ def main():
             continue
         fetched = []
         for video in fetch_feed(channel_id, max_videos):
-            attempted += 1
             try:
                 fetched.append(attach_audio(store, video))
             except Exception as error:
                 failed += 1
                 print(f"skip {video.get('videoId')}: {error}", file=sys.stderr)
         manifest["channels"].append({**channel, "videos": fetched})
-    payload = json.dumps(manifest, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    store.put_object(bridge_key("latest.json"), payload)
-    total = sum(len(c["videos"]) for c in manifest["channels"])
+    total = video_count(manifest)
     print(f"channels={len(manifest['channels'])} videos={total} failed={failed}")
-    if attempted and total == 0:
-        raise RuntimeError("all YouTube audio downloads failed")
+    write_manifest(store, manifest)
 
 
 if __name__ == "__main__":

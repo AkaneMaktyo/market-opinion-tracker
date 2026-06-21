@@ -216,7 +216,7 @@ public class YouTubeAdminService {
 
   public String getCloudAudioLink(String videoId) {
     VideoRecord video = repository.findVideo(videoId).orElse(null);
-    if (video == null || !"aliyun_filetrans".equals(video.transcriptSource())) {
+    if (video == null) {
       return "";
     }
     String stored = ossClient.signStoredAudio(video.audioPath());
