@@ -16,9 +16,10 @@ public class YouTubeTranscriptNotifier {
     this.pushClient = pushClient;
   }
 
-  public void notifyTranscriptReady(ChannelRecord channel, VideoRecord video) {
+  public WxPusherPushClient.PushResult notifyTranscriptReady(ChannelRecord channel, VideoRecord video) {
     if (!pushClient.isConfigured("YOUTUBE", "RESONANCE", "POSITION_NOTIFY")) {
-      return;
+      log.warn("YouTube 转写完成未推送: videoId={}, reason=WAITING_CONFIG", video.videoId());
+      return new WxPusherPushClient.PushResult(false, "WAITING_CONFIG", "WxPusher 推送目标未配置");
     }
     WxPusherPushClient.PushResult result = pushClient.send(
         title(video),
@@ -29,6 +30,7 @@ public class YouTubeTranscriptNotifier {
     if (!result.ok()) {
       log.warn("YouTube 转写完成推送失败: videoId={}, error={}", video.videoId(), result.error());
     }
+    return result;
   }
 
   private String title(VideoRecord video) {

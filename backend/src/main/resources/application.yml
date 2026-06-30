@@ -27,6 +27,8 @@ llm:
   base-url: ${LLM_BASE_URL:}
   api-key: ${LLM_API_KEY:}
   model: ${LLM_MODEL:}
+  wxpusher-enabled: ${LLM_WXPUSHER_ENABLED:true}
+  youtube-auto-import-enabled: ${LLM_YOUTUBE_AUTO_IMPORT_ENABLED:false}
 
 spring:
   application:

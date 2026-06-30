@@ -13,7 +13,11 @@ import static org.mockito.Mockito.when;
 import com.personal.tracker.repository.youtube.YouTubeRepository;
 import com.personal.tracker.repository.youtube.YouTubeRepository.ChannelRecord;
 import com.personal.tracker.repository.youtube.YouTubeRepository.SaveVideoCommand;
+import com.personal.tracker.repository.youtube.YouTubeRepository.TranscriptSegment;
 import com.personal.tracker.repository.youtube.YouTubeRepository.VideoRecord;
+import com.personal.tracker.service.notify.WxPusherPushClient;
+import com.personal.tracker.service.youtube.opinion.YouTubeOpinionAutoImportService;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
@@ -25,15 +29,7 @@ class YouTubeAdminServiceTest {
   @Test
   void listDashboardOmitsHeavyTranscriptPayloads() {
     var repository = mock(YouTubeRepository.class);
-    var service = new YouTubeAdminService(
-        repository,
-        mock(YouTubeClient.class),
-        mock(YouTubeAudioDownloader.class),
-        mock(AliyunOssClient.class),
-        mock(AliyunSpeechTranscriber.class),
-        notifier(),
-        1,
-        20);
+    var service = service(repository, mock(YouTubeClient.class), mock(YouTubeAudioDownloader.class));
     ChannelRecord channel = channel("2026-06-12T08:00:00Z");
     VideoRecord video = new VideoRecord(
         "vid-1",
@@ -48,7 +44,7 @@ class YouTubeAdminServiceTest {
         "zh",
         "aliyun_filetrans",
         "完整转写正文",
-        List.of(new YouTubeRepository.TranscriptSegment(0, 1000, "第一段")),
+        List.of(new TranscriptSegment(0, 1000, "第一段")),
         "",
         "2026-06-12T08:05:00Z",
         "created",
@@ -67,15 +63,7 @@ class YouTubeAdminServiceTest {
   void getCloudAudioLinkOnlySignsAliyunVideos() {
     var repository = mock(YouTubeRepository.class);
     var ossClient = mock(AliyunOssClient.class);
-    var service = new YouTubeAdminService(
-        repository,
-        mock(YouTubeClient.class),
-        mock(YouTubeAudioDownloader.class),
-        ossClient,
-        mock(AliyunSpeechTranscriber.class),
-        notifier(),
-        1,
-        20);
+    var service = service(repository, mock(YouTubeClient.class), mock(YouTubeAudioDownloader.class), ossClient);
     when(repository.findVideo("vid-1")).thenReturn(Optional.of(video("vid-1", "aliyun_filetrans", "audio.wav", 0)));
     when(ossClient.signStoredAudio("audio.wav")).thenReturn("");
     when(ossClient.signVideoAudio("vid-1")).thenReturn("https://example.com/audio.wav");
@@ -86,24 +74,12 @@ class YouTubeAdminServiceTest {
   }
 
   @Test
-  void ensureAudioAcceptsWindowsStyleSavedPath(@TempDir Path tempDir) {
+  void ensureAudioAcceptsWindowsStyleSavedPath(@TempDir Path tempDir) throws Exception {
     Path readyAudio = tempDir.resolve("nested").resolve("voice.m4a");
-    readyAudio.getParent().toFile().mkdirs();
-    try {
-      java.nio.file.Files.writeString(readyAudio, "x");
-    } catch (Exception error) {
-      throw new RuntimeException(error);
-    }
+    Files.createDirectories(readyAudio.getParent());
+    Files.writeString(readyAudio, "x");
     var repository = mock(YouTubeRepository.class);
-    var service = new YouTubeAdminService(
-        repository,
-        mock(YouTubeClient.class),
-        mock(YouTubeAudioDownloader.class),
-        mock(AliyunOssClient.class),
-        mock(AliyunSpeechTranscriber.class),
-        notifier(),
-        1,
-        20);
+    var service = service(repository, mock(YouTubeClient.class), mock(YouTubeAudioDownloader.class));
     when(repository.findVideo("vid-1")).thenReturn(Optional.of(
         video("vid-1", "", readyAudio.toString().replace("/", "\\"), 1234)));
 
@@ -113,24 +89,12 @@ class YouTubeAdminServiceTest {
   }
 
   @Test
-  void ensureAudioRedownloadsWhenSavedFileMissing(@TempDir Path tempDir) {
+  void ensureAudioRedownloadsWhenSavedFileMissing(@TempDir Path tempDir) throws Exception {
     Path readyAudio = tempDir.resolve("fresh.m4a");
-    try {
-      java.nio.file.Files.writeString(readyAudio, "x");
-    } catch (Exception error) {
-      throw new RuntimeException(error);
-    }
+    Files.writeString(readyAudio, "x");
     var repository = mock(YouTubeRepository.class);
     var downloader = mock(YouTubeAudioDownloader.class);
-    var service = new YouTubeAdminService(
-        repository,
-        mock(YouTubeClient.class),
-        downloader,
-        mock(AliyunOssClient.class),
-        mock(AliyunSpeechTranscriber.class),
-        notifier(),
-        1,
-        20);
+    var service = service(repository, mock(YouTubeClient.class), downloader);
     when(repository.findVideo("vid-1")).thenReturn(Optional.of(
         video("vid-1", "", tempDir.resolve("missing.m4a").toString(), 0)));
     when(downloader.download("vid-1", "https://example.com/watch?v=1"))
@@ -149,15 +113,7 @@ class YouTubeAdminServiceTest {
   @Test
   void getVideoReturnsNullWhenMissing() {
     var repository = mock(YouTubeRepository.class);
-    var service = new YouTubeAdminService(
-        repository,
-        mock(YouTubeClient.class),
-        mock(YouTubeAudioDownloader.class),
-        mock(AliyunOssClient.class),
-        mock(AliyunSpeechTranscriber.class),
-        notifier(),
-        1,
-        20);
+    var service = service(repository, mock(YouTubeClient.class), mock(YouTubeAudioDownloader.class));
     when(repository.findVideo("missing")).thenReturn(Optional.empty());
 
     assertNull(service.getVideo("missing"));
@@ -170,15 +126,8 @@ class YouTubeAdminServiceTest {
     var downloader = mock(YouTubeAudioDownloader.class);
     var transcriber = mock(AliyunSpeechTranscriber.class);
     var notifier = notifier();
-    var service = new YouTubeAdminService(
-        repository,
-        client,
-        downloader,
-        mock(AliyunOssClient.class),
-        transcriber,
-        notifier,
-        1,
-        20);
+    var importer = importer();
+    var service = service(repository, client, downloader, mock(AliyunOssClient.class), transcriber, notifier, importer, 1, 20);
     ChannelRecord channel = channel("2026-06-12T08:00:00Z");
     VideoRecord ready = new VideoRecord(
         "vid-1",
@@ -193,7 +142,7 @@ class YouTubeAdminServiceTest {
         "zh",
         "aliyun_filetrans",
         "已保存转写",
-        List.of(new YouTubeRepository.TranscriptSegment(0, 1000, "已保存转写")),
+        List.of(new TranscriptSegment(0, 1000, "已保存转写")),
         "",
         "2026-06-12T08:05:00Z",
         "created",
@@ -209,7 +158,8 @@ class YouTubeAdminServiceTest {
     assertEquals("已保存转写", result.videos().get(0).transcriptText());
     verify(downloader, never()).download(any(), any());
     verify(transcriber, never()).transcribe(any());
-    verify(notifier, never()).notifyTranscriptReady(any(), any());
+    verify(importer).importIfReady(eq(channel), eq(ready));
+    verify(notifier).notifyTranscriptReady(eq(channel), eq(ready));
   }
 
   @Test
@@ -219,15 +169,8 @@ class YouTubeAdminServiceTest {
     var downloader = mock(YouTubeAudioDownloader.class);
     var transcriber = mock(AliyunSpeechTranscriber.class);
     var notifier = notifier();
-    var service = new YouTubeAdminService(
-        repository,
-        client,
-        downloader,
-        mock(AliyunOssClient.class),
-        transcriber,
-        notifier,
-        1,
-        20);
+    var importer = importer();
+    var service = service(repository, client, downloader, mock(AliyunOssClient.class), transcriber, notifier, importer, 1, 20);
     ChannelRecord channel = channel("2026-06-11T08:00:00Z");
     when(repository.findChannel("channel-row")).thenReturn(Optional.of(channel));
     when(client.listVideos("channel-id", 1)).thenReturn(List.of(videoMeta("vid-1", "2026-06-12T08:00:00Z")));
@@ -235,35 +178,34 @@ class YouTubeAdminServiceTest {
     when(downloader.download("vid-1", "https://example.com/watch?v=1"))
         .thenReturn(new YouTubeAudioDownloader.AudioDownload("audio.m4a", 1234));
     when(transcriber.transcribe("audio.m4a"))
-        .thenThrow(new AliyunFileTransClient.QuotaExceededException("阿里云录音文件识别配额不足"));
+        .thenThrow(new AliyunFileTransClient.QuotaExceededException("阿里云配额不足"));
     when(repository.saveVideo(any())).thenAnswer(call -> savedVideo(call.getArgument(0)));
     when(repository.saveChannel(any())).thenReturn(channel);
 
     YouTubeAdminService.SyncResult result = service.syncChannel("channel-row");
 
     assertEquals(YouTubeAdminService.TRANSCRIPT_RETRY_MIDNIGHT, result.videos().get(0).transcriptStatus());
-    assertTrue(result.videos().get(0).errorMessage().contains("0 点"));
+    assertTrue(result.videos().get(0).errorMessage().contains("0"));
+    verify(importer, never()).importIfReady(any(), any());
     verify(notifier, never()).notifyTranscriptReady(any(), any());
   }
 
   @Test
-  void retryQuotaLimitedVideosPushesWhenRetrySucceeds(@TempDir Path tempDir) {
+  void retryQuotaLimitedVideosPushesWhenRetrySucceeds(@TempDir Path tempDir) throws Exception {
     Path readyAudio = tempDir.resolve("voice.m4a");
-    try {
-      java.nio.file.Files.writeString(readyAudio, "x");
-    } catch (Exception error) {
-      throw new RuntimeException(error);
-    }
+    Files.writeString(readyAudio, "x");
     var repository = mock(YouTubeRepository.class);
     var notifier = notifier();
     var transcriber = mock(AliyunSpeechTranscriber.class);
-    var service = new YouTubeAdminService(
+    var importer = importer();
+    var service = service(
         repository,
         mock(YouTubeClient.class),
         mock(YouTubeAudioDownloader.class),
         mock(AliyunOssClient.class),
         transcriber,
         notifier,
+        importer,
         1,
         5);
     ChannelRecord channel = channel("2026-06-12T08:00:00Z");
@@ -281,7 +223,7 @@ class YouTubeAdminServiceTest {
         "aliyun_filetrans",
         "",
         List.of(),
-        "阿里云识别配额不足，已安排在 0 点自动重试",
+        "等待午夜重试",
         "2026-06-12T08:05:00Z",
         "created",
         "updated");
@@ -294,13 +236,14 @@ class YouTubeAdminServiceTest {
         "zh",
         "aliyun_filetrans",
         "识别完成",
-        List.of(new YouTubeRepository.TranscriptSegment(0, 1000, "识别完成")),
+        List.of(new TranscriptSegment(0, 1000, "识别完成")),
         ""));
     when(repository.saveVideo(any())).thenAnswer(call -> savedVideo(call.getArgument(0)));
 
     int retried = service.retryQuotaLimitedVideos();
 
     assertEquals(1, retried);
+    verify(importer).importIfReady(eq(channel), any());
     verify(notifier).notifyTranscriptReady(eq(channel), any());
   }
 
@@ -311,15 +254,8 @@ class YouTubeAdminServiceTest {
     var downloader = mock(YouTubeAudioDownloader.class);
     var transcriber = mock(AliyunSpeechTranscriber.class);
     var notifier = notifier();
-    var service = new YouTubeAdminService(
-        repository,
-        client,
-        downloader,
-        mock(AliyunOssClient.class),
-        transcriber,
-        notifier,
-        1,
-        20);
+    var importer = importer();
+    var service = service(repository, client, downloader, mock(AliyunOssClient.class), transcriber, notifier, importer, 1, 20);
     ChannelRecord channel = channel("2026-06-12T08:00:00Z");
     when(repository.listChannels()).thenReturn(List.of(channel));
     when(client.listVideos("channel-id", 1)).thenReturn(List.of(videoMeta("vid-1", "2026-06-12T08:00:00Z")));
@@ -332,6 +268,7 @@ class YouTubeAdminServiceTest {
     assertEquals(0, summary.processedVideos());
     verify(downloader, never()).download(any(), any());
     verify(transcriber, never()).transcribe(any());
+    verify(importer, never()).importIfReady(any(), any());
     verify(notifier, never()).notifyTranscriptReady(any(), any());
   }
 
@@ -342,15 +279,8 @@ class YouTubeAdminServiceTest {
     var downloader = mock(YouTubeAudioDownloader.class);
     var transcriber = mock(AliyunSpeechTranscriber.class);
     var notifier = notifier();
-    var service = new YouTubeAdminService(
-        repository,
-        client,
-        downloader,
-        mock(AliyunOssClient.class),
-        transcriber,
-        notifier,
-        1,
-        20);
+    var importer = importer();
+    var service = service(repository, client, downloader, mock(AliyunOssClient.class), transcriber, notifier, importer, 1, 20);
     ChannelRecord channel = channel("2026-06-11T08:00:00Z");
     when(repository.listChannels()).thenReturn(List.of(channel));
     when(client.listVideos("channel-id", 1)).thenReturn(List.of(videoMeta("vid-2", "2026-06-12T08:00:00Z")));
@@ -362,7 +292,7 @@ class YouTubeAdminServiceTest {
         "zh",
         "aliyun_filetrans",
         "识别完成",
-        List.of(new YouTubeRepository.TranscriptSegment(0, 1000, "识别完成")),
+        List.of(new TranscriptSegment(0, 1000, "识别完成")),
         ""));
     when(repository.saveVideo(any())).thenAnswer(call -> savedVideo(call.getArgument(0)));
     when(repository.saveChannel(any())).thenReturn(channel("2026-06-12T08:00:00Z"));
@@ -372,7 +302,63 @@ class YouTubeAdminServiceTest {
     assertEquals(1, summary.checkedChannels());
     assertEquals(1, summary.updatedChannels());
     assertEquals(1, summary.processedVideos());
+    verify(importer).importIfReady(any(), any());
     verify(notifier).notifyTranscriptReady(any(), any());
+  }
+
+  private YouTubeAdminService service(
+      YouTubeRepository repository,
+      YouTubeClient client,
+      YouTubeAudioDownloader downloader) {
+    return service(
+        repository,
+        client,
+        downloader,
+        mock(AliyunOssClient.class),
+        mock(AliyunSpeechTranscriber.class),
+        notifier(),
+        importer(),
+        1,
+        20);
+  }
+
+  private YouTubeAdminService service(
+      YouTubeRepository repository,
+      YouTubeClient client,
+      YouTubeAudioDownloader downloader,
+      AliyunOssClient ossClient) {
+    return service(
+        repository,
+        client,
+        downloader,
+        ossClient,
+        mock(AliyunSpeechTranscriber.class),
+        notifier(),
+        importer(),
+        1,
+        20);
+  }
+
+  private YouTubeAdminService service(
+      YouTubeRepository repository,
+      YouTubeClient client,
+      YouTubeAudioDownloader downloader,
+      AliyunOssClient ossClient,
+      AliyunSpeechTranscriber transcriber,
+      YouTubeTranscriptNotifier notifier,
+      YouTubeOpinionAutoImportService importer,
+      int maxVideos,
+      int retryBatchLimit) {
+    return new YouTubeAdminService(
+        repository,
+        client,
+        downloader,
+        ossClient,
+        transcriber,
+        notifier,
+        importer,
+        maxVideos,
+        retryBatchLimit);
   }
 
   private ChannelRecord channel(String lastVideoPublishedAt) {
@@ -440,6 +426,13 @@ class YouTubeAdminServiceTest {
   }
 
   private YouTubeTranscriptNotifier notifier() {
-    return mock(YouTubeTranscriptNotifier.class);
+    var notifier = mock(YouTubeTranscriptNotifier.class);
+    when(notifier.notifyTranscriptReady(any(), any()))
+        .thenReturn(new WxPusherPushClient.PushResult(true, "SENT", ""));
+    return notifier;
+  }
+
+  private YouTubeOpinionAutoImportService importer() {
+    return mock(YouTubeOpinionAutoImportService.class);
   }
 }

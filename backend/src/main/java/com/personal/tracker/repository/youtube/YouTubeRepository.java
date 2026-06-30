@@ -42,6 +42,9 @@ public class YouTubeRepository {
       rs.getString("transcript_text"),
       readSegments(rs.getString("transcript_segments_json")),
       rs.getString("error_message"),
+      rs.getString("notify_status"),
+      rs.getString("notify_error"),
+      rs.getString("notified_at"),
       rs.getString("synced_at"),
       rs.getString("created_at"),
       rs.getString("updated_at"));
@@ -172,6 +175,25 @@ public class YouTubeRepository {
     return findVideo(command.videoId()).orElseThrow();
   }
 
+  public VideoRecord markNotification(
+      String videoId,
+      String notifyStatus,
+      String notifyError,
+      String notifiedAt,
+      String updatedAt) {
+    jdbc.update("""
+        UPDATE youtube_videos
+        SET notify_status = ?, notify_error = ?, notified_at = ?, updated_at = ?
+        WHERE video_id = ?
+        """,
+        value(notifyStatus),
+        value(notifyError),
+        value(notifiedAt),
+        value(updatedAt),
+        videoId);
+    return findVideo(videoId).orElseThrow();
+  }
+
   private List<TranscriptSegment> readSegments(String payload) {
     if (payload == null || payload.isBlank()) {
       return List.of();
@@ -223,9 +245,52 @@ public class YouTubeRepository {
       String transcriptText,
       List<TranscriptSegment> transcriptSegments,
       String errorMessage,
+      String notifyStatus,
+      String notifyError,
+      String notifiedAt,
       String syncedAt,
       String createdAt,
       String updatedAt) {
+    public VideoRecord(
+        String videoId,
+        String channelRowId,
+        String channelId,
+        String title,
+        String videoUrl,
+        String publishedAt,
+        String audioPath,
+        long audioDurationMs,
+        String transcriptStatus,
+        String transcriptLanguage,
+        String transcriptSource,
+        String transcriptText,
+        List<TranscriptSegment> transcriptSegments,
+        String errorMessage,
+        String syncedAt,
+        String createdAt,
+        String updatedAt) {
+      this(
+          videoId,
+          channelRowId,
+          channelId,
+          title,
+          videoUrl,
+          publishedAt,
+          audioPath,
+          audioDurationMs,
+          transcriptStatus,
+          transcriptLanguage,
+          transcriptSource,
+          transcriptText,
+          transcriptSegments,
+          errorMessage,
+          "",
+          "",
+          "",
+          syncedAt,
+          createdAt,
+          updatedAt);
+    }
   }
 
   public record SaveChannelCommand(

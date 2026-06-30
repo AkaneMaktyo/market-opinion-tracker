@@ -7,6 +7,7 @@ import com.personal.tracker.repository.youtube.YouTubeRepository.SaveChannelComm
 import com.personal.tracker.repository.youtube.YouTubeRepository.SaveVideoCommand;
 import com.personal.tracker.repository.youtube.YouTubeRepository.TranscriptSegment;
 import com.personal.tracker.repository.youtube.YouTubeRepository.VideoRecord;
+import com.personal.tracker.service.youtube.opinion.YouTubeOpinionAutoImportService;
 import com.personal.tracker.service.youtube.model.ImportedVideo;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,15 +19,16 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class YouTubeAdminService {
-  static final String TRANSCRIPT_READY = "ready";
-  static final String TRANSCRIPT_ERROR = "error";
-  static final String TRANSCRIPT_RETRY_MIDNIGHT = "retry_midnight";
+  public static final String TRANSCRIPT_READY = "ready";
+  public static final String TRANSCRIPT_ERROR = "error";
+  public static final String TRANSCRIPT_RETRY_MIDNIGHT = "retry_midnight";
   private final YouTubeRepository repository;
   private final YouTubeClient client;
   private final YouTubeAudioDownloader downloader;
   private final AliyunOssClient ossClient;
   private final AliyunSpeechTranscriber transcriber;
   private final YouTubeTranscriptNotifier notifier;
+  private final YouTubeOpinionAutoImportService opinionImporter;
   private final int maxVideos;
   private final int retryBatchLimit;
 
@@ -38,6 +40,7 @@ public class YouTubeAdminService {
       AliyunOssClient ossClient,
       AliyunSpeechTranscriber transcriber,
       YouTubeTranscriptNotifier notifier,
+      YouTubeOpinionAutoImportService opinionImporter,
       Environment environment) {
     this(
         repository,
@@ -46,6 +49,7 @@ public class YouTubeAdminService {
         ossClient,
         transcriber,
         notifier,
+        opinionImporter,
         maxVideos(environment),
         retryBatchLimit(environment));
   }
@@ -57,6 +61,7 @@ public class YouTubeAdminService {
       AliyunOssClient ossClient,
       AliyunSpeechTranscriber transcriber,
       YouTubeTranscriptNotifier notifier,
+      YouTubeOpinionAutoImportService opinionImporter,
       int maxVideos,
       int retryBatchLimit) {
     this.repository = repository;
@@ -65,6 +70,7 @@ public class YouTubeAdminService {
     this.ossClient = ossClient;
     this.transcriber = transcriber;
     this.notifier = notifier;
+    this.opinionImporter = opinionImporter;
     this.maxVideos = Math.max(1, maxVideos);
     this.retryBatchLimit = Math.max(1, retryBatchLimit);
   }
@@ -73,7 +79,7 @@ public class YouTubeAdminService {
     return repository.listChannels().stream()
         .map(channel -> new DashboardChannel(
             channel,
-            repository.listVideos(channel.id(), 8).stream().map(this::summaryVideo).toList()))
+            repository.listVideos(channel.id(), 8).stream().map(YouTubeVideoSupport::summaryVideo).toList()))
         .toList();
   }
 
@@ -135,11 +141,12 @@ public class YouTubeAdminService {
         nextLatest,
         now()));
     VideoRecord existing = repository.findVideo(video.videoId()).orElse(null);
-    if (hasReadyTranscript(existing)) {
-      return existing;
+    if (YouTubeVideoSupport.hasReadyTranscript(existing)) {
+      opinionImporter.importIfReady(channel, existing);
+      return ensureNotification(channel, existing);
     }
     VideoRecord base = existing == null
-        ? baseVideo(channel, video.videoId(), video.title(), video.videoUrl(), publishedAt)
+        ? YouTubeVideoSupport.baseVideo(channel, video.videoId(), video.title(), video.videoUrl(), publishedAt)
         : existing;
     return transcribeAndSave(base, channel, video.audioPath(), video.audioDurationMs(), now());
   }
@@ -226,7 +233,7 @@ public class YouTubeAdminService {
   private SyncResult syncFetchedChannel(
       ChannelRecord channel,
       List<YouTubeClient.VideoMetadata> candidates) {
-    String nextLatest = nextLatest(channel.lastVideoPublishedAt(), candidates);
+    String nextLatest = YouTubeVideoSupport.nextLatest(channel.lastVideoPublishedAt(), candidates);
     List<VideoRecord> videos = new ArrayList<>();
     for (YouTubeClient.VideoMetadata video : candidates) {
       videos.add(syncVideo(channel, video));
@@ -245,11 +252,12 @@ public class YouTubeAdminService {
 
   private VideoRecord syncVideo(ChannelRecord channel, YouTubeClient.VideoMetadata video) {
     VideoRecord existing = repository.findVideo(video.videoId()).orElse(null);
-    if (hasReadyTranscript(existing)) {
-      return existing;
+    if (YouTubeVideoSupport.hasReadyTranscript(existing)) {
+      opinionImporter.importIfReady(channel, existing);
+      return ensureNotification(channel, existing);
     }
     VideoRecord base = existing == null
-        ? baseVideo(channel, video.videoId(), video.title(), video.videoUrl(), video.publishedAt())
+        ? YouTubeVideoSupport.baseVideo(channel, video.videoId(), video.title(), video.videoUrl(), video.publishedAt())
         : existing;
     var audio = downloader.download(video.videoId(), video.videoUrl());
     return transcribeAndSave(base, channel, audio.audioPath(), audio.audioDurationMs(), now());
@@ -261,7 +269,7 @@ public class YouTubeAdminService {
     if (candidates.isEmpty()) {
       return false;
     }
-    String latest = nextLatest(channel.lastVideoPublishedAt(), candidates);
+    String latest = YouTubeVideoSupport.nextLatest(channel.lastVideoPublishedAt(), candidates);
     String current = channel.lastVideoPublishedAt() == null ? "" : channel.lastVideoPublishedAt();
     return !latest.isBlank() && latest.compareTo(current) > 0;
   }
@@ -279,7 +287,7 @@ public class YouTubeAdminService {
   }
 
   private void retryQuotaLimitedVideo(VideoRecord queued) {
-    ChannelRecord channel = repository.findChannel(queued.channelRowId()).orElse(baseChannel(queued));
+    ChannelRecord channel = repository.findChannel(queued.channelRowId()).orElse(YouTubeVideoSupport.baseChannel(queued));
     VideoRecord hydrated = ensureAudio(queued.videoId());
     if (hydrated == null || hydrated.audioPath() == null || hydrated.audioPath().isBlank()) {
       saveVideo(
@@ -316,8 +324,8 @@ public class YouTubeAdminService {
           transcript.transcriptSegments(),
           transcript.errorMessage(),
           syncedAt);
-      notifier.notifyTranscriptReady(channel, saved);
-      return saved;
+      opinionImporter.importIfReady(channel, saved);
+      return ensureNotification(channel, saved);
     } catch (Exception error) {
       if (AliyunFileTransClient.isQuotaExceeded(error)) {
         return saveVideo(
@@ -344,6 +352,28 @@ public class YouTubeAdminService {
           error.getMessage(),
           syncedAt);
     }
+  }
+
+  private VideoRecord ensureNotification(ChannelRecord channel, VideoRecord video) {
+    if (!YouTubeVideoSupport.hasReadyTranscript(video) || alreadyNotified(video)) {
+      return video;
+    }
+    var result = notifier.notifyTranscriptReady(channel, video);
+    String notifiedAt = result.ok() ? now() : "";
+    VideoRecord updated = repository.markNotification(
+        video.videoId(),
+        result.status(),
+        result.error(),
+        notifiedAt,
+        now());
+    return updated == null ? video : updated;
+  }
+
+  private boolean alreadyNotified(VideoRecord video) {
+    return video != null
+        && "SENT".equalsIgnoreCase(video.notifyStatus())
+        && video.notifiedAt() != null
+        && !video.notifiedAt().isBlank();
   }
 
   private VideoRecord saveVideo(
@@ -399,37 +429,6 @@ public class YouTubeAdminService {
         now()));
   }
 
-  private static boolean hasReadyTranscript(VideoRecord video) {
-    if (video == null || !TRANSCRIPT_READY.equals(video.transcriptStatus())) {
-      return false;
-    }
-    if (video.transcriptSegments() != null && !video.transcriptSegments().isEmpty()) {
-      return true;
-    }
-    return video.transcriptText() != null && !video.transcriptText().isBlank();
-  }
-
-  private VideoRecord summaryVideo(VideoRecord video) {
-    return new VideoRecord(
-        video.videoId(),
-        video.channelRowId(),
-        video.channelId(),
-        video.title(),
-        video.videoUrl(),
-        video.publishedAt(),
-        video.audioPath(),
-        video.audioDurationMs(),
-        video.transcriptStatus(),
-        video.transcriptLanguage(),
-        video.transcriptSource(),
-        "",
-        List.of(),
-        video.errorMessage(),
-        video.syncedAt(),
-        video.createdAt(),
-        video.updatedAt());
-  }
-
   private static Path audioPath(String rawPath) {
     if (rawPath == null || rawPath.isBlank()) {
       return null;
@@ -459,59 +458,6 @@ public class YouTubeAdminService {
     } catch (NumberFormatException error) {
       return 20;
     }
-  }
-
-  private static String nextLatest(
-      String currentLatest,
-      List<YouTubeClient.VideoMetadata> candidates) {
-    String nextLatest = currentLatest == null ? "" : currentLatest;
-    for (YouTubeClient.VideoMetadata video : candidates) {
-      String publishedAt = video.publishedAt() == null ? "" : video.publishedAt();
-      if (publishedAt.compareTo(nextLatest) > 0) {
-        nextLatest = publishedAt;
-      }
-    }
-    return nextLatest;
-  }
-
-  private static VideoRecord baseVideo(
-      ChannelRecord channel,
-      String videoId,
-      String title,
-      String videoUrl,
-      String publishedAt) {
-    return new VideoRecord(
-        videoId,
-        channel.id(),
-        channel.channelId(),
-        title,
-        videoUrl,
-        publishedAt,
-        "",
-        0,
-        "",
-        "",
-        "",
-        "",
-        List.of(),
-        "",
-        "",
-        "",
-        "");
-  }
-
-  private static ChannelRecord baseChannel(VideoRecord video) {
-    return new ChannelRecord(
-        video.channelRowId(),
-        video.channelId(),
-        video.channelId(),
-        "",
-        "",
-        true,
-        "",
-        "",
-        video.createdAt(),
-        video.updatedAt());
   }
 
   private static String now() {

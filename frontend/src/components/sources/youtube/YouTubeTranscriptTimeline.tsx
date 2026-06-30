@@ -13,27 +13,30 @@ export function YouTubeTranscriptTimeline({
   activeMs,
   onSeek,
 }: Props) {
-  const containerRef = useRef<HTMLDivElement | null>(null);
   const refs = useRef<Array<HTMLButtonElement | null>>([]);
-  const previousIndexRef = useRef(-1);
   const activeIndex = useMemo(() => findActiveSegmentIndex(activeMs, segments), [activeMs, segments]);
 
   useEffect(() => {
     if (activeIndex < 0) {
       return;
     }
-    if (activeIndex === previousIndexRef.current) {
-      return;
-    }
-    previousIndexRef.current = activeIndex;
     const frameId = window.requestAnimationFrame(() => {
-      centerActiveSegment(activeIndex, containerRef.current, refs.current[activeIndex]);
+      const element = refs.current[activeIndex];
+      if (!element) {
+        return;
+      }
+      const scroller = nearestScroller(element);
+      if (scroller) {
+        centerInsideScroller(scroller, element);
+        return;
+      }
+      centerInsideViewport(element);
     });
     return () => window.cancelAnimationFrame(frameId);
-  }, [activeIndex]);
+  }, [activeIndex, segments]);
 
   return (
-    <div className="youtube-transcript" ref={containerRef}>
+    <div className="youtube-transcript">
       {segments.map((segment, index) => {
         const active = index === activeIndex;
         return (
@@ -62,41 +65,45 @@ export function YouTubeTranscriptTimeline({
   );
 }
 
-function centerActiveSegment(
-  activeIndex: number,
-  container: HTMLDivElement | null,
-  element: HTMLButtonElement | null,
-) {
-  if (activeIndex < 0 || !element) {
-    return;
+function nearestScroller(element: HTMLElement) {
+  let parent = element.parentElement;
+  while (parent) {
+    const styles = window.getComputedStyle(parent);
+    const scrollable = /(auto|scroll|overlay)/.test(styles.overflowY);
+    if (scrollable && parent.scrollHeight > parent.clientHeight + 8) {
+      return parent;
+    }
+    parent = parent.parentElement;
   }
-  if (container && canScrollInsideContainer(container)) {
-    centerInsideContainer(container, element);
-    return;
-  }
-  centerInsideViewport(element);
+  return null;
 }
 
-function canScrollInsideContainer(container: HTMLDivElement | null) {
-  return !!container && container.scrollHeight > container.clientHeight + 8;
-}
-
-function centerInsideContainer(container: HTMLDivElement, element: HTMLButtonElement) {
-  const maxTop = Math.max(0, container.scrollHeight - container.clientHeight);
-  const nextTop = element.offsetTop - (container.clientHeight - element.offsetHeight) / 2;
-  container.scrollTo({
+function centerInsideScroller(scroller: HTMLElement, element: HTMLElement) {
+  const maxTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+  const nextTop = offsetWithinScroller(scroller, element) - (scroller.clientHeight - element.offsetHeight) / 2;
+  scroller.scrollTo({
     top: clamp(nextTop, 0, maxTop),
-    behavior: 'smooth',
+    behavior: prefersReducedMotion() ? 'auto' : 'smooth',
   });
 }
 
-function centerInsideViewport(element: HTMLButtonElement) {
+function offsetWithinScroller(scroller: HTMLElement, element: HTMLElement) {
+  const scrollerRect = scroller.getBoundingClientRect();
+  const elementRect = element.getBoundingClientRect();
+  return elementRect.top - scrollerRect.top + scroller.scrollTop;
+}
+
+function centerInsideViewport(element: HTMLElement) {
   const rect = element.getBoundingClientRect();
   const nextTop = window.scrollY + rect.top - (window.innerHeight - rect.height) / 2;
   window.scrollTo({
     top: Math.max(0, nextTop),
-    behavior: 'smooth',
+    behavior: prefersReducedMotion() ? 'auto' : 'smooth',
   });
+}
+
+function prefersReducedMotion() {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 function clamp(value: number, min: number, max: number) {

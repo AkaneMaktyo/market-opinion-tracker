@@ -104,6 +104,7 @@ class WxPusherIngestionServiceTest {
         List.of());
     when(settingsRepository.get()).thenReturn(settings());
     when(bloggerRepository.enabled()).thenReturn(List.of(blogger("Alpha")));
+    when(aiExtractor.extractionEnabled()).thenReturn(true);
     when(messageRepository.createPending(any(PendingMessage.class)))
         .thenReturn(new SaveResult(message("msg-1"), true), new SaveResult(importedMessage(), false));
     when(sessionRepository.create(anyString(), anyString(), anyString(), anyString(), anyString()))
@@ -155,6 +156,7 @@ class WxPusherIngestionServiceTest {
         writer);
     when(settingsRepository.get()).thenReturn(settings());
     when(bloggerRepository.enabled()).thenReturn(List.of(blogger("Alpha")));
+    when(aiExtractor.extractionEnabled()).thenReturn(true);
     when(messageRepository.createPending(any(PendingMessage.class)))
         .thenReturn(new SaveResult(message("msg-2"), true));
     when(sessionRepository.create(anyString(), anyString(), anyString(), anyString(), anyString()))
@@ -213,6 +215,46 @@ class WxPusherIngestionServiceTest {
 
     verify(messageRepository).attachSession("msg-3", "session-3");
     verify(aiExtractor, never()).extract(anyString(), anyString(), anyString(), anyString(), anyString());
+    verify(writer, never()).write(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyList());
+  }
+
+  @Test
+  void marksMessageSkippedWhenWxpusherLlmIsDisabled() throws Exception {
+    var sessionRepository = mock(SessionRepository.class);
+    var settingsRepository = mock(WxPusherSettingsRepository.class);
+    var bloggerRepository = mock(WxPusherBloggerRepository.class);
+    var messageRepository = mock(WxPusherMessageRepository.class);
+    var sharedRepository = mock(WxPusherSharedMessageRepository.class);
+    var articleExtractor = mock(WxPusherArticleExtractor.class);
+    var aiExtractor = mock(OpenAiJsonExtractor.class);
+    var parser = mock(JsonOpinionParser.class);
+    var writer = mock(OpinionImportWriter.class);
+    var service = service(
+        sessionRepository,
+        settingsRepository,
+        bloggerRepository,
+        messageRepository,
+        sharedRepository,
+        articleExtractor,
+        aiExtractor,
+        parser,
+        writer);
+    when(settingsRepository.get()).thenReturn(settings());
+    when(bloggerRepository.enabled()).thenReturn(List.of(blogger("Alpha")));
+    when(aiExtractor.extractionEnabled()).thenReturn(false);
+    when(messageRepository.createPending(any(PendingMessage.class)))
+        .thenReturn(new SaveResult(message("msg-skip"), true));
+    when(sessionRepository.create(anyString(), anyString(), anyString(), anyString(), anyString()))
+        .thenReturn(new LiveSession("session-skip", "kol-1", "2026-05-31", "title", "WXPUSHER_AUTO", "姝ｆ枃", "now"));
+    when(articleExtractor.fetchText(anyString(), any())).thenReturn("姝ｆ枃");
+
+    service.ingest(incoming("Alpha"));
+
+    verify(messageRepository).attachSession("msg-skip", "session-skip");
+    verify(messageRepository).markSkipped("msg-skip", "姝ｆ枃", "WxPusher LLM 提取已禁用");
+    verify(sharedRepository, never()).saveState(anyString(), anyString(), anyString(), anyString(), anyString());
+    verify(aiExtractor, never()).extract(anyString(), anyString(), anyString(), anyString(), anyString());
+    verify(parser, never()).parse(anyString());
     verify(writer, never()).write(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyList());
   }
 

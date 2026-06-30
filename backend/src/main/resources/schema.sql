@@ -261,11 +261,46 @@ CREATE TABLE IF NOT EXISTS youtube_videos (
   transcript_text MEDIUMTEXT,
   transcript_segments_json MEDIUMTEXT,
   error_message TEXT,
+  notify_status VARCHAR(32) NOT NULL DEFAULT '',
+  notify_error TEXT,
+  notified_at VARCHAR(64),
   synced_at VARCHAR(64),
   created_at VARCHAR(64) NOT NULL,
   updated_at VARCHAR(64) NOT NULL,
   INDEX idx_youtube_videos_channel(channel_row_id),
   INDEX idx_youtube_videos_published(published_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE youtube_videos ADD COLUMN notify_status VARCHAR(32) NOT NULL DEFAULT '';
+ALTER TABLE youtube_videos ADD COLUMN notify_error TEXT;
+ALTER TABLE youtube_videos ADD COLUMN notified_at VARCHAR(64);
+
+CREATE TABLE IF NOT EXISTS youtube_opinion_imports (
+  video_id VARCHAR(64) PRIMARY KEY,
+  status VARCHAR(32) NOT NULL,
+  session_id VARCHAR(64),
+  llm_output_json MEDIUMTEXT,
+  error_message TEXT,
+  imported_at VARCHAR(64),
+  created_at VARCHAR(64) NOT NULL,
+  updated_at VARCHAR(64) NOT NULL,
+  INDEX idx_youtube_opinion_import_status(status, updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS llm_call_logs (
+  id VARCHAR(64) PRIMARY KEY,
+  scene VARCHAR(64) NOT NULL,
+  model VARCHAR(120) NOT NULL,
+  status VARCHAR(32) NOT NULL,
+  request_chars INT NOT NULL,
+  response_chars INT NOT NULL,
+  duration_ms BIGINT NOT NULL,
+  request_preview TEXT,
+  response_preview TEXT,
+  error_message TEXT,
+  created_at VARCHAR(64) NOT NULL,
+  INDEX idx_llm_call_scene(scene, created_at),
+  INDEX idx_llm_call_status(status, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS kol_positions (

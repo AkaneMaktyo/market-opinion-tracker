@@ -9,6 +9,8 @@ public class LlmProperties {
   private String baseUrl = "";
   private String apiKey = "";
   private String model = "";
+  private boolean wxpusherEnabled = true;
+  private boolean youtubeAutoImportEnabled = false;
 
   public String baseUrl() {
     return normalize(baseUrl).replaceAll("/+$", "");
@@ -24,6 +26,14 @@ public class LlmProperties {
 
   public boolean configured() {
     return !baseUrl().isBlank() && !apiKey().isBlank() && !model().isBlank();
+  }
+
+  public boolean wxpusherEnabled() {
+    return wxpusherEnabled;
+  }
+
+  public boolean youtubeAutoImportEnabled() {
+    return youtubeAutoImportEnabled;
   }
 
   public void ensureConfigured() {
@@ -42,6 +52,14 @@ public class LlmProperties {
 
   public void setModel(String model) {
     this.model = model;
+  }
+
+  public void setWxpusherEnabled(boolean wxpusherEnabled) {
+    this.wxpusherEnabled = wxpusherEnabled;
+  }
+
+  public void setYoutubeAutoImportEnabled(boolean youtubeAutoImportEnabled) {
+    this.youtubeAutoImportEnabled = youtubeAutoImportEnabled;
   }
 
   private static String normalize(String value) {

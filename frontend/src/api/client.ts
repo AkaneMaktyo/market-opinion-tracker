@@ -12,11 +12,13 @@ import type {
   Timeframe,
 } from '../types';
 import { json } from './http';
+import { llmApi } from './llm';
 import { positionApi } from './positions';
 import { wxpusherApi } from './wxpusher';
 import { youtubeApi } from './youtube';
 
 export const api = {
+  ...llmApi,
   ...wxpusherApi,
   ...youtubeApi,
   ...positionApi,

@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 @Service
 public class WxPusherIngestionService {
   private static final String CONSUMER_NAME = "market_opinion_tracker";
+  private static final String WXPUSHER_LLM_DISABLED = "WxPusher LLM 提取已禁用";
   private final SessionRepository sessionRepository;
   private final WxPusherSettingsRepository settingsRepository;
   private final WxPusherBloggerRepository bloggerRepository;
@@ -142,6 +143,11 @@ public class WxPusherIngestionService {
     try {
       detailText = fetchDetail(message);
       sessionId = ensureSession(message, detailText);
+      if (!aiExtractor.extractionEnabled()) {
+        messageRepository.markSkipped(message.id(), detailText, WXPUSHER_LLM_DISABLED);
+        saveSharedState(sharedMessageKey, "SKIPPED", WXPUSHER_LLM_DISABLED, message.id());
+        return;
+      }
       llmJson = aiExtractor.extract(
           message.bloggerName(),
           message.title(),

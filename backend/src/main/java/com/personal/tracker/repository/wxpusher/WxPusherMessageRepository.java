@@ -87,6 +87,10 @@ public class WxPusherMessageRepository {
     updateState(id, "FAILED", errorMessage, detailText, llmOutputJson, null);
   }
 
+  public void markSkipped(String id, String detailText, String errorMessage) {
+    updateState(id, "SKIPPED", errorMessage, detailText, null, null);
+  }
+
   public void markImported(String id, String detailText, String llmOutputJson, String sessionId) {
     updateState(id, "IMPORTED", "", detailText, llmOutputJson, sessionId);
   }
