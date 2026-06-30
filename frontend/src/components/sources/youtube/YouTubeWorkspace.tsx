@@ -27,6 +27,7 @@ export function YouTubeWorkspace({ mode }: { mode: 'page' | 'panel' }) {
   const [durationMs, setDurationMs] = useState(0);
   const [playing, setPlaying] = useState(false);
   const videos = channels.flatMap((item) => item.videos || []);
+  const unfinishedVideos = videos.filter((item) => item.transcriptStatus !== 'ready').length;
   useEffect(() => {
     void loadChannels();
   }, []);
@@ -56,12 +57,13 @@ export function YouTubeWorkspace({ mode }: { mode: 'page' | 'panel' }) {
       const data = await api.youtubeChannels();
       const nextChannels = data.channels || [];
       setChannels(nextChannels);
-      if (!nextVideoId || !hasVideo(nextChannels, nextVideoId)) {
+      const targetVideoId = nextVideoId && hasVideo(nextChannels, nextVideoId) ? nextVideoId : firstVideoId(nextChannels);
+      if (!targetVideoId) {
         resetSelection();
         return;
       }
-      const detail = await api.youtubeVideo(nextVideoId);
-      setActiveVideoId(nextVideoId);
+      const detail = await api.youtubeVideo(targetVideoId);
+      setActiveVideoId(targetVideoId);
       setActiveVideo(detail.video);
       setDurationMs(detail.video.audioDurationMs || 0);
     } catch (error) {
@@ -111,6 +113,7 @@ export function YouTubeWorkspace({ mode }: { mode: 'page' | 'panel' }) {
         </div>
         <button
           className="icon-button"
+          disabled={loading}
           onClick={() => void syncAllChannels(loadChannels, setLoading, setMessage, activeVideoId)}
           title="同步全部频道"
           type="button"
@@ -139,7 +142,7 @@ export function YouTubeWorkspace({ mode }: { mode: 'page' | 'panel' }) {
         <StatItem label="频道" value={channels.length} />
         <StatItem label="视频" value={videos.length} />
         <StatItem label="完成" value={videos.filter((item) => item.transcriptStatus === 'ready').length} />
-        <StatItem label="失败" value={videos.filter((item) => item.transcriptStatus === 'error').length} />
+        <StatItem label="待处理" value={unfinishedVideos} />
       </div>
 
       <div className="youtube-grid">
@@ -198,3 +201,4 @@ export function YouTubeWorkspace({ mode }: { mode: 'page' | 'panel' }) {
 
 function panelClass(mode: 'page' | 'panel') { return `source-panel youtube-panel${mode === 'page' ? ' youtube-panel-page youtube-panel-docked' : ''}`; }
 function StatItem({ label, value }: { label: string; value: number }) { return <div><span className="muted">{label}</span><strong>{value}</strong></div>; }
+function firstVideoId(channels: YouTubeChannel[]) { return channels.flatMap((item) => item.videos || [])[0]?.videoId || ''; }

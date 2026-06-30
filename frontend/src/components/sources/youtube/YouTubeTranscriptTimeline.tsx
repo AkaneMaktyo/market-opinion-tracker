@@ -21,19 +21,16 @@ export function YouTubeTranscriptTimeline({
       return;
     }
     const frameId = window.requestAnimationFrame(() => {
-      const element = refs.current[activeIndex];
-      if (!element) {
-        return;
-      }
-      const scroller = nearestScroller(element);
-      if (scroller) {
-        centerInsideScroller(scroller, element);
-        return;
-      }
-      centerInsideViewport(element);
+      centerActiveSegment(activeIndex, refs.current);
     });
     return () => window.cancelAnimationFrame(frameId);
   }, [activeIndex, segments]);
+
+  useEffect(() => {
+    const locate = () => centerActiveSegment(activeIndex, refs.current);
+    window.addEventListener('youtube:locate-current-transcript', locate);
+    return () => window.removeEventListener('youtube:locate-current-transcript', locate);
+  }, [activeIndex]);
 
   return (
     <div className="youtube-transcript">
@@ -63,6 +60,22 @@ export function YouTubeTranscriptTimeline({
       })}
     </div>
   );
+}
+
+function centerActiveSegment(activeIndex: number, refs: Array<HTMLButtonElement | null>) {
+  if (activeIndex < 0) {
+    return;
+  }
+  const element = refs[activeIndex];
+  if (!element) {
+    return;
+  }
+  const scroller = nearestScroller(element);
+  if (scroller) {
+    centerInsideScroller(scroller, element);
+    return;
+  }
+  centerInsideViewport(element);
 }
 
 function nearestScroller(element: HTMLElement) {

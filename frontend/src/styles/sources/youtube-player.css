@@ -46,6 +46,19 @@
   width: 58px;
 }
 
+.youtube-audio-jump {
+  align-items: center;
+  background: #fff7ed;
+  border: 1px solid rgba(251, 113, 133, 0.22);
+  border-radius: 999px;
+  color: #be123c;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 44px;
+  justify-content: center;
+  width: 44px;
+}
+
 .youtube-audio-main {
   flex: 1;
   min-width: 0;
@@ -179,6 +192,11 @@
   .youtube-audio-toggle {
     height: 52px;
     width: 52px;
+  }
+
+  .youtube-audio-jump {
+    height: 44px;
+    width: 44px;
   }
 
   .youtube-audio-labels {

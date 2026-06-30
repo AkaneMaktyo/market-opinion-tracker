@@ -1,6 +1,6 @@
 import { RefreshCw, Trash2 } from 'lucide-react';
 import type { YouTubeChannel } from '../../../types/youtube';
-import { formatDateTimeLabel } from './youtubeFormat';
+import { formatChannelHandle, formatDateTimeLabel } from './youtubeFormat';
 
 interface Props {
   activeVideoId: string;
@@ -29,21 +29,30 @@ export function YouTubeChannelColumn({
             <div>
               <strong>{item.channel.title}</strong>
               <p className="muted">
+                {formatChannelHandle(item.channel.handle) || item.channel.channelId} / {item.videos.length} 个视频
+              </p>
+              <p className="muted">
                 上次同步：{item.channel.lastCheckedAt ? formatDateTimeLabel(item.channel.lastCheckedAt) : '尚未同步'}
               </p>
             </div>
             <div className="inline-actions">
               <button
                 className="icon-button"
+                disabled={loading}
                 onClick={() => onSync(item.channel.id, activeVideoId)}
-                title="同步频道"
+                title={loading ? '同步中' : '同步频道'}
                 type="button"
               >
                 <RefreshCw size={14} />
               </button>
               <button
                 className="icon-button"
-                onClick={() => onRemove(item.channel.id)}
+                disabled={loading}
+                onClick={() => {
+                  if (window.confirm(`删除频道「${item.channel.title}」及其视频记录？`)) {
+                    onRemove(item.channel.id);
+                  }
+                }}
                 title="删除频道"
                 type="button"
               >

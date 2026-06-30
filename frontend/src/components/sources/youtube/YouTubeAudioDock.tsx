@@ -1,5 +1,5 @@
 import { type ChangeEvent, useEffect, useState } from 'react';
-import { Pause, Play } from 'lucide-react';
+import { LocateFixed, Pause, Play } from 'lucide-react';
 import { formatMediaClock } from './youtubeFormat';
 
 interface Props {
@@ -43,6 +43,10 @@ export function YouTubeAudioDock({
     onSeek(draftMs);
   }
 
+  function locateCurrentTranscript() {
+    window.dispatchEvent(new Event('youtube:locate-current-transcript'));
+  }
+
   return (
     <div className="youtube-audio-dock" style={{ ['--progress' as string]: percent }}>
       <button
@@ -52,6 +56,15 @@ export function YouTubeAudioDock({
         type="button"
       >
         {playing ? <Pause size={22} /> : <Play size={22} />}
+      </button>
+      <button
+        aria-label="跳转到当前转写片段"
+        className="youtube-audio-jump"
+        onClick={locateCurrentTranscript}
+        title="跳转到当前转写片段"
+        type="button"
+      >
+        <LocateFixed size={18} />
       </button>
       <div className="youtube-audio-main">
         <div className="youtube-audio-labels">
