@@ -246,6 +246,11 @@ CREATE TABLE IF NOT EXISTS youtube_channels (
   INDEX idx_youtube_channels_updated(updated_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  id VARCHAR(120) PRIMARY KEY,
+  applied_at VARCHAR(64) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS youtube_videos (
   video_id VARCHAR(64) PRIMARY KEY,
   channel_row_id VARCHAR(64) NOT NULL,
@@ -264,6 +269,7 @@ CREATE TABLE IF NOT EXISTS youtube_videos (
   notify_status VARCHAR(32) NOT NULL DEFAULT '',
   notify_error TEXT,
   notified_at VARCHAR(64),
+  read_at VARCHAR(64),
   synced_at VARCHAR(64),
   created_at VARCHAR(64) NOT NULL,
   updated_at VARCHAR(64) NOT NULL,
@@ -274,6 +280,17 @@ CREATE TABLE IF NOT EXISTS youtube_videos (
 ALTER TABLE youtube_videos ADD COLUMN notify_status VARCHAR(32) NOT NULL DEFAULT '';
 ALTER TABLE youtube_videos ADD COLUMN notify_error TEXT;
 ALTER TABLE youtube_videos ADD COLUMN notified_at VARCHAR(64);
+ALTER TABLE youtube_videos ADD COLUMN read_at VARCHAR(64);
+
+UPDATE youtube_videos
+SET read_at = COALESCE(NULLIF(read_at, ''), updated_at)
+WHERE NOT EXISTS (
+  SELECT 1 FROM schema_migrations WHERE id = 'youtube_videos_read_at_existing'
+)
+  AND (read_at IS NULL OR read_at = '');
+
+INSERT IGNORE INTO schema_migrations(id, applied_at)
+VALUES ('youtube_videos_read_at_existing', NOW());
 
 CREATE TABLE IF NOT EXISTS youtube_opinion_imports (
   video_id VARCHAR(64) PRIMARY KEY,

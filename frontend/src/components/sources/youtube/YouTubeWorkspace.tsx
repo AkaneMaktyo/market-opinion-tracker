@@ -5,15 +5,7 @@ import type { YouTubeChannel, YouTubeVideo } from '../../../types/youtube';
 import { YouTubeAudioDock } from './YouTubeAudioDock';
 import { YouTubeChannelColumn } from './YouTubeChannelColumn';
 import { YouTubeDetailColumn } from './YouTubeDetailColumn';
-import {
-  hasVideo,
-  openVideoDetail,
-  removeOneChannel,
-  seekAudio,
-  syncAllChannels,
-  syncOneChannel,
-  toggleAudio,
-} from './youtubeWorkspaceActions';
+import { hasVideo, markReadIfNeeded, openVideoDetail, removeOneChannel, seekAudio, syncAllChannels, syncOneChannel, toggleAudio } from './youtubeWorkspaceActions';
 export function YouTubeWorkspace({ mode }: { mode: 'page' | 'panel' }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [channels, setChannels] = useState<YouTubeChannel[]>([]);
@@ -56,16 +48,18 @@ export function YouTubeWorkspace({ mode }: { mode: 'page' | 'panel' }) {
     try {
       const data = await api.youtubeChannels();
       const nextChannels = data.channels || [];
-      setChannels(nextChannels);
       const targetVideoId = nextVideoId && hasVideo(nextChannels, nextVideoId) ? nextVideoId : firstVideoId(nextChannels);
       if (!targetVideoId) {
+        setChannels(nextChannels);
         resetSelection();
         return;
       }
       const detail = await api.youtubeVideo(targetVideoId);
+      const video = await markReadIfNeeded(detail.video);
+      setChannels(replaceVideo(nextChannels, video));
       setActiveVideoId(targetVideoId);
-      setActiveVideo(detail.video);
-      setDurationMs(detail.video.audioDurationMs || 0);
+      setActiveVideo(video);
+      setDurationMs(video.audioDurationMs || 0);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '读取 YouTube 转写失败');
     } finally {
@@ -173,6 +167,7 @@ export function YouTubeWorkspace({ mode }: { mode: 'page' | 'panel' }) {
               setDurationMs,
               setPlaying,
               setMessage,
+              (video) => setChannels((items) => replaceVideo(items, video)),
             )
           }
           onSeek={(nextMs) => seekAudio(nextMs, audioRef.current, setActiveMs)}
@@ -202,3 +197,4 @@ export function YouTubeWorkspace({ mode }: { mode: 'page' | 'panel' }) {
 function panelClass(mode: 'page' | 'panel') { return `source-panel youtube-panel${mode === 'page' ? ' youtube-panel-page youtube-panel-docked' : ''}`; }
 function StatItem({ label, value }: { label: string; value: number }) { return <div><span className="muted">{label}</span><strong>{value}</strong></div>; }
 function firstVideoId(channels: YouTubeChannel[]) { return channels.flatMap((item) => item.videos || [])[0]?.videoId || ''; }
+function replaceVideo(channels: YouTubeChannel[], video: YouTubeVideo) { return channels.map((channel) => ({ ...channel, videos: channel.videos.map((item) => (item.videoId === video.videoId ? video : item)) })); }

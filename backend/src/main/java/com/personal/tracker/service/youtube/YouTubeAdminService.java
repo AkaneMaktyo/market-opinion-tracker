@@ -189,6 +189,15 @@ public class YouTubeAdminService {
     return repository.findVideo(videoId).orElse(null);
   }
 
+  public VideoRecord markVideoRead(String videoId) {
+    VideoRecord video = repository.findVideo(videoId).orElse(null);
+    if (video == null || hasReadAt(video)) {
+      return video;
+    }
+    String timestamp = now();
+    return repository.markRead(videoId, timestamp, timestamp);
+  }
+
   public VideoRecord ensureAudio(String videoId) {
     VideoRecord video = repository.findVideo(videoId).orElse(null);
     if (video == null) {
@@ -374,6 +383,10 @@ public class YouTubeAdminService {
         && "SENT".equalsIgnoreCase(video.notifyStatus())
         && video.notifiedAt() != null
         && !video.notifiedAt().isBlank();
+  }
+
+  private boolean hasReadAt(VideoRecord video) {
+    return video.readAt() != null && !video.readAt().isBlank();
   }
 
   private VideoRecord saveVideo(

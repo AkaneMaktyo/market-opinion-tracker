@@ -65,6 +65,7 @@ export async function openVideoDetail(
   setDurationMs: (value: number) => void,
   setPlaying: (value: boolean) => void,
   setMessage: (value: string) => void,
+  onVideoRead: (video: YouTubeVideo) => void,
 ) {
   if (videoId === activeVideoId) {
     return;
@@ -75,10 +76,23 @@ export async function openVideoDetail(
   setPlaying(false);
   try {
     const detail = await api.youtubeVideo(videoId);
-    setActiveVideo(detail.video);
-    setDurationMs(detail.video.audioDurationMs || 0);
+    const video = await markReadIfNeeded(detail.video);
+    setActiveVideo(video);
+    onVideoRead(video);
+    setDurationMs(video.audioDurationMs || 0);
   } catch (error) {
     setMessage(error instanceof Error ? error.message : '读取视频转写失败');
+  }
+}
+
+export async function markReadIfNeeded(video: YouTubeVideo) {
+  if (video.readAt?.trim()) {
+    return video;
+  }
+  try {
+    return (await api.markYouTubeVideoRead(video.videoId)).video;
+  } catch {
+    return video;
   }
 }
 

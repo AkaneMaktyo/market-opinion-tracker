@@ -78,6 +78,15 @@ public class YouTubeController {
     return new VideoResponse(true, video);
   }
 
+  @PostMapping("/videos/{videoId}/read")
+  VideoResponse markVideoRead(@PathVariable String videoId) {
+    VideoRecord video = service.markVideoRead(videoId);
+    if (video == null) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "视频不存在");
+    }
+    return new VideoResponse(true, video);
+  }
+
   @GetMapping("/audio/{videoId}")
   ResponseEntity<Resource> audio(@PathVariable String videoId) {
     VideoRecord video = service.getVideo(videoId);

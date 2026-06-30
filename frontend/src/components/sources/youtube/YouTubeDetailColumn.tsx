@@ -58,8 +58,11 @@ export function YouTubeDetailColumn({
                 {formatDateTimeLabel(item.publishedAt)} / {formatDurationLabel(item.audioDurationMs)}
               </p>
             </div>
-            <span className={`status-pill${item.transcriptStatus === 'error' ? ' error' : ''}`}>
-              {formatTranscriptStatus(item.transcriptStatus)}
+            <span className="youtube-video-badges">
+              <span className={`status-pill${item.transcriptStatus === 'error' ? ' error' : ''}`}>
+                {formatTranscriptStatus(item.transcriptStatus)}
+              </span>
+              <span className={`status-pill${item.readAt ? ' active' : ''}`}>{item.readAt ? '已读' : '未读'}</span>
             </span>
           </button>
         ))}

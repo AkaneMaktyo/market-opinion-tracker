@@ -20,6 +20,10 @@ export const youtubeApi = {
     ),
   youtubeVideo: (videoId: string) =>
     json<{ ok: boolean; video: YouTubeVideo }>(`/api/youtube/videos/${encodeURIComponent(videoId)}`),
+  markYouTubeVideoRead: (videoId: string) =>
+    json<{ ok: boolean; video: YouTubeVideo }>(`/api/youtube/videos/${encodeURIComponent(videoId)}/read`, {
+      method: 'POST',
+    }),
   deleteYouTubeChannel: (channelRowId: string) =>
     json<{ ok: boolean }>(`/api/youtube/channels/${encodeURIComponent(channelRowId)}`, {
       method: 'DELETE',

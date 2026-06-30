@@ -19,6 +19,7 @@ export interface YouTubeVideo {
   transcriptText: string;
   transcriptSegments: YouTubeTranscriptSegment[];
   errorMessage?: string;
+  readAt?: string;
   syncedAt?: string;
   createdAt: string;
   updatedAt: string;

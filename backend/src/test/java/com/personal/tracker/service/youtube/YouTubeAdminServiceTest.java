@@ -120,6 +120,19 @@ class YouTubeAdminServiceTest {
   }
 
   @Test
+  void markVideoReadSetsUnreadVideo() {
+    var repository = mock(YouTubeRepository.class);
+    var service = service(repository, mock(YouTubeClient.class), mock(YouTubeAudioDownloader.class));
+    VideoRecord unread = video("vid-1", "", "audio.m4a", 1234);
+    when(repository.findVideo("vid-1")).thenReturn(Optional.of(unread));
+    when(repository.markRead(eq("vid-1"), any(), any())).thenReturn(unread);
+
+    service.markVideoRead("vid-1");
+
+    verify(repository).markRead(eq("vid-1"), any(), any());
+  }
+
+  @Test
   void syncChannelReusesSavedTranscriptWithoutRetranscribing() {
     var repository = mock(YouTubeRepository.class);
     var client = mock(YouTubeClient.class);

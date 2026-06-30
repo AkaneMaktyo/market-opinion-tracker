@@ -45,6 +45,7 @@ public class YouTubeRepository {
       rs.getString("notify_status"),
       rs.getString("notify_error"),
       rs.getString("notified_at"),
+      rs.getString("read_at"),
       rs.getString("synced_at"),
       rs.getString("created_at"),
       rs.getString("updated_at"));
@@ -194,6 +195,18 @@ public class YouTubeRepository {
     return findVideo(videoId).orElseThrow();
   }
 
+  public VideoRecord markRead(String videoId, String readAt, String updatedAt) {
+    jdbc.update("""
+        UPDATE youtube_videos
+        SET read_at = ?, updated_at = ?
+        WHERE video_id = ?
+        """,
+        value(readAt),
+        value(updatedAt),
+        videoId);
+    return findVideo(videoId).orElseThrow();
+  }
+
   private List<TranscriptSegment> readSegments(String payload) {
     if (payload == null || payload.isBlank()) {
       return List.of();
@@ -248,6 +261,7 @@ public class YouTubeRepository {
       String notifyStatus,
       String notifyError,
       String notifiedAt,
+      String readAt,
       String syncedAt,
       String createdAt,
       String updatedAt) {
@@ -284,6 +298,7 @@ public class YouTubeRepository {
           transcriptText,
           transcriptSegments,
           errorMessage,
+          "",
           "",
           "",
           "",

@@ -20,6 +20,7 @@ export function YouTubeAudioDock({
   onToggle,
 }: Props) {
   const max = Math.max(durationMs, 1000);
+  const displayTitle = title || '尚未选择音频';
   const [draftMs, setDraftMs] = useState(currentMs);
   const [seeking, setSeeking] = useState(false);
   const progress = Math.min(seeking ? draftMs : currentMs, max);
@@ -70,7 +71,12 @@ export function YouTubeAudioDock({
         <div className="youtube-audio-labels">
           <div className="youtube-audio-title-group">
             <span className="youtube-audio-kicker">当前播放</span>
-            <strong>{title || '尚未选择音频'}</strong>
+            <strong className="youtube-audio-title-marquee" title={displayTitle}>
+              <span className="youtube-audio-title-track">
+                <span>{displayTitle}</span>
+                <span aria-hidden="true">{displayTitle}</span>
+              </span>
+            </strong>
           </div>
           <span className="youtube-audio-clock">
             {formatMediaClock(progress)} / {formatMediaClock(durationMs)}

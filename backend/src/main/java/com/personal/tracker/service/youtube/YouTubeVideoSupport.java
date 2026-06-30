@@ -57,6 +57,7 @@ public final class YouTubeVideoSupport {
         "",
         "",
         "",
+        "",
         "");
   }
 
@@ -93,6 +94,7 @@ public final class YouTubeVideoSupport {
         video.notifyStatus(),
         video.notifyError(),
         video.notifiedAt(),
+        video.readAt(),
         video.syncedAt(),
         video.createdAt(),
         video.updatedAt());
