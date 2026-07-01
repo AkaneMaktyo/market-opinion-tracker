@@ -2,52 +2,53 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-top: 12px;
-  max-height: 440px;
+  margin-top: 14px;
+  max-height: 460px;
   overflow-y: auto;
-  padding: clamp(68px, 18vh, 140px) 4px;
+  padding: clamp(70px, 18vh, 140px) 4px;
+  scroll-padding-block: 42vh;
 }
 
 .youtube-transcript-card {
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.95)),
-    linear-gradient(90deg, rgba(244, 114, 182, 0.16), rgba(251, 191, 36, 0.1));
-  border-radius: 20px;
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(250, 247, 239, 0.9)),
+    linear-gradient(90deg, rgba(34, 197, 94, 0.12), rgba(249, 115, 22, 0.08));
+  border: 1px solid rgba(23, 49, 44, 0.1);
+  border-radius: 22px;
+  color: inherit;
+  display: grid;
   gap: 10px;
-  padding: 15px 16px 15px 20px;
+  padding: 16px 16px 16px 22px;
   position: relative;
-  transition:
-    border-color 180ms ease,
-    box-shadow 180ms ease,
-    transform 180ms ease,
-    background 180ms ease;
+  text-align: left;
+  transition: background 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+  width: 100%;
 }
 
 .youtube-transcript-card::before {
-  background: linear-gradient(180deg, rgba(244, 114, 182, 0.08), rgba(251, 191, 36, 0.08));
+  background: rgba(23, 49, 44, 0.14);
   border-radius: 999px;
   content: "";
-  inset: 12px auto 12px 8px;
+  inset: 14px auto 14px 10px;
   position: absolute;
   width: 3px;
 }
 
 .youtube-transcript-card:hover {
-  border-color: rgba(244, 114, 182, 0.2);
   transform: translateY(-1px);
 }
 
 .youtube-transcript-card.active {
-  background: linear-gradient(135deg, rgba(255, 241, 242, 0.98), rgba(255, 247, 237, 0.98));
-  border-color: rgba(244, 114, 182, 0.34);
+  background: linear-gradient(135deg, rgba(255, 247, 237, 0.98), rgba(236, 253, 245, 0.96));
+  border-color: rgba(249, 115, 22, 0.36);
   box-shadow:
-    0 18px 36px rgba(244, 114, 182, 0.12),
-    0 0 0 1px rgba(244, 114, 182, 0.18) inset;
+    0 22px 44px rgba(249, 115, 22, 0.13),
+    0 0 0 1px rgba(249, 115, 22, 0.16) inset;
   transform: scale(1.01);
 }
 
 .youtube-transcript-card.active::before {
-  background: linear-gradient(180deg, #fb7185, #f59e0b);
+  background: linear-gradient(180deg, #f97316, #22c55e);
   width: 4px;
 }
 
@@ -59,40 +60,40 @@
 }
 
 .youtube-speaker-pill {
-  background: rgba(16, 185, 129, 0.11);
+  background: rgba(23, 49, 44, 0.08);
   border-radius: 999px;
-  color: #047857;
+  color: #17312c;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   padding: 4px 10px;
 }
 
 .youtube-transcript-card.active .youtube-speaker-pill {
-  background: rgba(251, 113, 133, 0.12);
-  color: #be123c;
+  background: rgba(249, 115, 22, 0.14);
+  color: #c2410c;
 }
 
 .youtube-transcript-time {
-  color: #6b7280;
+  color: #7a8177;
   font-family: "Cascadia Mono", Consolas, monospace;
   font-size: 13px;
 }
 
 .youtube-transcript-text {
-  color: #111827;
+  color: #17231f;
   font-size: 18px;
-  line-height: 1.78;
+  line-height: 1.76;
 }
 
 @media (max-width: 640px) {
   .youtube-transcript {
     max-height: none;
-    padding-block: clamp(72px, 22vh, 180px);
+    padding-block: clamp(74px, 22vh, 180px);
   }
 
   .youtube-transcript-card {
     border-radius: 18px;
-    padding: 14px 14px 14px 18px;
+    padding: 14px 14px 14px 20px;
   }
 
   .youtube-transcript-text {

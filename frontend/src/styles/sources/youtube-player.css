@@ -1,7 +1,6 @@
 .youtube-panel-docked {
-  padding-bottom: 102px;
+  padding-bottom: 104px;
 }
-
 .youtube-audio-source {
   height: 0;
   opacity: 0;
@@ -13,104 +12,101 @@
 .youtube-audio-dock {
   --progress: 0%;
   align-items: center;
-  backdrop-filter: blur(24px);
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  border-radius: 24px;
+  backdrop-filter: blur(26px);
+  background:
+    linear-gradient(135deg, rgba(23, 49, 44, 0.96), rgba(35, 55, 43, 0.94)),
+    radial-gradient(circle at 12% 0%, rgba(249, 115, 22, 0.32), transparent 36%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 26px;
   bottom: 18px;
-  box-shadow:
-    0 18px 44px rgba(15, 23, 42, 0.14),
-    0 0 0 1px rgba(244, 114, 182, 0.08) inset;
+  box-shadow: 0 22px 56px rgba(23, 49, 44, 0.28), 0 1px 0 rgba(255, 255, 255, 0.18) inset;
+  color: #fffaf0;
   display: flex;
   gap: 12px;
   left: 50%;
-  max-width: min(860px, calc(100vw - 24px));
-  padding: 8px 12px;
+  max-width: min(880px, calc(100vw - 24px));
+  padding: 10px 12px;
   position: fixed;
   transform: translateX(-50%);
   width: calc(100vw - 24px);
   z-index: 40;
 }
 
-.youtube-audio-toggle {
-  align-items: center;
-  background: linear-gradient(145deg, #fb7185, #ef4444);
-  border: 0;
-  border-radius: 999px;
-  box-shadow: 0 10px 24px rgba(239, 68, 68, 0.24);
-  color: #fff;
-  display: inline-flex;
-  flex: 0 0 auto;
-  height: 42px;
-  justify-content: center;
-  width: 42px;
-}
-
+.youtube-audio-toggle,
 .youtube-audio-jump {
   align-items: center;
-  background: #fff7ed;
-  border: 1px solid rgba(251, 113, 133, 0.22);
+  border: 0;
   border-radius: 999px;
-  color: #be123c;
   display: inline-flex;
   flex: 0 0 auto;
-  height: 34px;
   justify-content: center;
-  width: 34px;
+}
+.youtube-audio-toggle {
+  background: linear-gradient(135deg, #f97316, #ef4444);
+  box-shadow: 0 14px 26px rgba(239, 68, 68, 0.28);
+  color: #fff;
+  height: 44px;
+  width: 44px;
+}
+.youtube-audio-jump {
+  background: rgba(255, 250, 240, 0.12);
+  box-shadow: 0 0 0 1px rgba(255, 250, 240, 0.16) inset;
+  color: #fed7aa;
+  height: 36px;
+  width: 36px;
 }
 
-.youtube-audio-main {
-  flex: 1;
+.youtube-audio-main,
+.youtube-audio-title-group {
   min-width: 0;
 }
-
+.youtube-audio-main {
+  flex: 1;
+}
 .youtube-audio-labels {
-  align-items: flex-start;
+  align-items: center;
   display: flex;
   gap: 12px;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
-
 .youtube-audio-title-group {
-  min-width: 0;
   width: 100%;
 }
-
 .youtube-audio-kicker {
-  color: #fb7185;
+  color: #fdba74;
   display: block;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.08em;
   margin-bottom: 2px;
   text-transform: uppercase;
 }
 
 .youtube-audio-title-marquee {
-  color: #111827;
+  color: #fffaf0;
   display: block;
   overflow: hidden;
-  width: 100%;
   white-space: nowrap;
+  width: 100%;
 }
 
 .youtube-audio-title-track {
-  animation: youtube-title-marquee 18s linear infinite;
+  animation: youtube-title-marquee 22s linear 1.2s infinite;
   display: inline-flex;
 }
 
 .youtube-audio-title-track span {
   flex: 0 0 auto;
+  min-width: 100%;
   padding-right: 42px;
 }
 
 .youtube-audio-clock {
-  color: #6b7280;
+  color: rgba(255, 250, 240, 0.72);
   flex: 0 0 auto;
   font-family: "Cascadia Mono", Consolas, monospace;
   font-size: 13px;
-  margin-top: 2px;
 }
 
 .youtube-audio-wave {
@@ -119,25 +115,25 @@
   position: relative;
 }
 
-.youtube-audio-wave::before {
-  background:
-    repeating-linear-gradient(90deg, rgba(148, 163, 184, 0.3) 0 2px, transparent 2px 7px),
-    linear-gradient(90deg, rgba(248, 250, 252, 0.94), rgba(255, 255, 255, 0.98));
+.youtube-audio-wave::before,
+.youtube-audio-progress {
   border-radius: 999px;
   content: "";
-  height: 26px;
+  height: 24px;
   inset: 0;
   position: absolute;
 }
 
+.youtube-audio-wave::before {
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 250, 240, 0.22) 0 2px, transparent 2px 8px),
+    rgba(255, 250, 240, 0.1);
+}
+
 .youtube-audio-progress {
   background:
-    repeating-linear-gradient(90deg, rgba(251, 113, 133, 0.36) 0 2px, rgba(251, 113, 133, 0.08) 2px 7px),
-    linear-gradient(90deg, rgba(255, 228, 230, 0.92), rgba(255, 237, 213, 0.86));
-  border-radius: 999px;
-  height: 26px;
-  inset: 0 auto 0 0;
-  position: absolute;
+    repeating-linear-gradient(90deg, rgba(255, 250, 240, 0.38) 0 2px, transparent 2px 8px),
+    linear-gradient(90deg, #fb923c, #facc15);
   width: var(--progress);
 }
 
@@ -146,7 +142,7 @@
   appearance: none;
   background: transparent;
   cursor: pointer;
-  height: 26px;
+  height: 24px;
   margin: 0;
   position: relative;
   width: 100%;
@@ -156,65 +152,49 @@
 .youtube-audio-range::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  background: #ef4444;
+  background: #fff7ed;
   border: 0;
   border-radius: 999px;
-  box-shadow:
-    0 0 0 4px rgba(255, 255, 255, 0.98),
-    0 6px 14px rgba(239, 68, 68, 0.24);
-  height: 28px;
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.28);
+  height: 26px;
   width: 4px;
 }
-
 .youtube-audio-range::-moz-range-thumb {
-  background: #ef4444;
+  background: #fff7ed;
   border: 0;
   border-radius: 999px;
-  box-shadow:
-    0 0 0 4px rgba(255, 255, 255, 0.98),
-    0 6px 14px rgba(239, 68, 68, 0.24);
-  height: 28px;
+  box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.28);
+  height: 26px;
   width: 4px;
 }
-
 .youtube-audio-range::-webkit-slider-runnable-track,
 .youtube-audio-range::-moz-range-track {
   background: transparent;
-  height: 26px;
+  height: 24px;
 }
-
-@keyframes youtube-title-marquee { to { transform: translateX(-50%); } }
-
-.youtube-transcript {
-  scroll-padding-block: 42vh;
+@keyframes youtube-title-marquee {
+  to { transform: translateX(-50%); }
 }
-
+@media (prefers-reduced-motion: reduce) {
+  .youtube-audio-title-track { animation: none; }
+}
 @media (max-width: 640px) {
   .youtube-panel-docked {
-    padding-bottom: 112px;
+    padding-bottom: 116px;
   }
-
   .youtube-audio-dock {
-    border-radius: 20px;
-    bottom: 12px;
+    border-radius: 22px;
+    bottom: 10px;
     gap: 10px;
-    padding: 8px 10px;
+    padding: 9px 10px;
     width: calc(100vw - 16px);
   }
-
   .youtube-audio-toggle {
     height: 40px;
     width: 40px;
   }
-
   .youtube-audio-jump {
     height: 34px;
     width: 34px;
-  }
-
-  .youtube-audio-labels {
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
   }
 }
