@@ -131,6 +131,20 @@ public class YouTubeRepository {
         """, videoMapper, value(transcriptStatus), Math.max(1, limit));
   }
 
+  public List<VideoRecord> listVideosPendingNotification(int limit) {
+    return jdbc.query("""
+        SELECT * FROM youtube_videos
+        WHERE transcript_status = ?
+          AND (
+            notify_status = ''
+            OR UPPER(notify_status) <> 'SENT'
+            OR notified_at = ''
+          )
+        ORDER BY updated_at ASC
+        LIMIT ?
+        """, videoMapper, "ready", Math.max(1, limit));
+  }
+
   public VideoRecord saveVideo(SaveVideoCommand command) {
     VideoRecord existing = findVideo(command.videoId()).orElse(null);
     jdbc.update("""
