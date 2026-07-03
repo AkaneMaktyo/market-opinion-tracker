@@ -11,12 +11,12 @@ export const formatTime = (time: Time, timeframe: Timeframe) => {
   const date = dateFromTime(time);
   if (!date) return '';
   const day = [
-    date.getUTCFullYear(),
-    pad(date.getUTCMonth() + 1),
-    pad(date.getUTCDate()),
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
   ].join('-');
   if (timeframe === '1D') return day;
-  return `${day} ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
+  return `${day} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
 export const compareTime = (left: Time, right: Time) =>

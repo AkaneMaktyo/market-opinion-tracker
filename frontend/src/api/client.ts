@@ -36,8 +36,10 @@ export const api = {
     const query = kolId ? `?kolId=${encodeURIComponent(kolId)}` : '';
     return json<LiveSession[]>(`/api/sessions${query}`);
   },
-  bars: (symbol: string, timeframe: Timeframe) =>
-    json<MarketBar[]>(`/api/market/${symbol}/bars?timeframe=${timeframe}`),
+  bars: (symbol: string, timeframe: Timeframe) => {
+    const params = new URLSearchParams({ timeframe });
+    return json<MarketBar[]>(`/api/market/${encodeURIComponent(symbol)}/bars?${params}`);
+  },
   marketBackfill: () => json<MarketBackfillStatus>('/api/market/backfill'),
   startMarketBackfill: () =>
     json<MarketBackfillStatus>('/api/market/backfill', { method: 'POST' }),
@@ -121,6 +123,10 @@ export const api = {
     json<{ status: string; message: string }>(`/api/instruments/${id}/merge`, {
       method: 'POST',
       body: JSON.stringify({ targetId }),
+    }),
+  deleteInstrument: (id: string) =>
+    json<{ status: string; message: string }>(`/api/instruments/${id}`, {
+      method: 'DELETE',
     }),
   updateInstrumentGroup: (id: string, groupName: string | null) =>
     json<Instrument>(`/api/instruments/${id}/group`, {

@@ -218,6 +218,18 @@ public class InstrumentRepository {
     jdbc.update("DELETE FROM instruments WHERE id = ?", sourceId);
   }
 
+  @Transactional
+  public boolean delete(String instrumentId) {
+    if (findById(instrumentId).isEmpty()) {
+      return false;
+    }
+    deleteResonanceData(instrumentId);
+    deleteOpinionData(instrumentId);
+    jdbc.update("DELETE FROM kol_positions WHERE instrument_id = ?", instrumentId);
+    jdbc.update("DELETE FROM market_bars WHERE instrument_id = ?", instrumentId);
+    return jdbc.update("DELETE FROM instruments WHERE id = ?", instrumentId) > 0;
+  }
+
   public void updateGroup(String instrumentId, String groupName) {
     String nextGroup = groupName == null || groupName.isBlank() ? null : groupName.trim();
     jdbc.update("UPDATE instruments SET group_name = ? WHERE id = ?", nextGroup, instrumentId);
@@ -243,6 +255,34 @@ public class InstrumentRepository {
     return jdbc.queryForList(
         "SELECT DISTINCT group_name FROM instruments WHERE group_name IS NOT NULL ORDER BY group_name",
         String.class);
+  }
+
+  private void deleteResonanceData(String instrumentId) {
+    jdbc.update("""
+        DELETE a FROM resonance_alerts a
+        JOIN resonance_clusters c ON c.id = a.cluster_id
+        WHERE c.instrument_id = ?
+        """, instrumentId);
+    jdbc.update("""
+        DELETE i FROM resonance_cluster_items i
+        JOIN resonance_clusters c ON c.id = i.cluster_id
+        WHERE c.instrument_id = ?
+        """, instrumentId);
+    jdbc.update("DELETE FROM resonance_clusters WHERE instrument_id = ?", instrumentId);
+  }
+
+  private void deleteOpinionData(String instrumentId) {
+    jdbc.update("""
+        DELETE r FROM reviews r
+        JOIN opinions o ON o.id = r.opinion_id
+        WHERE o.instrument_id = ?
+        """, instrumentId);
+    jdbc.update("""
+        DELETE p FROM price_levels p
+        JOIN opinions o ON o.id = p.opinion_id
+        WHERE o.instrument_id = ?
+        """, instrumentId);
+    jdbc.update("DELETE FROM opinions WHERE instrument_id = ?", instrumentId);
   }
 
   private static String better(String current, String candidate, String weakValue) {

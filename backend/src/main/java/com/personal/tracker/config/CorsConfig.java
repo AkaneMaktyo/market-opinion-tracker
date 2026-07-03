@@ -12,7 +12,19 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 @Configuration
 public class CorsConfig {
-  private static final List<String> DEFAULT_ORIGIN_PATTERNS = Stream.concat(
+  private static final List<String> HOSTNAME_ORIGIN_PATTERNS = List.of(
+      "http://*.local:*",
+      "https://*.local:*",
+      "http://*.lan:*",
+      "https://*.lan:*",
+      "http://*.ts.net:*",
+      "https://*.ts.net:*",
+      "https://*.ngrok-free.app",
+      "https://*.ngrok.app",
+      "https://*.trycloudflare.com",
+      "https://*.loca.lt",
+      "https://*.devtunnels.ms");
+  private static final List<String> DEFAULT_ORIGIN_PATTERNS = Stream.of(
       Stream.of(
           "http://localhost:*",
           "https://localhost:*",
@@ -26,11 +38,10 @@ public class CorsConfig {
           "https://10.*.*.*:*",
           "http://192.168.*.*:*",
           "https://192.168.*.*:*"),
-      IntStream.rangeClosed(16, 31)
-          .boxed()
-          .flatMap(i -> Stream.of(
-              "http://172." + i + ".*.*:*",
-              "https://172." + i + ".*.*:*")))
+      private172OriginPatterns(),
+      tailscaleOriginPatterns(),
+      HOSTNAME_ORIGIN_PATTERNS.stream())
+      .flatMap(stream -> stream)
       .toList();
 
   private final String configuredOriginPatterns;
@@ -62,5 +73,21 @@ public class CorsConfig {
         .filter(value -> !value.isBlank())
         .distinct()
         .toArray(String[]::new);
+  }
+
+  private static Stream<String> private172OriginPatterns() {
+    return IntStream.rangeClosed(16, 31)
+        .boxed()
+        .flatMap(i -> Stream.of(
+            "http://172." + i + ".*.*:*",
+            "https://172." + i + ".*.*:*"));
+  }
+
+  private static Stream<String> tailscaleOriginPatterns() {
+    return IntStream.rangeClosed(64, 127)
+        .boxed()
+        .flatMap(i -> Stream.of(
+            "http://100." + i + ".*.*:*",
+            "https://100." + i + ".*.*:*"));
   }
 }

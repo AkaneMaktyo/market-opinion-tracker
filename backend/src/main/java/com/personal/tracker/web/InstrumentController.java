@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -87,6 +88,14 @@ public class InstrumentController {
       @RequestBody MergeInstrumentRequest request) {
     instruments.merge(id, request.targetId());
     return Map.of("status", "ok", "message", "\u5f52\u5e76\u5b8c\u6210");
+  }
+
+  @DeleteMapping("/{id}")
+  Map<String, String> delete(@PathVariable String id) {
+    if (!instruments.delete(id)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "\u54c1\u79cd\u4e0d\u5b58\u5728");
+    }
+    return Map.of("status", "ok", "message", "\u5220\u9664\u5b8c\u6210");
   }
 
   @PutMapping("/{id}/group")

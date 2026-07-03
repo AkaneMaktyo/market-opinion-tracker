@@ -36,6 +36,7 @@ public class OpenAiCompatibleChatService {
   }
 
   public String chat(String scene, String systemPrompt, String userPrompt) {
+    properties.ensureSceneEnabled(scene);
     properties.ensureConfigured();
     Instant startedAt = Instant.now();
     String requestPreview = safe(userPrompt);

@@ -36,6 +36,23 @@ public class LlmProperties {
     return youtubeAutoImportEnabled;
   }
 
+  public boolean sceneEnabled(String scene) {
+    String normalized = normalize(scene);
+    if (normalized.startsWith("YOUTUBE_")) {
+      return youtubeAutoImportEnabled();
+    }
+    if (normalized.startsWith("WXPUSHER_")) {
+      return wxpusherEnabled();
+    }
+    return false;
+  }
+
+  public void ensureSceneEnabled(String scene) {
+    if (!sceneEnabled(scene)) {
+      throw new IllegalStateException("LLM 场景未启用: " + normalize(scene));
+    }
+  }
+
   public void ensureConfigured() {
     if (!configured()) {
       throw new IllegalStateException("LLM 配置不完整，请先设置 LLM_BASE_URL、LLM_API_KEY 和 LLM_MODEL");

@@ -13,8 +13,14 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -24,11 +30,20 @@ public class MarketDataService {
   private static final Logger log = LoggerFactory.getLogger(MarketDataService.class);
   private static final int LIMIT = 1000;
   private static final int DEEP_BACKFILL_MAX_PAGES = 80;
+  private static final long EMPTY_REFRESH_TTL_MS = TimeUnit.SECONDS.toMillis(45);
+  private static final long WARM_REFRESH_TTL_MS = TimeUnit.MINUTES.toMillis(10);
 
   private final InstrumentRepository instruments;
   private final MarketBarRepository bars;
   private final List<MarketBarProvider> providers;
   private final Map<String, MarketBarProvider> providersByName;
+  private final ExecutorService interactiveRefresh = Executors.newFixedThreadPool(2, task -> {
+    Thread thread = new Thread(task, "market-bar-interactive-refresh");
+    thread.setDaemon(true);
+    return thread;
+  });
+  private final Set<String> refreshInFlight = ConcurrentHashMap.newKeySet();
+  private final Map<String, Long> lastInteractiveRefresh = new ConcurrentHashMap<>();
 
   public MarketDataService(
       InstrumentRepository instruments,
@@ -46,17 +61,8 @@ public class MarketDataService {
     Instrument instrument = instruments.saveIfAbsent(symbol, symbol, "US", null);
     String frame = timeframe == null || timeframe.isBlank() ? "1D" : timeframe;
     List<MarketBar> stored = bars.findBars(instrument.id(), frame);
-    if (!stored.isEmpty()) {
-      return stored;
-    }
-    for (MarketBarProvider provider : providersFor(instrument)) {
-      List<MarketBar> fetched = provider.fetch(instrument, frame);
-      if (!fetched.isEmpty()) {
-        bars.saveAll(fetched);
-        return bars.findBars(instrument.id(), frame);
-      }
-    }
-    return List.of();
+    queueInteractiveRefresh(instrument, frame, stored.isEmpty());
+    return stored;
   }
 
   public List<Instrument> instruments() {
@@ -111,6 +117,38 @@ public class MarketDataService {
       }
     }
     return List.of();
+  }
+
+  private void queueInteractiveRefresh(Instrument instrument, String timeframe, boolean emptyStoredData) {
+    String key = instrument.id() + ":" + timeframe;
+    long now = System.currentTimeMillis();
+    long ttl = emptyStoredData ? EMPTY_REFRESH_TTL_MS : WARM_REFRESH_TTL_MS;
+    Long last = lastInteractiveRefresh.get(key);
+    if (last != null && now - last < ttl) {
+      return;
+    }
+    if (!refreshInFlight.add(key)) {
+      return;
+    }
+    interactiveRefresh.submit(() -> refreshInteractive(instrument, timeframe, key));
+  }
+
+  private void refreshInteractive(Instrument instrument, String timeframe, String key) {
+    try {
+      RefreshResult result = refreshBars(instrument, timeframe);
+      log.info("交互 K 线后台刷新完成：{} {}，获取 {} 根",
+          result.symbol(), result.timeframe(), result.fetched());
+    } catch (RuntimeException error) {
+      log.warn("交互 K 线后台刷新失败：{} {}", instrument.symbol(), timeframe, error);
+    } finally {
+      lastInteractiveRefresh.put(key, System.currentTimeMillis());
+      refreshInFlight.remove(key);
+    }
+  }
+
+  @PreDestroy
+  public void shutdown() {
+    interactiveRefresh.shutdownNow();
   }
 
   private List<MarketBarProvider> providersFor(Instrument instrument) {

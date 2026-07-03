@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef } from 'react';
-import { createChart, CrosshairMode, LineStyle } from 'lightweight-charts';
+import { useMemo } from 'react';
 import { BackfillControls } from './BackfillControls';
-import { barTime, compareTime, formatTime, markerTime } from './chartTime';
+import { ChartCanvas } from './chart/ChartCanvas';
+import { compareTime, markerTime } from './chartTime';
+import type { PriceLineView } from './chart/ChartCanvas';
 import type { SeriesMarker, Time } from 'lightweight-charts';
 import type { MarketBackfillStatus, MarketBar, OpinionView, Timeframe } from '../types';
 
@@ -10,6 +11,9 @@ interface Props {
   timeframe: Timeframe;
   bars: MarketBar[];
   opinions: OpinionView[];
+  loading: boolean;
+  refreshing: boolean;
+  message: string;
   backfill?: MarketBackfillStatus | null;
   backfillBusy: boolean;
   backfillError?: string;
@@ -30,6 +34,9 @@ export function ChartPanel({
   timeframe,
   bars,
   opinions,
+  loading,
+  refreshing,
+  message,
   backfill,
   backfillBusy,
   backfillError,
@@ -37,7 +44,6 @@ export function ChartPanel({
   onBackfillCurrent,
   onBackfillAll,
 }: Props) {
-  const ref = useRef<HTMLDivElement | null>(null);
   const chartBars = useMemo(
     () => bars.filter((bar) => bar.timeframe?.toUpperCase() === timeframe),
     [bars, timeframe],
@@ -55,73 +61,14 @@ export function ChartPanel({
     }).sort((left, right) => compareTime(left.time, right.time)),
     [opinions, timeframe],
   );
-
-  useEffect(() => {
-    if (!ref.current || chartBars.length === 0) {
-      return;
-    }
-    let chart: ReturnType<typeof createChart> | null = null;
-    let resize: ResizeObserver | null = null;
-    try {
-      chart = createChart(ref.current, {
-        height: 520,
-        layout: { background: { color: '#0f172a' }, textColor: '#cbd5e1' },
-        grid: {
-          vertLines: { color: '#1e293b' },
-          horzLines: { color: '#1e293b' },
-        },
-        rightPriceScale: { borderColor: '#334155' },
-        localization: { timeFormatter: (time: Time) => formatTime(time, timeframe) },
-        timeScale: {
-          borderColor: '#334155',
-          timeVisible: timeframe !== '1D',
-          secondsVisible: false,
-        },
-        crosshair: { mode: CrosshairMode.Normal },
-      });
-      const series = chart.addCandlestickSeries({
-        upColor: '#22c55e',
-        downColor: '#ef4444',
-        borderVisible: false,
-        wickUpColor: '#86efac',
-        wickDownColor: '#fca5a5',
-      });
-      series.setData(
-        chartBars.map((bar) => ({
-          time: barTime(bar, timeframe),
-          open: Number(bar.open),
-          high: Number(bar.high),
-          low: Number(bar.low),
-          close: Number(bar.close),
-        })),
-      );
-      series.setMarkers(markers);
-      opinions.flatMap((item) => item.priceLevels).forEach((level) => {
-        series.createPriceLine({
-          price: Number(level.price),
-          color: levelColor(level.levelType),
-          lineWidth: 1,
-          lineStyle: LineStyle.Dashed,
-          axisLabelVisible: true,
-          title: level.levelType,
-        });
-      });
-      chart.timeScale().fitContent();
-      const currentChart = chart;
-      resize = new ResizeObserver(() => {
-        currentChart.applyOptions({ width: ref.current?.clientWidth || 800 });
-      });
-      resize.observe(ref.current);
-    } catch (error) {
-      console.error('图表渲染失败', error);
-      chart?.remove();
-      chart = null;
-    }
-    return () => {
-      resize?.disconnect();
-      chart?.remove();
-    };
-  }, [chartBars, markers, opinions, timeframe]);
+  const priceLines = useMemo<PriceLineView[]>(
+    () => opinions.flatMap((item) => item.priceLevels.map((level) => ({
+      price: Number(level.price),
+      color: levelColor(level.levelType),
+      title: level.levelType,
+    }))),
+    [opinions],
+  );
 
   return (
     <section className="chart-panel">
@@ -158,18 +105,36 @@ export function ChartPanel({
         onCurrent={onBackfillCurrent}
         onAll={onBackfillAll}
       />
-      {!symbol ? (
-        <div className="chart chart-empty">
-          <span>当前 KOL 还没有当前持仓</span>
-        </div>
-      ) : chartBars.length === 0 ? (
-        <div className="chart chart-empty">
-          <span>暂无 K 线数据</span>
-        </div>
-      ) : (
-        <div ref={ref} className="chart" />
-      )}
+      <div className="chart-frame">
+        {renderChartBody(symbol, chartBars, timeframe, markers, priceLines)}
+        {(loading || refreshing) ? <div className="chart-loading"><span className="chart-spinner" />{loading ? '加载中' : '刷新中'}</div> : null}
+        {message && !loading ? <div className="chart-note">{message}</div> : null}
+      </div>
     </section>
+  );
+}
+
+function renderChartBody(
+  symbol: string,
+  chartBars: MarketBar[],
+  timeframe: Timeframe,
+  markers: SeriesMarker<Time>[],
+  priceLines: PriceLineView[],
+) {
+  if (!symbol) {
+    return <div className="chart chart-empty"><span>当前 KOL 还没有当前持仓</span></div>;
+  }
+  if (chartBars.length === 0) {
+    return <div className="chart chart-empty"><span>等待 K 线数据</span></div>;
+  }
+  return (
+    <ChartCanvas
+      bars={chartBars}
+      markers={markers}
+      priceLines={priceLines}
+      timeframe={timeframe}
+      viewKey={`${symbol}:${timeframe}`}
+    />
   );
 }
 

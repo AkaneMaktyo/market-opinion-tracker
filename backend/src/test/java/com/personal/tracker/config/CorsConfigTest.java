@@ -14,6 +14,10 @@ class CorsConfigTest {
     assertTrue(patterns.contains("http://127.0.0.1:*"));
     assertTrue(patterns.contains("http://192.168.*.*:*"));
     assertTrue(patterns.contains("http://172.31.*.*:*"));
+    assertTrue(patterns.contains("http://100.64.*.*:*"));
+    assertTrue(patterns.contains("https://100.127.*.*:*"));
+    assertTrue(patterns.contains("https://*.ts.net:*"));
+    assertTrue(patterns.contains("https://*.trycloudflare.com"));
   }
 
   @Test
