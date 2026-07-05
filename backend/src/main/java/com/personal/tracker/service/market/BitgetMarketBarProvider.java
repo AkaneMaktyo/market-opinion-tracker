@@ -38,8 +38,6 @@ public class BitgetMarketBarProvider implements MarketBarProvider {
       "4H", "4H");
   private static final int DEFAULT_LIMIT = 1000;
   private static final String MAPPED = "MAPPED";
-  private static final String UNAVAILABLE = "UNAVAILABLE";
-
   private final ObjectMapper mapper;
   private final InstrumentRepository instruments;
   private final RestClient client;
@@ -82,27 +80,37 @@ public class BitgetMarketBarProvider implements MarketBarProvider {
     if (interval == null) {
       return List.of();
     }
+    int boundedLimit = Math.min(Math.max(limit, 1), DEFAULT_LIMIT);
     CachedMapping cached = cachedMapping(instrument);
     if (cached.unavailable()) {
       return List.of();
     }
-    if (cached.query() != null) {
+    Query cachedQuery = cached.query();
+    int attemptedCount = 0;
+    int unavailableCount = 0;
+    if (cachedQuery != null) {
+      attemptedCount++;
       FetchOutcome outcome = request(
           instrument,
           timeframe,
           interval,
-          cached.query(),
+          cachedQuery,
           startTime,
           endTime,
-          Math.min(Math.max(limit, 1), DEFAULT_LIMIT));
-      if (outcome.unavailable()) {
-        rememberUnavailable(instrument);
+          boundedLimit);
+      if (!outcome.bars().isEmpty()) {
+        return outcome.bars();
       }
-      return outcome.bars();
+      if (outcome.unavailable()) {
+        unavailableCount++;
+      }
     }
-    List<Query> candidates = queries(instrument.symbol());
-    int unavailableCount = 0;
+    List<Query> candidates = queriesForSymbol(instrument.symbol());
     for (Query query : candidates) {
+      if (query.equals(cachedQuery)) {
+        continue;
+      }
+      attemptedCount++;
       FetchOutcome outcome = request(
           instrument,
           timeframe,
@@ -110,7 +118,7 @@ public class BitgetMarketBarProvider implements MarketBarProvider {
           query,
           startTime,
           endTime,
-          Math.min(Math.max(limit, 1), DEFAULT_LIMIT));
+          boundedLimit);
       if (!outcome.bars().isEmpty()) {
         rememberMapped(instrument, query);
         return outcome.bars();
@@ -119,7 +127,7 @@ public class BitgetMarketBarProvider implements MarketBarProvider {
         unavailableCount++;
       }
     }
-    if (candidates.isEmpty() || unavailableCount == candidates.size()) {
+    if (attemptedCount == 0 || unavailableCount == attemptedCount) {
       rememberUnavailable(instrument);
     }
     return List.of();
@@ -127,9 +135,6 @@ public class BitgetMarketBarProvider implements MarketBarProvider {
 
   private CachedMapping cachedMapping(Instrument instrument) {
     return mappings.computeIfAbsent(instrument.id(), ignored -> {
-      if (UNAVAILABLE.equalsIgnoreCase(instrument.bitgetStatus())) {
-        return CachedMapping.unavailableMapping();
-      }
       if (MAPPED.equalsIgnoreCase(instrument.bitgetStatus())
           && present(instrument.bitgetCategory())
           && present(instrument.bitgetSymbol())) {
@@ -153,18 +158,18 @@ public class BitgetMarketBarProvider implements MarketBarProvider {
     return value != null && !value.isBlank();
   }
 
-  private List<Query> queries(String symbol) {
-    String clean = symbol.replaceAll("[^A-Za-z0-9]", "").toUpperCase();
-    if (clean.isBlank()) {
+  static List<Query> queriesForSymbol(String symbol) {
+    String clean = MarketBarSupport.cleanSymbol(symbol);
+    if (clean.isBlank() || clean.matches("\\d+")) {
       return List.of();
     }
-    if (clean.matches("\\d+")) {
-      return List.of();
-    }
+    String root = clean.endsWith("USDT") ? clean.substring(0, clean.length() - 4) : clean;
     return List.of(
-        new Query("USDT-FUTURES", clean + "USDT"),
-        new Query("SPOT", clean + "ONUSDT"),
-        new Query("SPOT", clean + "USDT"));
+        new Query("USDT-FUTURES", root + "USDT"),
+        new Query("USDT-FUTURES", root + "STOCKUSDT"),
+        new Query("SPOT", "R" + root + "USDT"),
+        new Query("SPOT", root + "ONUSDT"),
+        new Query("SPOT", root + "USDT"));
   }
 
   private FetchOutcome request(
@@ -373,6 +378,6 @@ public class BitgetMarketBarProvider implements MarketBarProvider {
     }
   }
 
-  private record Query(String category, String symbol) {
+  record Query(String category, String symbol) {
   }
 }

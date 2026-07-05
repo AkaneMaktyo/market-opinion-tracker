@@ -5,6 +5,7 @@ import com.personal.tracker.domain.Instrument;
 import com.personal.tracker.domain.MarketBar;
 import com.personal.tracker.repository.InstrumentRepository;
 import com.personal.tracker.repository.MarketBarRepository;
+import com.personal.tracker.repository.MarketBarRepository.BarCoverage;
 import com.personal.tracker.service.market.MarketBarProvider;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -31,6 +32,7 @@ public class MarketDataService {
   private static final int LIMIT = 1000;
   private static final int DEEP_BACKFILL_MAX_PAGES = 80;
   private static final long EMPTY_REFRESH_TTL_MS = TimeUnit.SECONDS.toMillis(45);
+  private static final long SUMMARY_REFRESH_TTL_MS = TimeUnit.SECONDS.toMillis(15);
   private static final long WARM_REFRESH_TTL_MS = TimeUnit.MINUTES.toMillis(10);
 
   private final InstrumentRepository instruments;
@@ -86,7 +88,7 @@ public class MarketDataService {
 
   public BackfillResult deepBackfillBars(Instrument instrument, String timeframe) {
     String frame = timeframe == null || timeframe.isBlank() ? "1D" : timeframe;
-    long cursor = Instant.now().toEpochMilli();
+    long cursor = initialBackfillCursor(instrument.id(), frame);
     long oldestSeen = Long.MAX_VALUE;
     int fetchedTotal = 0;
     int pages = 0;
@@ -109,6 +111,19 @@ public class MarketDataService {
     return new BackfillResult(instrument.symbol(), frame, fetchedTotal, pages, fetchedTotal == 0);
   }
 
+  public void queueSummaryRefresh(Instrument instrument, boolean emptyStoredData) {
+    long ttl = emptyStoredData ? EMPTY_REFRESH_TTL_MS : SUMMARY_REFRESH_TTL_MS;
+    queueRefresh(instrument, "1D", ttl);
+  }
+
+  private long initialBackfillCursor(String instrumentId, String timeframe) {
+    BarCoverage coverage = bars.coverage(instrumentId, timeframe);
+    if (coverage != null && coverage.count() > 0 && present(coverage.firstBarTime())) {
+      return barTimeMillis(timeframe, coverage.firstBarTime()) - 1;
+    }
+    return Instant.now().toEpochMilli();
+  }
+
   private List<MarketBar> fetch(Instrument instrument, String timeframe, Long start, Long end) {
     for (MarketBarProvider provider : providersFor(instrument)) {
       List<MarketBar> fetched = provider.fetch(instrument, timeframe, start, end, LIMIT);
@@ -120,9 +135,13 @@ public class MarketDataService {
   }
 
   private void queueInteractiveRefresh(Instrument instrument, String timeframe, boolean emptyStoredData) {
+    long ttl = emptyStoredData ? EMPTY_REFRESH_TTL_MS : WARM_REFRESH_TTL_MS;
+    queueRefresh(instrument, timeframe, ttl);
+  }
+
+  private void queueRefresh(Instrument instrument, String timeframe, long ttl) {
     String key = instrument.id() + ":" + timeframe;
     long now = System.currentTimeMillis();
-    long ttl = emptyStoredData ? EMPTY_REFRESH_TTL_MS : WARM_REFRESH_TTL_MS;
     Long last = lastInteractiveRefresh.get(key);
     if (last != null && now - last < ttl) {
       return;
@@ -236,6 +255,10 @@ public class MarketDataService {
       return LocalDate.parse(value).atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli();
     }
     return Instant.parse(value).toEpochMilli();
+  }
+
+  private static boolean present(String value) {
+    return value != null && !value.isBlank();
   }
 
   public record RefreshResult(String symbol, String timeframe, int fetched, boolean skipped) {

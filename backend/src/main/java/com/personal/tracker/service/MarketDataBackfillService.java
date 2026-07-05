@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 public class MarketDataBackfillService {
   private static final Logger log = LoggerFactory.getLogger(MarketDataBackfillService.class);
   private static final List<String> TIMEFRAMES = List.of("1D", "1H", "4H");
-  private static final int WORKERS = 4;
+  private static final int WORKERS = 8;
 
   private final AtomicBoolean running = new AtomicBoolean(false);
   private final MarketDataService marketData;
@@ -67,46 +67,54 @@ public class MarketDataBackfillService {
     AtomicInteger fetchedBars = new AtomicInteger();
     int total = items.size() * TIMEFRAMES.size();
     status = BackfillStatus.running(total, scope, symbol, "深度回填运行中");
-    log.info("手动 K 线深度回填开始：{} 个品种，周期 {}，并发 {}", items.size(), TIMEFRAMES, WORKERS);
+    log.info("手动 K 线深度回填开始：{} 个品种，周期 {}，并发 {}",
+        items.size(), TIMEFRAMES, WORKERS);
     ExecutorService executor = Executors.newFixedThreadPool(WORKERS);
-    for (Instrument item : items) {
-      executor.submit(() -> backfillInstrument(
-          item, total, processed, success, skipped, failed, fetchedBars));
+    try {
+      for (Instrument item : items) {
+        for (String timeframe : TIMEFRAMES) {
+          executor.submit(() -> backfillTimeframe(
+              item, timeframe, total, processed, success, skipped, failed, fetchedBars));
+        }
+      }
+      executor.shutdown();
+      boolean completed = await(executor);
+      status = completed ? status.finish("DONE", "深度回填完成")
+          : status.finish("FAILED", "深度回填超时或被中断");
+    } finally {
+      if (!executor.isTerminated()) {
+        executor.shutdownNow();
+      }
+      running.set(false);
     }
-    executor.shutdown();
-    boolean completed = await(executor);
-    status = completed ? status.finish("DONE", "深度回填完成")
-        : status.finish("FAILED", "深度回填超时或被中断");
-    running.set(false);
     log.info("手动 K 线深度回填结束：成功 {}，跳过 {}，失败 {}，写入/覆盖 {} 根",
         success.get(), skipped.get(), failed.get(), fetchedBars.get());
   }
 
-  private void backfillInstrument(
+  private void backfillTimeframe(
       Instrument item,
+      String timeframe,
       int total,
       AtomicInteger processed,
       AtomicInteger success,
       AtomicInteger skipped,
       AtomicInteger failed,
       AtomicInteger fetchedBars) {
-    for (String timeframe : TIMEFRAMES) {
-      try {
-        BackfillResult result = marketData.deepBackfillBars(item, timeframe);
-        fetchedBars.addAndGet(result.fetched());
-        if (result.skipped()) {
-          skipped.incrementAndGet();
-        } else {
-          success.incrementAndGet();
-        }
-        log.info("深度回填完成：{} {}，{} 页，{} 根",
-            result.symbol(), timeframe, result.pages(), result.fetched());
-      } catch (RuntimeException error) {
-        failed.incrementAndGet();
-        log.warn("深度回填失败：{} {}", item.symbol(), timeframe, error);
-      } finally {
-        update(total, processed.incrementAndGet(), success, skipped, failed, fetchedBars);
+    try {
+      BackfillResult result = marketData.deepBackfillBars(item, timeframe);
+      fetchedBars.addAndGet(result.fetched());
+      if (result.skipped()) {
+        skipped.incrementAndGet();
+      } else {
+        success.incrementAndGet();
       }
+      log.info("深度回填完成：{} {}，{} 页，{} 根",
+          result.symbol(), timeframe, result.pages(), result.fetched());
+    } catch (RuntimeException error) {
+      failed.incrementAndGet();
+      log.warn("深度回填失败：{} {}", item.symbol(), timeframe, error);
+    } finally {
+      update(total, processed.incrementAndGet(), success, skipped, failed, fetchedBars);
     }
   }
 

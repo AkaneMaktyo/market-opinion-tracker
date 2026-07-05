@@ -4,6 +4,7 @@ import com.personal.tracker.domain.Instrument;
 import com.personal.tracker.repository.InstrumentRepository;
 import com.personal.tracker.repository.MarketBarRepository;
 import com.personal.tracker.repository.MarketBarRepository.DailySnapshot;
+import com.personal.tracker.service.MarketDataService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
@@ -34,12 +35,15 @@ public class InstrumentController {
 
   private final InstrumentRepository instruments;
   private final MarketBarRepository marketBars;
+  private final MarketDataService marketData;
 
   public InstrumentController(
       InstrumentRepository instruments,
-      MarketBarRepository marketBars) {
+      MarketBarRepository marketBars,
+      MarketDataService marketData) {
     this.instruments = instruments;
     this.marketBars = marketBars;
+    this.marketData = marketData;
   }
 
   @GetMapping
@@ -55,6 +59,7 @@ public class InstrumentController {
     Map<String, DailySnapshot> snapshots = marketBars.latestDailySnapshots(
         items.stream().map(Instrument::id).toList(),
         currentMarketDate().toString());
+    items.forEach(item -> marketData.queueSummaryRefresh(item, !snapshots.containsKey(item.id())));
     return items.stream()
         .map(item -> viewOf(item, snapshots.get(item.id())))
         .toList();
@@ -135,9 +140,9 @@ public class InstrumentController {
         item.logoUrl(),
         item.marketDataProvider(),
         item.createdAt(),
-        changePct == null ? null : snapshot.close(),
+        snapshot == null ? null : snapshot.close(),
         changePct,
-        changePct == null ? null : snapshot.barTime());
+        snapshot == null ? null : snapshot.barTime());
   }
 
   private static BigDecimal changePct(DailySnapshot snapshot) {

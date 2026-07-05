@@ -4,7 +4,7 @@ import { apiBase } from '../../api/http';
 import type { MarketBar, OpinionView, Timeframe } from '../../types';
 
 const BAR_RETRY_MS = 2400;
-const BAR_RETRY_LIMIT = 5;
+const BAR_RETRY_LIMIT = 15;
 
 type StreamRequest = {
   kolId: string;

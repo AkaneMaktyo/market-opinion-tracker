@@ -10,6 +10,7 @@ import type {
 import { useChartData } from './useChartData';
 
 const DEFAULT_KOL = 'kzg';
+const QUOTE_REFRESH_MS = 6000;
 
 export function useDashboardData() {
   const [selected, setSelected] = useState('');
@@ -46,14 +47,15 @@ export function useDashboardData() {
 
   const loadShell = useCallback(async (kolId = kolRef.current, requested = selectedRef.current) => {
     const seq = ++shellSeq.current;
-    const [nextKols, current, nextSessions, nextBackfill, nextGroups] = await Promise.all([
+    const [nextKols, current, history, nextSessions, nextBackfill, nextGroups] = await Promise.all([
       api.kols(),
       api.instruments(kolId, 'current'),
+      api.instruments(kolId, 'history'),
       api.sessions(kolId),
       api.marketBackfill(),
       api.instrumentGroups(),
     ]);
-    const nextInstruments = current.length ? current : await api.instruments(kolId, 'history');
+    const nextInstruments = mergeInstruments(current, history);
     if (seq !== shellSeq.current) return;
     const nextSelected = pickSelectedSymbol(nextInstruments, requested);
     setKols(nextKols);
@@ -68,6 +70,27 @@ export function useDashboardData() {
   useEffect(() => {
     void loadShell(DEFAULT_KOL, '');
   }, [loadShell]);
+
+  const refreshQuotes = useCallback(async () => {
+    const [current, history] = await Promise.all([
+      api.instruments(kolRef.current, 'current'),
+      api.instruments(kolRef.current, 'history'),
+    ]);
+    const nextInstruments = mergeInstruments(current, history);
+    setInstruments(nextInstruments);
+    const nextSelected = pickSelectedSymbol(nextInstruments, selectedRef.current);
+    if (nextSelected && nextSelected !== selectedRef.current) {
+      setSelectedValue(nextSelected);
+    }
+  }, [setSelectedValue]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.hidden) return;
+      void refreshQuotes();
+    }, QUOTE_REFRESH_MS);
+    return () => window.clearInterval(timer);
+  }, [refreshQuotes]);
 
   useEffect(() => {
     if (backfill?.state !== 'RUNNING') return;
@@ -147,4 +170,13 @@ export function useDashboardData() {
 
 function pickSelectedSymbol(instruments: Instrument[], requested: string) {
   return requested && instruments.some((item) => item.symbol === requested) ? requested : instruments[0]?.symbol || '';
+}
+
+function mergeInstruments(current: Instrument[], history: Instrument[]) {
+  const seen = new Set<string>();
+  return [...current, ...history].filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
 }
