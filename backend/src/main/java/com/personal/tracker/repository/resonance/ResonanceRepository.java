@@ -55,7 +55,7 @@ public class ResonanceRepository {
         """, signalMapper, JdbcSupport.symbol(symbol), Math.max(20, Math.min(limit, 300)));
   }
 
-  public List<ClusterRecord> list(String symbol, String grade, int limit) {
+  public List<ClusterRecord> list(String symbol, String since, int limit) {
     ensureSchema();
     List<Object> args = new ArrayList<>();
     StringBuilder sql = new StringBuilder("""
@@ -66,13 +66,33 @@ public class ResonanceRepository {
       sql.append(" AND symbol = ?");
       args.add(JdbcSupport.symbol(symbol));
     }
-    if (grade != null && !grade.isBlank()) {
-      sql.append(" AND grade = ?");
-      args.add(grade.trim().toUpperCase());
+    if (since != null && !since.isBlank()) {
+      sql.append(" AND last_opinion_at >= ?");
+      args.add(since.trim());
     }
     sql.append(" ORDER BY score DESC, last_opinion_at DESC LIMIT ?");
     args.add(Math.max(1, Math.min(limit, 100)));
     return jdbc.query(sql.toString(), clusterMapper, args.toArray());
+  }
+
+  public List<RecentMessage> recentMessages(String since, int limit) {
+    ensureSchema();
+    return jdbc.query("""
+        SELECT id, blogger_name, title, summary, detail_text, message_time
+        FROM wxpusher_messages
+        WHERE message_time >= ?
+          AND status NOT IN ('PENDING', 'PROCESSING')
+        ORDER BY message_time DESC, updated_at DESC
+        LIMIT ?
+        """, (rs, rowNum) -> new RecentMessage(
+        rs.getString("id"),
+        rs.getString("blogger_name"),
+        rs.getString("title"),
+        rs.getString("summary"),
+        rs.getString("detail_text"),
+        rs.getString("message_time")),
+        since == null ? "" : since.trim(),
+        Math.max(1, Math.min(limit, 1000)));
   }
 
   public List<ClusterItem> items(String clusterId) {
@@ -309,6 +329,15 @@ public class ResonanceRepository {
       String thesis,
       String sourceQuote,
       String opinionTime) {
+  }
+
+  public record RecentMessage(
+      String id,
+      String bloggerName,
+      String title,
+      String summary,
+      String detailText,
+      String messageTime) {
   }
 
   public record ClusterDraft(

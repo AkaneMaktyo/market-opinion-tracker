@@ -51,7 +51,8 @@ public class InstrumentController {
       @RequestParam(required = false) String kolId,
       @RequestParam(defaultValue = "history") String scope,
       @RequestParam(required = false) String query) {
-    List<Instrument> items = "current".equalsIgnoreCase(scope) && kolId != null && !kolId.isBlank()
+    boolean currentScope = "current".equalsIgnoreCase(scope) && kolId != null && !kolId.isBlank();
+    List<Instrument> items = currentScope
         ? instruments.findCurrentByKol(kolId, query)
         : kolId == null || kolId.isBlank()
         ? instruments.findAll(query)
@@ -59,7 +60,8 @@ public class InstrumentController {
     Map<String, DailySnapshot> snapshots = marketBars.latestDailySnapshots(
         items.stream().map(Instrument::id).toList(),
         currentMarketDate().toString());
-    items.forEach(item -> marketData.queueSummaryRefresh(item, !snapshots.containsKey(item.id())));
+    items.forEach(item ->
+        marketData.queueSummaryRefresh(item, !snapshots.containsKey(item.id()), currentScope));
     return items.stream()
         .map(item -> viewOf(item, snapshots.get(item.id())))
         .toList();

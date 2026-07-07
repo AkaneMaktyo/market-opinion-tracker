@@ -47,15 +47,13 @@ export function useDashboardData() {
 
   const loadShell = useCallback(async (kolId = kolRef.current, requested = selectedRef.current) => {
     const seq = ++shellSeq.current;
-    const [nextKols, current, history, nextSessions, nextBackfill, nextGroups] = await Promise.all([
+    const [nextKols, nextInstruments, nextSessions, nextBackfill, nextGroups] = await Promise.all([
       api.kols(),
-      api.instruments(kolId, 'current'),
       api.instruments(kolId, 'history'),
       api.sessions(kolId),
       api.marketBackfill(),
       api.instrumentGroups(),
     ]);
-    const nextInstruments = mergeInstruments(current, history);
     if (seq !== shellSeq.current) return;
     const nextSelected = pickSelectedSymbol(nextInstruments, requested);
     setKols(nextKols);
@@ -72,11 +70,7 @@ export function useDashboardData() {
   }, [loadShell]);
 
   const refreshQuotes = useCallback(async () => {
-    const [current, history] = await Promise.all([
-      api.instruments(kolRef.current, 'current'),
-      api.instruments(kolRef.current, 'history'),
-    ]);
-    const nextInstruments = mergeInstruments(current, history);
+    const nextInstruments = await api.instruments(kolRef.current, 'history');
     setInstruments(nextInstruments);
     const nextSelected = pickSelectedSymbol(nextInstruments, selectedRef.current);
     if (nextSelected && nextSelected !== selectedRef.current) {
@@ -146,7 +140,7 @@ export function useDashboardData() {
 
   async function startBackfillCurrent() {
     if (!selectedRef.current) {
-      setBackfillError('当前 KOL 还没有持仓品种');
+      setBackfillError('当前 KOL 还没有相关标的');
       return;
     }
     setBackfillBusy(true);
@@ -154,7 +148,7 @@ export function useDashboardData() {
     try {
       setBackfill(await api.startSymbolMarketBackfill(selectedRef.current));
     } catch (error) {
-      setBackfillError(error instanceof Error ? error.message : '启动当前品种回填失败');
+      setBackfillError(error instanceof Error ? error.message : '启动当前标的回填失败');
     } finally {
       setBackfillBusy(false);
     }
@@ -169,14 +163,7 @@ export function useDashboardData() {
 }
 
 function pickSelectedSymbol(instruments: Instrument[], requested: string) {
-  return requested && instruments.some((item) => item.symbol === requested) ? requested : instruments[0]?.symbol || '';
-}
-
-function mergeInstruments(current: Instrument[], history: Instrument[]) {
-  const seen = new Set<string>();
-  return [...current, ...history].filter((item) => {
-    if (seen.has(item.id)) return false;
-    seen.add(item.id);
-    return true;
-  });
+  return requested && instruments.some((item) => item.symbol === requested)
+    ? requested
+    : instruments[0]?.symbol || '';
 }

@@ -7,6 +7,8 @@ import java.util.Optional;
 import java.util.regex.Pattern;
 
 public final class WxPusherBloggerMatcher {
+  private static final Pattern BRACKET_SOURCE = Pattern.compile("\\[[^\\]\\n]*?｜\\s*([^\\]\\n:]{2,40})\\]");
+  private static final Pattern LINE_SOURCE = Pattern.compile("(?m)^\\s*[^\\p{L}\\p{N}\\n]{0,6}｜\\s*([^\\n:]{2,40})\\s*$");
   private static final Pattern BRACKET_HANDLE = Pattern.compile("\\]\\s*([^:\\n]{2,40})\\s*:");
   private static final Pattern AT_HANDLE = Pattern.compile("@([\\p{L}\\p{N}_.-]{2,40})");
 
@@ -44,6 +46,13 @@ public final class WxPusherBloggerMatcher {
   }
 
   private static int score(WxPusherClient.IncomingMessage incoming, WxPusherBlogger blogger) {
+    int source = 0;
+    for (String candidate : sourceCandidates(incoming)) {
+      source = Math.max(source, score(candidate, blogger));
+    }
+    if (source > 0) {
+      return source + 3;
+    }
     int best = 0;
     for (String candidate : authorCandidates(incoming)) {
       best = Math.max(best, score(candidate, blogger));
@@ -116,6 +125,25 @@ public final class WxPusherBloggerMatcher {
         .filter(value -> !value.isBlank())
         .distinct()
         .toList();
+  }
+
+  private static List<String> sourceCandidates(WxPusherClient.IncomingMessage incoming) {
+    List<String> values = new ArrayList<>();
+    values.addAll(extractSources(incoming.summary()));
+    values.addAll(extractSources(incoming.title()));
+    return values.stream()
+        .map(WxPusherBloggerMatcher::normalize)
+        .filter(value -> !value.isBlank())
+        .distinct()
+        .toList();
+  }
+
+  private static List<String> extractSources(String text) {
+    String safe = text == null ? "" : text;
+    List<String> values = new ArrayList<>();
+    collect(values, BRACKET_SOURCE, safe);
+    collect(values, LINE_SOURCE, safe);
+    return values;
   }
 
   private static List<String> extractHandles(String text) {

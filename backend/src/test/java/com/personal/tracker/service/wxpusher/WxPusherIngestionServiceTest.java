@@ -12,6 +12,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.personal.tracker.domain.LiveSession;
+import com.personal.tracker.repository.InstrumentRepository;
 import com.personal.tracker.repository.SessionRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository.WxPusherBlogger;
@@ -258,6 +259,74 @@ class WxPusherIngestionServiceTest {
     verify(writer, never()).write(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyList());
   }
 
+  @Test
+  void savesMentionedInstrumentsBeforeSkippingDisabledLlm() throws Exception {
+    var sessionRepository = mock(SessionRepository.class);
+    var settingsRepository = mock(WxPusherSettingsRepository.class);
+    var bloggerRepository = mock(WxPusherBloggerRepository.class);
+    var messageRepository = mock(WxPusherMessageRepository.class);
+    var sharedRepository = mock(WxPusherSharedMessageRepository.class);
+    var articleExtractor = mock(WxPusherArticleExtractor.class);
+    var aiExtractor = mock(OpenAiJsonExtractor.class);
+    var parser = mock(JsonOpinionParser.class);
+    var writer = mock(OpinionImportWriter.class);
+    var instruments = mock(InstrumentRepository.class);
+    var service = service(
+        sessionRepository, settingsRepository, bloggerRepository, messageRepository,
+        sharedRepository, articleExtractor, aiExtractor, parser, writer, instruments);
+    when(settingsRepository.get()).thenReturn(settings());
+    when(bloggerRepository.enabled()).thenReturn(List.of(blogger("Alpha")));
+    when(aiExtractor.extractionEnabled()).thenReturn(false);
+    when(messageRepository.createPending(any(PendingMessage.class)))
+        .thenReturn(new SaveResult(message("msg-symbols"), true));
+    when(sessionRepository.create(anyString(), anyString(), anyString(), anyString(), anyString()))
+        .thenReturn(new LiveSession("session-symbols", "kol-1", "2026-05-31", "title", "WXPUSHER_AUTO", "", "now"));
+    when(articleExtractor.fetchText(anyString(), any())).thenReturn("NVDA 和 AMZN 受 AI 需求影响，VIP 群继续观察");
+
+    service.ingest(incoming("Alpha"));
+
+    verify(instruments).saveIfAbsent("NVDA", "NVDA", "US", null);
+    verify(instruments).saveIfAbsent("AMZN", "AMZN", "US", null);
+    verify(instruments, never()).saveIfAbsent(eq("AI"), anyString(), anyString(), any());
+    verify(instruments, never()).saveIfAbsent(eq("VIP"), anyString(), anyString(), any());
+  }
+
+  @Test
+  void reassignsMessageWhenDetailShowsNestedSource() throws Exception {
+    var sessionRepository = mock(SessionRepository.class);
+    var settingsRepository = mock(WxPusherSettingsRepository.class);
+    var bloggerRepository = mock(WxPusherBloggerRepository.class);
+    var messageRepository = mock(WxPusherMessageRepository.class);
+    var sharedRepository = mock(WxPusherSharedMessageRepository.class);
+    var articleExtractor = mock(WxPusherArticleExtractor.class);
+    var aiExtractor = mock(OpenAiJsonExtractor.class);
+    var parser = mock(JsonOpinionParser.class);
+    var writer = mock(OpinionImportWriter.class);
+    var service = service(
+        sessionRepository, settingsRepository, bloggerRepository, messageRepository,
+        sharedRepository, articleExtractor, aiExtractor, parser, writer);
+    when(settingsRepository.get()).thenReturn(settings());
+    when(bloggerRepository.enabled()).thenReturn(List.of(
+        blogger("Alpha", "kol-1", List.of("CIA Feed")),
+        blogger("Beta", "kol-beta", List.of())));
+    when(aiExtractor.extractionEnabled()).thenReturn(false);
+    when(messageRepository.createPending(any(PendingMessage.class)))
+        .thenReturn(new SaveResult(message("msg-reassign"), true));
+    when(sessionRepository.create(anyString(), anyString(), anyString(), anyString(), anyString()))
+        .thenReturn(new LiveSession("session-beta", "kol-beta", "2026-05-31", "title", "WXPUSHER_AUTO", "", "now"));
+    when(articleExtractor.fetchText(anyString(), any())).thenReturn("[feed] Beta: NVDA update");
+
+    service.ingest(incoming("Alpha"));
+
+    verify(messageRepository).reassign("msg-reassign", "kol-beta", "Beta");
+    verify(sessionRepository).create(
+        eq("kol-beta"),
+        eq("2026-05-31"),
+        contains("WxPusher / Beta / "),
+        eq("WXPUSHER_AUTO"),
+        eq("[feed] Beta: NVDA update"));
+  }
+
   private WxPusherIngestionService service(
       SessionRepository sessionRepository,
       WxPusherSettingsRepository settingsRepository,
@@ -268,6 +337,30 @@ class WxPusherIngestionServiceTest {
       OpenAiJsonExtractor aiExtractor,
       JsonOpinionParser parser,
       OpinionImportWriter writer) {
+    return service(
+        sessionRepository,
+        settingsRepository,
+        bloggerRepository,
+        messageRepository,
+        sharedRepository,
+        articleExtractor,
+        aiExtractor,
+        parser,
+        writer,
+        mock(InstrumentRepository.class));
+  }
+
+  private WxPusherIngestionService service(
+      SessionRepository sessionRepository,
+      WxPusherSettingsRepository settingsRepository,
+      WxPusherBloggerRepository bloggerRepository,
+      WxPusherMessageRepository messageRepository,
+      WxPusherSharedMessageRepository sharedRepository,
+      WxPusherArticleExtractor articleExtractor,
+      OpenAiJsonExtractor aiExtractor,
+      JsonOpinionParser parser,
+      OpinionImportWriter writer,
+      InstrumentRepository instruments) {
     return new WxPusherIngestionService(
         sessionRepository,
         settingsRepository,
@@ -277,7 +370,8 @@ class WxPusherIngestionServiceTest {
         articleExtractor,
         aiExtractor,
         parser,
-        writer);
+        writer,
+        instruments);
   }
 
   private WxPusherSettings settings() {
@@ -286,7 +380,11 @@ class WxPusherIngestionServiceTest {
   }
 
   private WxPusherBlogger blogger(String name) {
-    return new WxPusherBlogger("blogger-1", "kol-1", name, List.of("Alpha VIP"), true, "LAST_30", null, "", "");
+    return blogger(name, "kol-1", List.of("Alpha VIP"));
+  }
+
+  private WxPusherBlogger blogger(String name, String kolId, List<String> aliases) {
+    return new WxPusherBlogger("blogger-" + name, kolId, name, aliases, true, "LAST_30", null, "", "");
   }
 
   private WxPusherClient.IncomingMessage incoming(String bloggerName) {

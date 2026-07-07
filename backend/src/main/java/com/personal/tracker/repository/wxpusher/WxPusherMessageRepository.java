@@ -103,6 +103,14 @@ public class WxPusherMessageRepository {
         """, blank(sessionId), JdbcSupport.now(), id);
   }
 
+  public void reassign(String id, String kolId, String bloggerName) {
+    jdbc.update("""
+        UPDATE wxpusher_messages
+        SET kol_id = ?, blogger_name = ?, updated_at = ?
+        WHERE id = ?
+        """, blank(kolId), blank(bloggerName), JdbcSupport.now(), id);
+  }
+
   public List<WxPusherMessage> list(String status, String kolId, int limit) {
     StringBuilder sql = new StringBuilder("SELECT * FROM wxpusher_messages WHERE 1 = 1");
     List<Object> args = new ArrayList<>();
@@ -126,6 +134,15 @@ public class WxPusherMessageRepository {
         ORDER BY updated_at DESC, created_at DESC
         LIMIT ?
         """, mapper, Math.max(1, Math.min(limit, 200)));
+  }
+
+  public List<WxPusherMessage> findByKolSince(String kolId, String sinceDate, int limit) {
+    return jdbc.query("""
+        SELECT * FROM wxpusher_messages
+        WHERE kol_id = ? AND message_time >= ? AND status <> 'IMPORTED'
+        ORDER BY message_time DESC, updated_at DESC
+        LIMIT ?
+        """, mapper, kolId, sinceDate, Math.max(1, Math.min(limit, 1000)));
   }
 
   public Map<String, MessageSummary> summaryByKolIds(List<String> kolIds) {

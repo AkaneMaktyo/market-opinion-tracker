@@ -22,49 +22,56 @@ export function OpinionList({ symbol, opinions, onChanged }: Props) {
     <section className="opinions">
       <div className="history-head">
         <div>
-          <div className="panel-title">历史观点</div>
+          <div className="panel-title">观点与消息</div>
           <h2>{symbol}</h2>
         </div>
         <span>{sorted.length} 条</span>
       </div>
-      {sorted.length === 0 && <div className="empty">当前品种还没有观点</div>}
+      {sorted.length === 0 && <div className="empty">当前标的还没有观点或消息</div>}
       <div className="timeline">
         {sorted.map(({ opinion, priceLevels, review: result }) => {
           const quote = originalText(opinion.sourceQuote, opinion.rawItemJson);
+          const message = opinion.status === 'MESSAGE';
           return (
             <article className="opinion timeline-item" key={opinion.id}>
               <div className="opinion-top">
                 <span className={`badge ${opinion.direction.toLowerCase()}`}>
-                  {directionLabel(opinion.direction)}
+                  {message ? '消息' : directionLabel(opinion.direction)}
                 </span>
                 <time>{opinion.opinionTime.slice(0, 10)}</time>
               </div>
               {opinion.rawDirection && <p className="raw-direction">{opinion.rawDirection}</p>}
               <h3>{opinion.thesis}</h3>
               <p>周期：{opinion.horizon}</p>
-              <div className="levels">
-                {priceLevels.map((level) => (
-                  <span key={`${level.levelType}-${level.price}`}>
-                    {levelLabel(level.levelType)} {level.price}
-                  </span>
-                ))}
-              </div>
+              {priceLevels.length > 0 ? (
+                <div className="levels">
+                  {priceLevels.map((level) => (
+                    <span key={`${level.levelType}-${level.price}`}>
+                      {levelLabel(level.levelType)} {level.price}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
               {opinion.priceNotesText && <p className="detail-text">{opinion.priceNotesText}</p>}
               {opinion.catalystsText && <p className="detail-text">催化：{opinion.catalystsText}</p>}
               {opinion.risksText && <p className="detail-text">风险：{opinion.risksText}</p>}
               {quote && <p className="source-quote">原文：{quote}</p>}
-              <div className="review-row">
-                <span>{result ? outcomeLabel(result.outcome) : '待复盘'}</span>
-                <button onClick={() => review(opinion.id, 'HIT')} title="标记命中">
-                  <CheckCircle2 size={16} />
-                </button>
-                <button onClick={() => review(opinion.id, 'PARTIAL')} title="标记部分命中">
-                  <CircleDot size={16} />
-                </button>
-                <button onClick={() => review(opinion.id, 'MISS')} title="标记失败">
-                  <XCircle size={16} />
-                </button>
-              </div>
+              {message ? (
+                <div className="review-row"><span>来自 KOL 历史消息</span></div>
+              ) : (
+                <div className="review-row">
+                  <span>{result ? outcomeLabel(result.outcome) : '待复盘'}</span>
+                  <button onClick={() => review(opinion.id, 'HIT')} title="标记命中" type="button">
+                    <CheckCircle2 size={16} />
+                  </button>
+                  <button onClick={() => review(opinion.id, 'PARTIAL')} title="标记部分命中" type="button">
+                    <CircleDot size={16} />
+                  </button>
+                  <button onClick={() => review(opinion.id, 'MISS')} title="标记失败" type="button">
+                    <XCircle size={16} />
+                  </button>
+                </div>
+              )}
             </article>
           );
         })}

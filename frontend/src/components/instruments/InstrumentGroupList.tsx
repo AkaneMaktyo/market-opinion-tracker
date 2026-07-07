@@ -46,7 +46,7 @@ export function InstrumentGroupList(props: Props) {
 
   return (
     <div className="rail-list">
-      {grouped.length === 0 ? <div className="muted">当前 KOL 还没有当前持仓</div> : null}
+      {grouped.length === 0 ? <div className="muted">当前 KOL 还没有相关标的</div> : null}
       {grouped.map(({ group, items }) => (
         <div className="instrument-group" key={group || '_ungrouped'}>
           {group ? (

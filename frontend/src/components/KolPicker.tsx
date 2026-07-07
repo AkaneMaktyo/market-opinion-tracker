@@ -28,7 +28,7 @@ export function KolPicker({ kols, selectedId, onChange, onCreated }: Props) {
           </option>
         ))}
       </select>
-      <button onClick={createKol} title="新建 KOL">
+      <button onClick={createKol} title="新建 KOL" type="button">
         <Plus size={16} />
       </button>
     </div>

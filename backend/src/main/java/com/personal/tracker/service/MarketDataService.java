@@ -44,6 +44,11 @@ public class MarketDataService {
     thread.setDaemon(true);
     return thread;
   });
+  private final ExecutorService summaryRefresh = Executors.newFixedThreadPool(1, task -> {
+    Thread thread = new Thread(task, "market-bar-summary-refresh");
+    thread.setDaemon(true);
+    return thread;
+  });
   private final Set<String> refreshInFlight = ConcurrentHashMap.newKeySet();
   private final Map<String, Long> lastInteractiveRefresh = new ConcurrentHashMap<>();
 
@@ -112,8 +117,15 @@ public class MarketDataService {
   }
 
   public void queueSummaryRefresh(Instrument instrument, boolean emptyStoredData) {
+    queueSummaryRefresh(instrument, emptyStoredData, false);
+  }
+
+  public void queueSummaryRefresh(
+      Instrument instrument,
+      boolean emptyStoredData,
+      boolean priority) {
     long ttl = emptyStoredData ? EMPTY_REFRESH_TTL_MS : SUMMARY_REFRESH_TTL_MS;
-    queueRefresh(instrument, "1D", ttl);
+    queueRefresh(instrument, "1D", ttl, priority);
   }
 
   private long initialBackfillCursor(String instrumentId, String timeframe) {
@@ -136,10 +148,14 @@ public class MarketDataService {
 
   private void queueInteractiveRefresh(Instrument instrument, String timeframe, boolean emptyStoredData) {
     long ttl = emptyStoredData ? EMPTY_REFRESH_TTL_MS : WARM_REFRESH_TTL_MS;
-    queueRefresh(instrument, timeframe, ttl);
+    queueRefresh(instrument, timeframe, ttl, false);
   }
 
-  private void queueRefresh(Instrument instrument, String timeframe, long ttl) {
+  private void queueRefresh(
+      Instrument instrument,
+      String timeframe,
+      long ttl,
+      boolean priority) {
     String key = instrument.id() + ":" + timeframe;
     long now = System.currentTimeMillis();
     Long last = lastInteractiveRefresh.get(key);
@@ -149,7 +165,8 @@ public class MarketDataService {
     if (!refreshInFlight.add(key)) {
       return;
     }
-    interactiveRefresh.submit(() -> refreshInteractive(instrument, timeframe, key));
+    ExecutorService executor = priority ? summaryRefresh : interactiveRefresh;
+    executor.submit(() -> refreshInteractive(instrument, timeframe, key));
   }
 
   private void refreshInteractive(Instrument instrument, String timeframe, String key) {
@@ -168,6 +185,7 @@ public class MarketDataService {
   @PreDestroy
   public void shutdown() {
     interactiveRefresh.shutdownNow();
+    summaryRefresh.shutdownNow();
   }
 
   private List<MarketBarProvider> providersFor(Instrument instrument) {

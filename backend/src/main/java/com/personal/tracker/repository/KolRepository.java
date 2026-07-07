@@ -10,6 +10,10 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class KolRepository {
   public static final String DEFAULT_ID = "default";
+  private static final String DEFAULT_NAME = "默认KOL";
+  private static final String DEFAULT_DESCRIPTION = "系统自动创建的默认来源";
+  private static final String UNNAMED = "未命名KOL";
+
   private final JdbcTemplate jdbc;
   private final RowMapper<Kol> mapper = (rs, rowNum) -> new Kol(
       rs.getString("id"),
@@ -35,7 +39,7 @@ public class KolRepository {
 
   public Kol save(String name, String description) {
     ensureDefault();
-    String safeName = name == null || name.isBlank() ? "未命名KOL" : name.trim();
+    String safeName = safeName(name);
     return findByName(safeName).orElseGet(() -> create(safeName, description));
   }
 
@@ -58,10 +62,18 @@ public class KolRepository {
     return item;
   }
 
+  private static String safeName(String name) {
+    String value = name == null || name.isBlank() ? UNNAMED : name.trim();
+    if (value.matches("\\?+")) {
+      throw new IllegalArgumentException("KOL 名称疑似编码损坏，请重新输入中文名称");
+    }
+    return value;
+  }
+
   private void ensureDefault() {
     jdbc.update("""
         INSERT IGNORE INTO kols(id, name, description, created_at)
         VALUES (?, ?, ?, ?)
-        """, DEFAULT_ID, "默认KOL", "系统自动创建的默认来源", JdbcSupport.now());
+        """, DEFAULT_ID, DEFAULT_NAME, DEFAULT_DESCRIPTION, JdbcSupport.now());
   }
 }

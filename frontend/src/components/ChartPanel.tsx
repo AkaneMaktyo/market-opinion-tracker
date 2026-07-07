@@ -51,12 +51,13 @@ export function ChartPanel({
   const markers = useMemo(
     () => opinions.map(({ opinion }): SeriesMarker<Time> => {
       const bullish = opinion.direction === 'BULLISH';
+      const messageItem = opinion.status === 'MESSAGE';
       return {
         time: markerTime(opinion.opinionTime, timeframe),
         position: bullish ? 'belowBar' : 'aboveBar',
         color: colors[opinion.direction] || colors.WATCH,
         shape: bullish ? 'arrowUp' : opinion.direction === 'BEARISH' ? 'arrowDown' : 'circle',
-        text: `${label(opinion.direction)} ${opinion.confidence || ''}`,
+        text: messageItem ? '消息' : `${label(opinion.direction)} ${opinion.confidence || ''}`,
       };
     }).sort((left, right) => compareTime(left.time, right.time)),
     [opinions, timeframe],
@@ -75,7 +76,7 @@ export function ChartPanel({
       <div className="chart-header">
         <div>
           <span className="eyebrow">K 线复盘</span>
-          <h2>{symbol || '暂无品种'}</h2>
+          <h2>{symbol || '暂无标的'}</h2>
         </div>
         <div className="chart-tools">
           <div className="timeframe-switch">
@@ -107,7 +108,12 @@ export function ChartPanel({
       />
       <div className="chart-frame">
         {renderChartBody(symbol, chartBars, timeframe, markers, priceLines)}
-        {(loading || refreshing) ? <div className="chart-loading"><span className="chart-spinner" />{loading ? '加载中' : '刷新中'}</div> : null}
+        {(loading || refreshing) ? (
+          <div className="chart-loading">
+            <span className="chart-spinner" />
+            {loading ? '加载中' : '刷新中'}
+          </div>
+        ) : null}
         {message && !loading ? <div className="chart-note">{message}</div> : null}
       </div>
     </section>
@@ -122,7 +128,7 @@ function renderChartBody(
   priceLines: PriceLineView[],
 ) {
   if (!symbol) {
-    return <div className="chart chart-empty"><span>当前 KOL 还没有当前持仓</span></div>;
+    return <div className="chart chart-empty"><span>当前 KOL 还没有相关标的</span></div>;
   }
   if (chartBars.length === 0) {
     return <div className="chart chart-empty"><span>等待 K 线数据</span></div>;

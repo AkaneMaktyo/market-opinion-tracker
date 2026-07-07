@@ -53,6 +53,30 @@ function Get-TunnelMonitorProcess {
     Select-Object -First 1
 }
 
+function Test-BackendBuildStale {
+  param([string]$JarPath)
+  if (-not (Test-Path $JarPath)) {
+    return $true
+  }
+  $jarTime = (Get-Item $JarPath).LastWriteTimeUtc
+  $sourceRoots = @(
+    (Join-Path $backendDir "pom.xml"),
+    (Join-Path $backendDir "src")
+  )
+  foreach ($path in $sourceRoots) {
+    if (-not (Test-Path $path)) {
+      continue
+    }
+    $newer = Get-ChildItem -Path $path -Recurse -File |
+      Where-Object { $_.LastWriteTimeUtc -gt $jarTime } |
+      Select-Object -First 1
+    if ($newer) {
+      return $true
+    }
+  }
+  return $false
+}
+
 function Ensure-DbTunnel {
   if (-not (Test-Path $tunnelScript)) {
     Write-Host "Tunnel helper missing, skip DB tunnel bootstrap."
@@ -84,7 +108,7 @@ function Ensure-Backend {
   }
 
   $jarPath = Join-Path $backendDir "target\market-opinion-tracker-0.1.0.jar"
-  if (-not (Test-Path $jarPath)) {
+  if (Test-BackendBuildStale -JarPath $jarPath) {
     Push-Location $backendDir
     try {
       & mvn -DskipTests package

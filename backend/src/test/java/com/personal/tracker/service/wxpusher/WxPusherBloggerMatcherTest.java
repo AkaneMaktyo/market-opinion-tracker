@@ -57,4 +57,45 @@ class WxPusherBloggerMatcherTest {
     assertTrue(matched.isPresent());
     assertEquals("b1", matched.get().id());
   }
+
+  @Test
+  void prefersNestedSourceOverOuterFeedAlias() {
+    WxPusherBlogger outer = new WxPusherBlogger(
+        "outer",
+        "kol-outer",
+        "顺哥",
+        List.of("CIA-信息推送"),
+        true,
+        "LAST_30",
+        null,
+        "",
+        "");
+    WxPusherBlogger realSource = new WxPusherBlogger(
+        "source",
+        "kol-source",
+        "美股投资网",
+        List.of("美股投资网"),
+        true,
+        "LAST_30",
+        null,
+        "",
+        "");
+    var incoming = new WxPusherClient.IncomingMessage(
+        "polling",
+        "wxpusher:2",
+        "CIA-信息推送",
+        "您订阅的【CIA-信息推送】有新的消息",
+        "[💵｜美股投资网] 美股会员平台-正股: INTC 利好",
+        "https://wxpusher.zjiecode.com/api/message/2",
+        "https://discord.example/2",
+        "2026-07-06T06:00:00Z",
+        "2",
+        "{}",
+        2L);
+
+    var matched = WxPusherBloggerMatcher.match(incoming, List.of(outer, realSource));
+
+    assertTrue(matched.isPresent());
+    assertEquals("source", matched.get().id());
+  }
 }

@@ -1,6 +1,7 @@
 package com.personal.tracker.service.wxpusher;
 
 import com.personal.tracker.domain.LiveSession;
+import com.personal.tracker.repository.InstrumentRepository;
 import com.personal.tracker.repository.SessionRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository.WxPusherBlogger;
@@ -12,6 +13,7 @@ import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherSharedMessageRepository;
 import com.personal.tracker.service.imports.OpinionImportWriter;
 import com.personal.tracker.service.json.JsonOpinionParser;
+import com.personal.tracker.service.wxpusher.instruments.MessageInstrumentExtractor;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
@@ -30,6 +32,7 @@ public class WxPusherIngestionService {
   private final OpenAiJsonExtractor aiExtractor;
   private final JsonOpinionParser parser;
   private final OpinionImportWriter writer;
+  private final InstrumentRepository instruments;
 
   public WxPusherIngestionService(
       SessionRepository sessionRepository,
@@ -40,7 +43,8 @@ public class WxPusherIngestionService {
       WxPusherArticleExtractor articleExtractor,
       OpenAiJsonExtractor aiExtractor,
       JsonOpinionParser parser,
-      OpinionImportWriter writer) {
+      OpinionImportWriter writer,
+      InstrumentRepository instruments) {
     this.sessionRepository = sessionRepository;
     this.settingsRepository = settingsRepository;
     this.bloggerRepository = bloggerRepository;
@@ -50,6 +54,7 @@ public class WxPusherIngestionService {
     this.aiExtractor = aiExtractor;
     this.parser = parser;
     this.writer = writer;
+    this.instruments = instruments;
   }
 
   public int importPending() {
@@ -142,7 +147,9 @@ public class WxPusherIngestionService {
     String sessionId = "";
     try {
       detailText = fetchDetail(message);
+      message = reassignFromDetail(message, detailText);
       sessionId = ensureSession(message, detailText);
+      saveMentionedInstruments(message, detailText);
       if (!aiExtractor.extractionEnabled()) {
         messageRepository.markSkipped(message.id(), detailText, WXPUSHER_LLM_DISABLED);
         saveSharedState(sharedMessageKey, "SKIPPED", WXPUSHER_LLM_DISABLED, message.id());
@@ -188,6 +195,49 @@ public class WxPusherIngestionService {
     return session.id();
   }
 
+  private WxPusherMessage reassignFromDetail(WxPusherMessage message, String detailText) {
+    WxPusherClient.IncomingMessage detailView = new WxPusherClient.IncomingMessage(
+        "detail",
+        message.messageKey(),
+        "",
+        message.title(),
+        detailText,
+        message.detailUrl(),
+        message.sourceUrl(),
+        message.messageTime(),
+        "",
+        message.rawPayloadJson(),
+        0L);
+    return WxPusherBloggerMatcher.match(detailView, bloggerRepository.enabled())
+        .filter(blogger -> !blogger.kolId().equals(message.kolId()))
+        .map(blogger -> {
+          messageRepository.reassign(message.id(), blogger.kolId(), blogger.bloggerName());
+          return withBlogger(message, blogger);
+        })
+        .orElse(message);
+  }
+
+  private WxPusherMessage withBlogger(WxPusherMessage message, WxPusherBlogger blogger) {
+    return new WxPusherMessage(
+        message.id(),
+        message.messageKey(),
+        blogger.kolId(),
+        blogger.bloggerName(),
+        message.title(),
+        message.summary(),
+        message.detailUrl(),
+        message.sourceUrl(),
+        message.messageTime(),
+        message.rawPayloadJson(),
+        message.detailText(),
+        message.llmOutputJson(),
+        message.status(),
+        message.errorMessage(),
+        message.sessionId(),
+        message.createdAt(),
+        message.updatedAt());
+  }
+
   private String sessionTitle(WxPusherMessage message) {
     return "WxPusher / " + message.bloggerName() + " / " + message.messageTime();
   }
@@ -216,6 +266,13 @@ public class WxPusherIngestionService {
       return message.detailText();
     }
     return fallbackText(message);
+  }
+
+  private void saveMentionedInstruments(WxPusherMessage message, String detailText) {
+    String text = String.join("\n", detailText, message.summary(), message.title());
+    for (String symbol : MessageInstrumentExtractor.extract(text)) {
+      instruments.saveIfAbsent(symbol, symbol, "US", null);
+    }
   }
 
   private void saveSharedState(String messageKey, String status, String errorMessage, String derivedId) {

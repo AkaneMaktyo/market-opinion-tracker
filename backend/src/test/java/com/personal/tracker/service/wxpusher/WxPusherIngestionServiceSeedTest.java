@@ -6,6 +6,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.personal.tracker.repository.InstrumentRepository;
 import com.personal.tracker.repository.SessionRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository.WxPusherBlogger;
@@ -30,6 +31,7 @@ class WxPusherIngestionServiceSeedTest {
     var aiExtractor = mock(OpenAiJsonExtractor.class);
     var parser = mock(JsonOpinionParser.class);
     var writer = mock(OpinionImportWriter.class);
+    var instruments = mock(InstrumentRepository.class);
     var service = new WxPusherIngestionService(
         sessionRepository,
         settingsRepository,
@@ -39,7 +41,8 @@ class WxPusherIngestionServiceSeedTest {
         articleExtractor,
         aiExtractor,
         parser,
-        writer);
+        writer,
+        instruments);
     WxPusherSettings settings = new WxPusherSettings(
         "default",
         "device-token",

@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.personal.tracker.repository.wxpusher.WxPusherNotifySettingsRepository;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -14,24 +13,48 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 
 @Service
 public class WxPusherPushClient {
   private static final String SEND_URL = "https://wxpusher.zjiecode.com/api/send/message";
+  private static final String SIMPLE_PUSH_URL = "https://wxpusher.zjiecode.com/api/send/message/simple-push";
   private final Environment environment;
   private final ObjectMapper mapper;
   private final WxPusherNotifySettingsRepository notifySettingsRepository;
-  private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
+  private final HttpClient http;
+  private final String sendUrl;
+  private final String simplePushUrl;
 
+  @Autowired
   public WxPusherPushClient(
       Environment environment,
       ObjectMapper mapper,
       WxPusherNotifySettingsRepository notifySettingsRepository) {
+    this(
+        environment,
+        mapper,
+        notifySettingsRepository,
+        HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build(),
+        SEND_URL,
+        SIMPLE_PUSH_URL);
+  }
+
+  WxPusherPushClient(
+      Environment environment,
+      ObjectMapper mapper,
+      WxPusherNotifySettingsRepository notifySettingsRepository,
+      HttpClient http,
+      String sendUrl,
+      String simplePushUrl) {
     this.environment = environment;
     this.mapper = mapper;
     this.notifySettingsRepository = notifySettingsRepository;
+    this.http = http;
+    this.sendUrl = sendUrl;
+    this.simplePushUrl = simplePushUrl;
   }
 
   public boolean isConfigured(String... prefixes) {
@@ -42,7 +65,7 @@ public class WxPusherPushClient {
     try {
       PushTarget target = resolveTarget(prefixes);
       if (!target.spt().isBlank()) {
-        return parse(sendSpt(target.spt(), content));
+        return parse(sendSpt(target.spt(), title, content));
       }
       if (!target.configured()) {
         return new PushResult(false, "WAITING_CONFIG", "WxPusher 推送目标未配置");
@@ -84,6 +107,12 @@ public class WxPusherPushClient {
   }
 
   private PushResult parse(String body) throws IOException {
+    if (body == null || body.isBlank()) {
+      return new PushResult(false, "FAILED", "WxPusher 返回为空");
+    }
+    if (body.stripLeading().startsWith("<")) {
+      return new PushResult(false, "FAILED", "WxPusher 返回了 HTML，请检查 SPT 接口或凭证是否可用");
+    }
     JsonNode root = mapper.readTree(body);
     String recordError = recordError(root.path("data"));
     if (!recordError.isBlank()) {
@@ -108,9 +137,17 @@ public class WxPusherPushClient {
     return "";
   }
 
-  private String sendSpt(String spt, String content) throws IOException, InterruptedException {
-    String url = SEND_URL + "/" + spt + "/" + URLEncoder.encode(content, StandardCharsets.UTF_8);
-    HttpRequest request = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(10)).GET().build();
+  private String sendSpt(String spt, String title, String content) throws IOException, InterruptedException {
+    Map<String, Object> payload = Map.of(
+        "spt", spt,
+        "summary", summary(title),
+        "content", htmlContent(title, content),
+        "contentType", 2);
+    HttpRequest request = HttpRequest.newBuilder(URI.create(simplePushUrl))
+        .header("Content-Type", "application/json")
+        .timeout(Duration.ofSeconds(10))
+        .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(payload)))
+        .build();
     return http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)).body();
   }
 
@@ -122,17 +159,35 @@ public class WxPusherPushClient {
       String content) throws IOException, InterruptedException {
     Map<String, Object> payload = Map.of(
         "appToken", token,
-        "summary", title.length() > 100 ? title.substring(0, 100) : title,
+        "summary", summary(title),
         "content", content,
         "contentType", 1,
         "uids", uids,
         "topicIds", topics);
-    HttpRequest request = HttpRequest.newBuilder(URI.create(SEND_URL))
+    HttpRequest request = HttpRequest.newBuilder(URI.create(sendUrl))
         .header("Content-Type", "application/json")
         .timeout(Duration.ofSeconds(10))
         .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(payload)))
         .build();
     return http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)).body();
+  }
+
+  private String summary(String title) {
+    return title.length() > 100 ? title.substring(0, 100) : title;
+  }
+
+  private String htmlContent(String title, String content) {
+    return "<h1>" + escapeHtml(title) + "</h1><br/><div style='white-space:pre-wrap'>"
+        + escapeHtml(content) + "</div>";
+  }
+
+  private String escapeHtml(String value) {
+    return value
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+        .replace("'", "&#39;");
   }
 
   private List<Integer> parseTopicIds(List<String> values) {

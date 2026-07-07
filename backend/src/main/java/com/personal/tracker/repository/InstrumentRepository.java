@@ -1,6 +1,8 @@
 package com.personal.tracker.repository;
 
 import com.personal.tracker.domain.Instrument;
+import java.time.YearMonth;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -10,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public class InstrumentRepository {
+  private static final ZoneId APP_ZONE = ZoneId.of("Asia/Shanghai");
   private final JdbcTemplate jdbc;
   private final RowMapper<Instrument> mapper = (rs, rowNum) -> new Instrument(
       rs.getString("id"),
@@ -46,11 +49,25 @@ public class InstrumentRepository {
     List<Object> args = new java.util.ArrayList<>();
     StringBuilder sql = new StringBuilder("""
         SELECT DISTINCT i.* FROM instruments i
-        JOIN opinions o ON o.instrument_id = i.id
-        JOIN live_sessions s ON s.id = o.session_id
-        WHERE s.kol_id = ?
+        WHERE (
+          EXISTS (
+            SELECT 1 FROM opinions o
+            JOIN live_sessions s ON s.id = o.session_id
+            WHERE o.instrument_id = i.id AND s.kol_id = ?
+          )
+          OR EXISTS (
+            SELECT 1 FROM live_sessions s
+            WHERE s.kol_id = ? AND s.session_date >= ?
+              AND CHAR_LENGTH(i.symbol) >= 2
+              AND UPPER(CONCAT_WS(' ', s.title, s.raw_text))
+                REGEXP CONCAT('(^|[^A-Z0-9])', i.symbol, '([^A-Z0-9]|$)')
+          )
+        )
         """);
-    args.add(kolId == null || kolId.isBlank() ? KolRepository.DEFAULT_ID : kolId.trim());
+    String safeKol = kolId == null || kolId.isBlank() ? KolRepository.DEFAULT_ID : kolId.trim();
+    args.add(safeKol);
+    args.add(safeKol);
+    args.add(monthStart());
     if (query != null && !query.isBlank()) {
       String like = "%" + query.trim().toUpperCase() + "%";
       sql.append(" AND (i.symbol LIKE ? OR UPPER(COALESCE(i.name, '')) LIKE ?)");
@@ -301,5 +318,9 @@ public class InstrumentRepository {
 
   private static boolean same(String left, String right) {
     return (left == null ? "" : left).equals(right == null ? "" : right);
+  }
+
+  private static String monthStart() {
+    return YearMonth.now(APP_ZONE).atDay(1).toString();
   }
 }

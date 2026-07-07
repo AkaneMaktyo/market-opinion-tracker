@@ -37,7 +37,7 @@ export function DashboardPage() {
         />
         <div className="stats">
           <span>{dashboard.instruments.length} 个相关标的</span>
-          <span>{dashboard.opinions.length} 条当前观点</span>
+          <span>{dashboard.opinions.length} 条观点与消息</span>
           <span>{dashboard.sessions.length} 场记录</span>
         </div>
       </header>
