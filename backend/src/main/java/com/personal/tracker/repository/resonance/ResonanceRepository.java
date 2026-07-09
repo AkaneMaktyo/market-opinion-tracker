@@ -75,26 +75,6 @@ public class ResonanceRepository {
     return jdbc.query(sql.toString(), clusterMapper, args.toArray());
   }
 
-  public List<RecentMessage> recentMessages(String since, int limit) {
-    ensureSchema();
-    return jdbc.query("""
-        SELECT id, blogger_name, title, summary, detail_text, message_time
-        FROM wxpusher_messages
-        WHERE message_time >= ?
-          AND status NOT IN ('PENDING', 'PROCESSING')
-        ORDER BY message_time DESC, updated_at DESC
-        LIMIT ?
-        """, (rs, rowNum) -> new RecentMessage(
-        rs.getString("id"),
-        rs.getString("blogger_name"),
-        rs.getString("title"),
-        rs.getString("summary"),
-        rs.getString("detail_text"),
-        rs.getString("message_time")),
-        since == null ? "" : since.trim(),
-        Math.max(1, Math.min(limit, 1000)));
-  }
-
   public List<ClusterItem> items(String clusterId) {
     ensureSchema();
     return jdbc.query("""
@@ -329,15 +309,6 @@ public class ResonanceRepository {
       String thesis,
       String sourceQuote,
       String opinionTime) {
-  }
-
-  public record RecentMessage(
-      String id,
-      String bloggerName,
-      String title,
-      String summary,
-      String detailText,
-      String messageTime) {
   }
 
   public record ClusterDraft(

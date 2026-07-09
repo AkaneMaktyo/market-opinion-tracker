@@ -5,6 +5,7 @@ import type { MarketBar, OpinionView, Timeframe } from '../../types';
 
 const BAR_RETRY_MS = 2400;
 const BAR_RETRY_LIMIT = 15;
+const MIN_USABLE_BARS = 20;
 
 type StreamRequest = {
   kolId: string;
@@ -69,7 +70,7 @@ export function useChartData() {
       setOpinions(nextOpinions);
       setChartLoading(false);
       setChartRefreshing(false);
-      handleEmptyBars(runChartLoad, kolId, symbol, frame, attempt, nextBars.length);
+      handleSparseBars(runChartLoad, kolId, symbol, frame, attempt, nextBars.length);
     } catch (error) {
       if (seq !== chartSeq.current) return;
       setChartLoading(false);
@@ -78,7 +79,7 @@ export function useChartData() {
     }
   }, [clearRetry]);
 
-  function handleEmptyBars(
+  function handleSparseBars(
     runChartLoad: typeof loadChart,
     kolId: string,
     symbol: string,
@@ -86,19 +87,19 @@ export function useChartData() {
     attempt: number,
     count: number,
   ) {
-    if (count > 0) {
+    if (count >= MIN_USABLE_BARS) {
       setChartMessage('');
       return;
     }
     if (attempt < BAR_RETRY_LIMIT) {
-      setChartMessage('正在后台加载 K 线，稍后自动刷新');
+      setChartMessage('正在后台补全 K 线，稍后自动刷新');
       retryTimer.current = window.setTimeout(
         () => void runChartLoad(kolId, symbol, frame, attempt + 1),
         BAR_RETRY_MS,
       );
       return;
     }
-    setChartMessage('暂时没有 K 线数据，可以尝试回填当前品种');
+    setChartMessage(count > 0 ? 'K 线历史较短，可以尝试回填当前品种' : '暂时没有 K 线数据，可以尝试回填当前品种');
   }
 
   useEffect(() => {

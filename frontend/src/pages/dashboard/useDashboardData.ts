@@ -9,7 +9,7 @@ import type {
 } from '../../types';
 import { useChartData } from './useChartData';
 
-const DEFAULT_KOL = 'kzg';
+const DEFAULT_KOL = 'default';
 const QUOTE_REFRESH_MS = 6000;
 
 export function useDashboardData() {

@@ -46,6 +46,7 @@ export function DashboardPage() {
         <InstrumentRail
           groups={dashboard.instrumentGroups}
           instruments={dashboard.instruments}
+          kolId={dashboard.selectedKol}
           onChanged={(next) => dashboard.reload(next || dashboard.selected)}
           onSelect={dashboard.selectSymbol}
           selected={dashboard.selected}

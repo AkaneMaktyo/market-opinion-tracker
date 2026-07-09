@@ -10,8 +10,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class KolRepository {
   public static final String DEFAULT_ID = "default";
-  private static final String DEFAULT_NAME = "默认KOL";
-  private static final String DEFAULT_DESCRIPTION = "系统自动创建的默认来源";
+  private static final String DEFAULT_NAME = "自选表";
+  private static final String DEFAULT_DESCRIPTION = "手动维护的自选标的列表";
   private static final String UNNAMED = "未命名KOL";
 
   private final JdbcTemplate jdbc;
@@ -72,8 +72,9 @@ public class KolRepository {
 
   private void ensureDefault() {
     jdbc.update("""
-        INSERT IGNORE INTO kols(id, name, description, created_at)
+        INSERT INTO kols(id, name, description, created_at)
         VALUES (?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description)
         """, DEFAULT_ID, DEFAULT_NAME, DEFAULT_DESCRIPTION, JdbcSupport.now());
   }
 }

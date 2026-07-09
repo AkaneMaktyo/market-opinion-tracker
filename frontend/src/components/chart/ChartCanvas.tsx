@@ -24,7 +24,6 @@ export function ChartCanvas({ bars, markers, priceLines, timeframe, viewKey }: P
   const seriesRef = useRef<ReturnType<IChartApi['addCandlestickSeries']> | null>(null);
   const priceLinesRef = useRef<IPriceLine[]>([]);
   const lastViewKey = useRef('');
-  const lastDataCount = useRef(0);
 
   const candleData = useMemo(
     () => bars.map((bar) => ({
@@ -95,21 +94,10 @@ export function ChartCanvas({ bars, markers, priceLines, timeframe, viewKey }: P
       title: line.title,
     }));
 
-    const sameView = lastViewKey.current === viewKey;
-    const shouldFit = !sameView || (lastDataCount.current === 0 && candleData.length > 0);
-    const canStreamUpdate = sameView
-      && candleData.length > 0
-      && lastDataCount.current > 0
-      && candleData.length <= lastDataCount.current + 1;
-
+    const shouldFit = lastViewKey.current !== viewKey;
     lastViewKey.current = viewKey;
-    lastDataCount.current = candleData.length;
-    if (canStreamUpdate) {
-      series.update(candleData[candleData.length - 1]);
-    } else {
-      series.setData(candleData);
-    }
-    if (shouldFit) {
+    series.setData(candleData);
+    if (shouldFit || candleData.length > 1) {
       chart.timeScale().fitContent();
     }
   }, [candleData, markers, priceLines, viewKey]);

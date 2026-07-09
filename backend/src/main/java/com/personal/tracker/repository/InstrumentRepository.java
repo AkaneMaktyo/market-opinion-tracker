@@ -48,21 +48,27 @@ public class InstrumentRepository {
   public List<Instrument> findByKol(String kolId, String query) {
     List<Object> args = new java.util.ArrayList<>();
     StringBuilder sql = new StringBuilder("""
-        SELECT DISTINCT i.* FROM instruments i
-        WHERE (
-          EXISTS (
-            SELECT 1 FROM opinions o
-            JOIN live_sessions s ON s.id = o.session_id
-            WHERE o.instrument_id = i.id AND s.kol_id = ?
-          )
-          OR EXISTS (
-            SELECT 1 FROM live_sessions s
-            WHERE s.kol_id = ? AND s.session_date >= ?
-              AND CHAR_LENGTH(i.symbol) >= 2
-              AND UPPER(CONCAT_WS(' ', s.title, s.raw_text))
-                REGEXP CONCAT('(^|[^A-Z0-9])', i.symbol, '([^A-Z0-9]|$)')
-          )
-        )
+        SELECT i.*, oa.latest_opinion_at, ma.latest_mention_at
+        FROM instruments i
+        LEFT JOIN (
+          SELECT o.instrument_id,
+                 MAX(COALESCE(wm.message_time, o.opinion_time, s.created_at)) latest_opinion_at
+          FROM opinions o
+          JOIN live_sessions s ON s.id = o.session_id
+          LEFT JOIN wxpusher_messages wm ON wm.session_id = s.id
+          WHERE s.kol_id = ?
+          GROUP BY o.instrument_id
+        ) oa ON oa.instrument_id = i.id
+        LEFT JOIN (
+          SELECT i2.id instrument_id, MAX(CONCAT(s2.session_date, ' ', s2.created_at)) latest_mention_at
+          FROM instruments i2
+          JOIN live_sessions s2 ON s2.kol_id = ? AND s2.session_date >= ?
+          WHERE CHAR_LENGTH(i2.symbol) >= 2
+            AND UPPER(CONCAT_WS(' ', s2.title, s2.raw_text))
+              REGEXP CONCAT('(^|[^A-Z0-9])', i2.symbol, '([^A-Z0-9]|$)')
+          GROUP BY i2.id
+        ) ma ON ma.instrument_id = i.id
+        WHERE oa.latest_opinion_at IS NOT NULL OR ma.latest_mention_at IS NOT NULL
         """);
     String safeKol = kolId == null || kolId.isBlank() ? KolRepository.DEFAULT_ID : kolId.trim();
     args.add(safeKol);
@@ -74,25 +80,42 @@ public class InstrumentRepository {
       args.add(like);
       args.add(like);
     }
-    sql.append(" ORDER BY i.symbol");
+    sql.append("""
+        ORDER BY CASE WHEN oa.latest_opinion_at IS NULL THEN 1 ELSE 0 END,
+                 oa.latest_opinion_at DESC,
+                 ma.latest_mention_at DESC,
+                 i.symbol
+        """);
     return jdbc.query(sql.toString(), mapper, args.toArray());
   }
 
   public List<Instrument> findCurrentByKol(String kolId, String query) {
     List<Object> args = new java.util.ArrayList<>();
     StringBuilder sql = new StringBuilder("""
-        SELECT DISTINCT i.* FROM instruments i
+        SELECT i.*, COALESCE(oa.latest_opinion_at, p.updated_at, p.created_at) latest_activity_at
+        FROM instruments i
         JOIN kol_positions p ON p.instrument_id = i.id
+        LEFT JOIN (
+          SELECT o.instrument_id,
+                 MAX(COALESCE(wm.message_time, o.opinion_time, s.created_at)) latest_opinion_at
+          FROM opinions o
+          JOIN live_sessions s ON s.id = o.session_id
+          LEFT JOIN wxpusher_messages wm ON wm.session_id = s.id
+          WHERE s.kol_id = ?
+          GROUP BY o.instrument_id
+        ) oa ON oa.instrument_id = i.id
         WHERE p.kol_id = ? AND p.status = 'ACTIVE'
         """);
-    args.add(kolId == null || kolId.isBlank() ? KolRepository.DEFAULT_ID : kolId.trim());
+    String safeKol = kolId == null || kolId.isBlank() ? KolRepository.DEFAULT_ID : kolId.trim();
+    args.add(safeKol);
+    args.add(safeKol);
     if (query != null && !query.isBlank()) {
       String like = "%" + query.trim().toUpperCase() + "%";
       sql.append(" AND (i.symbol LIKE ? OR UPPER(COALESCE(i.name, '')) LIKE ?)");
       args.add(like);
       args.add(like);
     }
-    sql.append(" ORDER BY i.symbol");
+    sql.append(" ORDER BY latest_activity_at DESC, i.symbol");
     return jdbc.query(sql.toString(), mapper, args.toArray());
   }
 
