@@ -3,6 +3,7 @@ package com.personal.tracker.service.wxpusher;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -18,6 +19,7 @@ import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository.SaveCo
 import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository.WxPusherBlogger;
 import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository.MessageSummary;
+import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository.WxPusherMessage;
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository.WxPusherSettings;
 import java.util.List;
@@ -173,7 +175,60 @@ class WxPusherAdminServiceTest {
     assertTrue(status.lastError().contains("WXPUSHER_PUSH_TOKEN"));
   }
 
+  @Test
+  void retryBatchOnlyProcessesRetryableMessagesAndCountsResult() {
+    var kols = mock(KolRepository.class);
+    var settingsRepository = mock(WxPusherSettingsRepository.class);
+    var bloggerRepository = mock(WxPusherBloggerRepository.class);
+    var messageRepository = mock(WxPusherMessageRepository.class);
+    var aiExtractor = mock(OpenAiJsonExtractor.class);
+    var ingestion = mock(WxPusherIngestionService.class);
+    var lifecycle = mock(WxPusherMonitorLifecycle.class);
+    var service = new WxPusherAdminService(
+        kols,
+        settingsRepository,
+        bloggerRepository,
+        messageRepository,
+        aiExtractor,
+        ingestion,
+        lifecycle);
+    WxPusherMessage first = message("m1", "SKIPPED");
+    WxPusherMessage second = message("m2", "SKIPPED");
+    when(messageRepository.listForRetry("SKIPPED", "kol-1", 2)).thenReturn(List.of(first, second));
+    when(messageRepository.findById("m1")).thenReturn(java.util.Optional.of(message("m1", "IMPORTED")));
+    when(messageRepository.findById("m2")).thenReturn(java.util.Optional.of(message("m2", "SKIPPED")));
+
+    var result = service.retryBatch("SKIPPED", "kol-1", 2);
+
+    assertEquals(2, result.processed());
+    assertEquals(1, result.imported());
+    assertEquals(1, result.skipped());
+    assertEquals(0, result.failed());
+    verify(ingestion).retry("m1");
+    verify(ingestion).retry("m2");
+  }
+
+  @Test
+  void retryBatchRejectsImportedStatus() {
+    var service = new WxPusherAdminService(
+        mock(KolRepository.class),
+        mock(WxPusherSettingsRepository.class),
+        mock(WxPusherBloggerRepository.class),
+        mock(WxPusherMessageRepository.class),
+        mock(OpenAiJsonExtractor.class),
+        mock(WxPusherIngestionService.class),
+        mock(WxPusherMonitorLifecycle.class));
+
+    assertThrows(IllegalArgumentException.class, () -> service.retryBatch("IMPORTED", "", 10));
+  }
+
   private WxPusherBlogger blogger(String name) {
     return new WxPusherBlogger("id-" + name, "kol-" + name, name, List.of(), true, "LAST_30", null, "now", "now");
+  }
+
+  private WxPusherMessage message(String id, String status) {
+    return new WxPusherMessage(
+        id, "key-" + id, "kol-1", "Alpha", "", "", "", "", "2026-07-08T10:00:00Z",
+        "{}", "NVDA 做多", "", status, "", "session-" + id, "now", "now");
   }
 }

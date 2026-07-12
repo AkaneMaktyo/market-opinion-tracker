@@ -7,6 +7,7 @@ import com.personal.tracker.domain.MarketBar;
 import com.personal.tracker.repository.InstrumentRepository;
 import com.personal.tracker.repository.JdbcSupport;
 import com.personal.tracker.repository.MarketBarRepository;
+import com.personal.tracker.service.MarketDataService;
 import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.net.URI;
@@ -19,6 +20,7 @@ import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -29,6 +31,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @Service
 public class RealtimeMarketBarService {
   private static final URI BITGET_PUBLIC_WS = URI.create("wss://ws.bitget.com/v2/ws/public");
+  private static final long WEBSOCKET_RETRY_MS = TimeUnit.MINUTES.toMillis(1);
   private static final Map<String, String> CHANNELS = Map.of(
       "1H", "candle1H",
       "4H", "candle4H",
@@ -37,6 +40,7 @@ public class RealtimeMarketBarService {
   private final ObjectMapper mapper;
   private final InstrumentRepository instruments;
   private final MarketBarRepository bars;
+  private final MarketDataService marketData;
   private final HttpClient http = HttpClient.newBuilder()
       .connectTimeout(Duration.ofSeconds(8))
       .build();
@@ -45,16 +49,23 @@ public class RealtimeMarketBarService {
     thread.setDaemon(true);
     return thread;
   });
+  private final ExecutorService poller = Executors.newFixedThreadPool(2, task -> {
+    Thread thread = new Thread(task, "market-realtime-poller");
+    thread.setDaemon(true);
+    return thread;
+  });
   private final Map<String, StreamState> streams = new ConcurrentHashMap<>();
 
   public RealtimeMarketBarService(
       ObjectMapper mapper,
       InstrumentRepository instruments,
-      MarketBarRepository bars) {
+      MarketBarRepository bars,
+      MarketDataService marketData) {
     this.mapper = mapper;
     this.instruments = instruments;
     this.bars = bars;
-    scheduler.scheduleAtFixedRate(this::watchStreams, 15, 15, TimeUnit.SECONDS);
+    this.marketData = marketData;
+    scheduler.scheduleAtFixedRate(this::watchStreams, 5, 10, TimeUnit.SECONDS);
   }
 
   public SseEmitter stream(String symbol, String timeframe) {
@@ -68,21 +79,32 @@ public class RealtimeMarketBarService {
     emitter.onTimeout(() -> removeEmitter(state, emitter));
     emitter.onError(error -> removeEmitter(state, emitter));
     sendStatus(emitter, "connecting");
+    pollLatest(state);
     connectIfNeeded(state);
     return emitter;
   }
 
   private void connectIfNeeded(StreamState state) {
+    if (!supportsBitget(state.instrument)) {
+      broadcastStatus(state, "polling");
+      return;
+    }
+    long now = System.currentTimeMillis();
+    if (now - state.lastConnectAttempt < WEBSOCKET_RETRY_MS) {
+      return;
+    }
     if (state.websocket != null || !state.connecting.compareAndSet(false, true)) {
       return;
     }
+    state.lastConnectAttempt = now;
     http.newWebSocketBuilder()
         .connectTimeout(Duration.ofSeconds(8))
         .buildAsync(BITGET_PUBLIC_WS, new BitgetListener(state))
         .whenComplete((socket, error) -> {
           state.connecting.set(false);
           if (error != null) {
-            broadcastStatus(state, "error");
+            broadcastStatus(state, "polling");
+            pollLatest(state);
             return;
           }
           if (state.emitters.isEmpty()) {
@@ -99,17 +121,22 @@ public class RealtimeMarketBarService {
   private void watchStreams() {
     streams.values().forEach(state -> {
       if (state.emitters.isEmpty()) {
+        flushPending(state);
         close(state);
         streams.remove(key(state.instrument.id(), state.timeframe));
         return;
       }
+      flushPending(state);
+      sendHeartbeat(state);
       WebSocket socket = state.websocket;
       if (socket == null) {
+        pollLatest(state);
         connectIfNeeded(state);
         return;
       }
       if (System.currentTimeMillis() - state.lastMessageAt > TimeUnit.SECONDS.toMillis(75)) {
         close(state);
+        pollLatest(state);
         connectIfNeeded(state);
         return;
       }
@@ -130,15 +157,18 @@ public class RealtimeMarketBarService {
     }
     try {
       JsonNode root = mapper.readTree(message);
+      if (root.has("event") && !"0".equals(root.path("code").asText("0"))) {
+        broadcastStatus(state, "polling");
+        close(state);
+        pollLatest(state);
+        return;
+      }
       JsonNode data = root.path("data");
       if (!data.isArray()) {
         return;
       }
       for (JsonNode row : data) {
-        parseBar(state, row).ifPresent(bar -> {
-          bars.saveAll(List.of(bar));
-          broadcastBar(state, bar);
-        });
+        parseBar(state, row).ifPresent(bar -> publishBar(state, bar, "live"));
       }
     } catch (IOException ignored) {
       broadcastStatus(state, "parse_error");
@@ -172,13 +202,69 @@ public class RealtimeMarketBarService {
     });
   }
 
+  private void publishBar(StreamState state, MarketBar bar, String status) {
+    String signature = bar.barTime() + ':' + bar.open() + ':' + bar.high()
+        + ':' + bar.low() + ':' + bar.close() + ':' + bar.volume();
+    if (signature.equals(state.lastBarSignature)) {
+      return;
+    }
+    state.lastBarSignature = signature;
+    state.pendingBar = bar;
+    broadcastBar(state, bar);
+    broadcastStatus(state, status);
+  }
+
+  private void pollLatest(StreamState state) {
+    long now = System.currentTimeMillis();
+    if (now - state.lastPollAt < TimeUnit.SECONDS.toMillis(8)
+        || !state.polling.compareAndSet(false, true)) {
+      return;
+    }
+    state.lastPollAt = now;
+    poller.submit(() -> {
+      try {
+        marketData.fetchLatestBar(state.instrument, state.timeframe)
+            .ifPresent(bar -> publishBar(state, bar, "polling"));
+      } catch (RuntimeException error) {
+        broadcastStatus(state, "delayed");
+      } finally {
+        state.polling.set(false);
+      }
+    });
+  }
+
+  private void flushPending(StreamState state) {
+    MarketBar pending = state.pendingBar;
+    if (pending == null) {
+      return;
+    }
+    state.pendingBar = null;
+    try {
+      bars.saveAll(List.of(pending));
+    } catch (RuntimeException error) {
+      if (state.pendingBar == null) {
+        state.pendingBar = pending;
+      }
+    }
+  }
+
+  private void sendHeartbeat(StreamState state) {
+    state.emitters.forEach(emitter -> {
+      try {
+        emitter.send(SseEmitter.event().comment("keepalive"));
+      } catch (IOException error) {
+        removeEmitter(state, emitter);
+      }
+    });
+  }
+
   private void broadcastStatus(StreamState state, String status) {
     state.emitters.forEach(emitter -> sendStatus(emitter, status));
   }
 
   private void sendStatus(SseEmitter emitter, String status) {
     try {
-      emitter.send(SseEmitter.event().name("status").data(status));
+      emitter.send(SseEmitter.event().name("status").reconnectTime(2000).data(status));
     } catch (IOException ignored) {
       emitter.complete();
     }
@@ -222,6 +308,14 @@ public class RealtimeMarketBarService {
     return value != null && !value.isBlank();
   }
 
+  private static boolean supportsBitget(Instrument instrument) {
+    if (present(instrument.bitgetCategory()) && present(instrument.bitgetSymbol())) {
+      return true;
+    }
+    return "CRYPTO".equalsIgnoreCase(instrument.market())
+        || "CRYPTO".equals(JdbcSupport.market(null, instrument.symbol()));
+  }
+
   private static String key(String instrumentId, String timeframe) {
     return instrumentId + ":" + timeframe;
   }
@@ -229,7 +323,11 @@ public class RealtimeMarketBarService {
   @PreDestroy
   public void shutdown() {
     scheduler.shutdownNow();
-    streams.values().forEach(this::close);
+    poller.shutdownNow();
+    streams.values().forEach(state -> {
+      flushPending(state);
+      close(state);
+    });
   }
 
   private class BitgetListener implements WebSocket.Listener {
@@ -259,14 +357,16 @@ public class RealtimeMarketBarService {
     @Override
     public CompletionStage<?> onClose(WebSocket webSocket, int statusCode, String reason) {
       state.websocket = null;
-      broadcastStatus(state, "closed");
+      broadcastStatus(state, "polling");
+      pollLatest(state);
       return WebSocket.Listener.super.onClose(webSocket, statusCode, reason);
     }
 
     @Override
     public void onError(WebSocket webSocket, Throwable error) {
       state.websocket = null;
-      broadcastStatus(state, "error");
+      broadcastStatus(state, "polling");
+      pollLatest(state);
     }
   }
 
@@ -279,8 +379,13 @@ public class RealtimeMarketBarService {
     final BitgetTopic topic;
     final Set<SseEmitter> emitters = new CopyOnWriteArraySet<>();
     final AtomicBoolean connecting = new AtomicBoolean(false);
+    final AtomicBoolean polling = new AtomicBoolean(false);
     volatile WebSocket websocket;
     volatile long lastMessageAt;
+    volatile long lastConnectAttempt;
+    volatile long lastPollAt;
+    volatile String lastBarSignature = "";
+    volatile MarketBar pendingBar;
 
     StreamState(Instrument instrument, String timeframe, BitgetTopic topic) {
       this.instrument = instrument;

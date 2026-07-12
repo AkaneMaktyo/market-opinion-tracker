@@ -55,6 +55,14 @@ public class SessionRepository {
         """, mapper, blank(kolId, KolRepository.DEFAULT_ID), Math.max(1, Math.min(limit, 100)));
   }
 
+  public List<LiveSession> findSince(String kolId, String sinceDate) {
+    return jdbc.query("""
+        SELECT * FROM live_sessions
+        WHERE kol_id = ? AND session_date >= ?
+        ORDER BY session_date DESC, created_at DESC
+        """, mapper, blank(kolId, KolRepository.DEFAULT_ID), sinceDate);
+  }
+
   public Optional<LiveSession> findById(String id) {
     List<LiveSession> rows = jdbc.query(
         "SELECT * FROM live_sessions WHERE id = ?",

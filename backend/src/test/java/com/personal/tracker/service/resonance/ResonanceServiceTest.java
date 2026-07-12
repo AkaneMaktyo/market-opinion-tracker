@@ -14,7 +14,6 @@ import com.personal.tracker.repository.resonance.ResonanceRepository.ClusterItem
 import com.personal.tracker.repository.resonance.ResonanceRepository.ClusterRecord;
 import com.personal.tracker.repository.resonance.ResonanceRepository.ItemDraft;
 import com.personal.tracker.repository.resonance.ResonanceRepository.OpinionSignal;
-import com.personal.tracker.repository.resonance.ResonanceRepository.RecentMessage;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
@@ -22,42 +21,29 @@ import org.mockito.ArgumentCaptor;
 
 class ResonanceServiceTest {
   @Test
-  void listCreatesRadarItemsFromRecentKeywordMessage() {
+  void listDoesNotCreateRadarItemsFromRecentKeywordMessage() {
     var repository = mock(ResonanceRepository.class);
     var service = new ResonanceService(repository, mock(ResonanceNotifier.class));
     when(repository.list(eq(""), any(), any(Integer.class))).thenReturn(List.of());
-    when(repository.recentMessages(any(), any(Integer.class))).thenReturn(List.of(message(
-        "msg-1",
-        "顺哥",
-        "今天可以慢慢小仓位开始买Mu soxl 正股",
-        "2026-07-07T14:41:48Z")));
 
     var result = service.list("", 8);
 
-    assertEquals(2, result.size());
-    assertEquals("MU", result.get(0).cluster().symbol());
-    assertEquals("SOXL", result.get(1).cluster().symbol());
-    assertEquals("消息", result.get(0).cluster().horizon());
+    assertEquals(0, result.size());
   }
 
   @Test
-  void listRanksLatestKeywordMentionBeforeOlderHighScoreCluster() {
+  void listReturnsStoredClustersFromRecentWindowOnly() {
     var repository = mock(ResonanceRepository.class);
     var service = new ResonanceService(repository, mock(ResonanceNotifier.class));
     ClusterRecord nvda = cluster("NVDA", 95, "2026-07-06T09:30:00Z");
     when(repository.list(eq(""), any(), any(Integer.class))).thenReturn(List.of(nvda));
     when(repository.items(nvda.id())).thenReturn(List.of(item("o1", "SUPPORT")));
-    when(repository.recentMessages(any(), any(Integer.class))).thenReturn(List.of(message(
-        "msg-1",
-        "顺哥",
-        "今天可以慢慢小仓位开始买Mu soxl 正股",
-        "2026-07-07T14:41:48Z")));
 
     var result = service.list("", 8);
 
-    assertEquals("MU", result.get(0).cluster().symbol());
-    assertEquals("SOXL", result.get(1).cluster().symbol());
-    assertEquals("NVDA", result.get(2).cluster().symbol());
+    assertEquals(1, result.size());
+    assertEquals("NVDA", result.get(0).cluster().symbol());
+    assertEquals("短线", result.get(0).cluster().horizon());
   }
 
   @Test
@@ -202,7 +188,4 @@ class ResonanceServiceTest {
         "now");
   }
 
-  private RecentMessage message(String id, String blogger, String text, String messageTime) {
-    return new RecentMessage(id, blogger, "", text, text, messageTime);
-  }
 }

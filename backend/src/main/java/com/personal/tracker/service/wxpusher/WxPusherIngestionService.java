@@ -2,6 +2,7 @@ package com.personal.tracker.service.wxpusher;
 
 import com.personal.tracker.domain.LiveSession;
 import com.personal.tracker.repository.InstrumentRepository;
+import com.personal.tracker.repository.JdbcSupport;
 import com.personal.tracker.repository.SessionRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository.WxPusherBlogger;
@@ -13,6 +14,7 @@ import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherSharedMessageRepository;
 import com.personal.tracker.service.imports.OpinionImportWriter;
 import com.personal.tracker.service.json.JsonOpinionParser;
+import com.personal.tracker.service.wxpusher.fallback.WxPusherFallbackOpinionExtractor;
 import com.personal.tracker.service.wxpusher.instruments.MessageInstrumentExtractor;
 import java.time.LocalDate;
 import java.util.Comparator;
@@ -23,6 +25,7 @@ import org.springframework.stereotype.Service;
 public class WxPusherIngestionService {
   private static final String CONSUMER_NAME = "market_opinion_tracker";
   private static final String WXPUSHER_LLM_DISABLED = "WxPusher LLM 提取已禁用";
+  private static final String WXPUSHER_SOURCE_UNCONFIGURED = "WxPusher 消息来源未配置为 KOL";
   private final SessionRepository sessionRepository;
   private final WxPusherSettingsRepository settingsRepository;
   private final WxPusherBloggerRepository bloggerRepository;
@@ -147,12 +150,16 @@ public class WxPusherIngestionService {
     String sessionId = "";
     try {
       detailText = fetchDetail(message);
+      if (unconfiguredDetailSource(message, detailText)) {
+        messageRepository.markSkipped(message.id(), detailText, WXPUSHER_SOURCE_UNCONFIGURED);
+        saveSharedState(sharedMessageKey, "SKIPPED", WXPUSHER_SOURCE_UNCONFIGURED, message.id());
+        return;
+      }
       message = reassignFromDetail(message, detailText);
       sessionId = ensureSession(message, detailText);
       saveMentionedInstruments(message, detailText);
       if (!aiExtractor.extractionEnabled()) {
-        messageRepository.markSkipped(message.id(), detailText, WXPUSHER_LLM_DISABLED);
-        saveSharedState(sharedMessageKey, "SKIPPED", WXPUSHER_LLM_DISABLED, message.id());
+        importKeywordFallback(message, sharedMessageKey, detailText, sessionId);
         return;
       }
       llmJson = aiExtractor.extract(
@@ -183,7 +190,10 @@ public class WxPusherIngestionService {
 
   private String ensureSession(WxPusherMessage message, String detailText) {
     if (message.sessionId() != null && !message.sessionId().isBlank()) {
-      return message.sessionId();
+      var current = sessionRepository.findById(message.sessionId());
+      if (current.isPresent() && current.get().kolId().equals(message.kolId())) {
+        return message.sessionId();
+      }
     }
     LiveSession session = sessionRepository.create(
         message.kolId(),
@@ -196,7 +206,38 @@ public class WxPusherIngestionService {
   }
 
   private WxPusherMessage reassignFromDetail(WxPusherMessage message, String detailText) {
-    WxPusherClient.IncomingMessage detailView = new WxPusherClient.IncomingMessage(
+    WxPusherClient.IncomingMessage detailView = detailMessage(message, detailText);
+    return WxPusherBloggerMatcher.match(detailView, bloggerRepository.enabled())
+        .filter(blogger -> !blogger.kolId().equals(message.kolId()))
+        .map(blogger -> {
+          messageRepository.reassign(message.id(), blogger.kolId(), blogger.bloggerName());
+          return withBlogger(message, blogger);
+        })
+        .orElse(message);
+  }
+
+  private boolean unconfiguredDetailSource(WxPusherMessage message, String detailText) {
+    WxPusherClient.IncomingMessage detailView = detailMessage(message, detailText);
+    return blockedExternalSource(detailText)
+        || WxPusherBloggerMatcher.hasExplicitSource(detailView)
+        && WxPusherBloggerMatcher.match(detailView, bloggerRepository.enabled()).isEmpty();
+  }
+
+  private boolean blockedExternalSource(String detailText) {
+    String value = (detailText == null ? "" : detailText).toLowerCase();
+    return value.contains("premium signals")
+        || value.contains("\u9ec4\u91d1\u5e1d\u56fd")
+        || value.contains("goldenempire")
+        || value.contains("forex-nightvex")
+        || value.contains("\u8212\u7434\u884c\u60c5\u5206\u6790")
+        || value.contains("\u61c2\u5e01\u732b")
+        || value.contains("\u989c\u9a70")
+        || value.contains("yekoi")
+        || value.contains("ye-\u65f6\u95f4\u9886\u4e3b");
+  }
+
+  private WxPusherClient.IncomingMessage detailMessage(WxPusherMessage message, String detailText) {
+    return new WxPusherClient.IncomingMessage(
         "detail",
         message.messageKey(),
         "",
@@ -208,13 +249,6 @@ public class WxPusherIngestionService {
         "",
         message.rawPayloadJson(),
         0L);
-    return WxPusherBloggerMatcher.match(detailView, bloggerRepository.enabled())
-        .filter(blogger -> !blogger.kolId().equals(message.kolId()))
-        .map(blogger -> {
-          messageRepository.reassign(message.id(), blogger.kolId(), blogger.bloggerName());
-          return withBlogger(message, blogger);
-        })
-        .orElse(message);
   }
 
   private WxPusherMessage withBlogger(WxPusherMessage message, WxPusherBlogger blogger) {
@@ -243,15 +277,33 @@ public class WxPusherIngestionService {
   }
 
   private String fetchDetail(WxPusherMessage message) {
+    if (message.detailText() != null && !message.detailText().isBlank()) {
+      return unusableDetail(message.detailText()) ? fallbackText(message) : message.detailText();
+    }
+    if (isRetryState(message.status())) {
+      return fallbackText(message);
+    }
     if (message.detailUrl() == null || message.detailUrl().isBlank()) {
       return fallbackText(message);
     }
     try {
       String text = articleExtractor.fetchText(message.detailUrl(), settingsRepository.get());
-      return text == null || text.isBlank() ? fallbackText(message) : text;
+      return text == null || text.isBlank() || unusableDetail(text) ? fallbackText(message) : text;
     } catch (RuntimeException error) {
       return fallbackText(message);
     }
+  }
+
+  private boolean unusableDetail(String text) {
+    if (text.contains("\u6d88\u606f\u5185\u5bb9\u4e0d\u5b58\u5728")
+        || text.contains("\u9519\u8bef\u63d0\u793a")) {
+      return true;
+    }
+    return text.contains("消息内容不存在") || text.contains("错误提示");
+  }
+
+  private boolean isRetryState(String status) {
+    return "SKIPPED".equalsIgnoreCase(status) || "FAILED".equalsIgnoreCase(status);
   }
 
   private String fallbackText(WxPusherMessage message) {
@@ -263,7 +315,7 @@ public class WxPusherIngestionService {
 
   private String storedText(WxPusherMessage message) {
     if (message.detailText() != null && !message.detailText().isBlank()) {
-      return message.detailText();
+      return unusableDetail(message.detailText()) ? fallbackText(message) : message.detailText();
     }
     return fallbackText(message);
   }
@@ -271,8 +323,34 @@ public class WxPusherIngestionService {
   private void saveMentionedInstruments(WxPusherMessage message, String detailText) {
     String text = String.join("\n", detailText, message.summary(), message.title());
     for (String symbol : MessageInstrumentExtractor.extract(text)) {
-      instruments.saveIfAbsent(symbol, symbol, "US", null);
+      instruments.saveIfAbsent(symbol, symbol, JdbcSupport.market("", symbol), null);
     }
+  }
+
+  private void importKeywordFallback(
+      WxPusherMessage message,
+      String sharedMessageKey,
+      String detailText,
+      String sessionId) {
+    String text = String.join("\n", detailText, message.summary(), message.title());
+    var contextSymbols = messageRepository.recentImportedSymbols(message.kolId(), message.messageTime(), 1);
+    var candidates = WxPusherFallbackOpinionExtractor.extract(text, contextSymbols);
+    if (candidates.isEmpty()) {
+      messageRepository.markSkipped(message.id(), detailText, WXPUSHER_LLM_DISABLED);
+      saveSharedState(sharedMessageKey, "SKIPPED", WXPUSHER_LLM_DISABLED, message.id());
+      return;
+    }
+    var result = writer.write(
+        sessionId,
+        message.kolId(),
+        sessionTitle(message),
+        sessionDate(message.messageTime()),
+        "WXPUSHER_KEYWORD_FALLBACK",
+        detailText,
+        candidates);
+    String output = "{\"fallback\":\"keyword\",\"savedOpinions\":%d}".formatted(result.savedOpinions());
+    messageRepository.markImported(message.id(), detailText, output, result.sessionId());
+    saveSharedState(sharedMessageKey, "IMPORTED", "", message.id());
   }
 
   private void saveSharedState(String messageKey, String status, String errorMessage, String derivedId) {

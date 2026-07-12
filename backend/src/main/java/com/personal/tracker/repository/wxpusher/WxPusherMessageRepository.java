@@ -127,6 +127,22 @@ public class WxPusherMessageRepository {
     return jdbc.query(sql.toString(), mapper, args.toArray());
   }
 
+  public List<WxPusherMessage> listForRetry(String status, String kolId, int limit) {
+    StringBuilder sql = new StringBuilder("SELECT * FROM wxpusher_messages WHERE 1 = 1");
+    List<Object> args = new ArrayList<>();
+    if (status != null && !status.isBlank()) {
+      sql.append(" AND status = ?");
+      args.add(status.trim().toUpperCase());
+    }
+    if (kolId != null && !kolId.isBlank()) {
+      sql.append(" AND kol_id = ?");
+      args.add(kolId.trim());
+    }
+    sql.append(" ORDER BY updated_at ASC, created_at ASC LIMIT ?");
+    args.add(Math.max(1, Math.min(limit, 100)));
+    return jdbc.query(sql.toString(), mapper, args.toArray());
+  }
+
   public List<WxPusherMessage> listMissingSessions(int limit) {
     return jdbc.query("""
         SELECT * FROM wxpusher_messages
@@ -176,6 +192,23 @@ public class WxPusherMessageRepository {
       }
       return result;
     }, safeKolIds.toArray());
+  }
+
+  public List<String> recentImportedSymbols(String kolId, String beforeMessageTime, int limit) {
+    if (kolId == null || kolId.isBlank()) {
+      return List.of();
+    }
+    String time = beforeMessageTime == null || beforeMessageTime.isBlank() ? "9999-12-31" : beforeMessageTime;
+    return jdbc.queryForList("""
+        SELECT i.symbol
+        FROM wxpusher_messages m
+        JOIN opinions o ON o.session_id = m.session_id
+        JOIN instruments i ON i.id = o.instrument_id
+        WHERE m.kol_id = ? AND m.status = 'IMPORTED' AND m.message_time <= ?
+        GROUP BY i.symbol
+        ORDER BY MAX(m.message_time) DESC, COUNT(*) DESC
+        LIMIT ?
+        """, String.class, kolId.trim(), time, Math.max(1, Math.min(limit, 3)));
   }
 
   private void updateState(

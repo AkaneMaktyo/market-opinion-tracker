@@ -246,6 +246,8 @@ CREATE TABLE IF NOT EXISTS youtube_channels (
   INDEX idx_youtube_channels_updated(updated_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+ALTER TABLE live_sessions ADD INDEX idx_sessions_kol_date(kol_id, session_date);
+
 CREATE TABLE IF NOT EXISTS schema_migrations (
   id VARCHAR(120) PRIMARY KEY,
   applied_at VARCHAR(64) NOT NULL

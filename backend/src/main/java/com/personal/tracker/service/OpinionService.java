@@ -10,10 +10,14 @@ import com.personal.tracker.repository.JdbcSupport;
 import com.personal.tracker.repository.KolRepository;
 import com.personal.tracker.repository.OpinionRepository;
 import com.personal.tracker.repository.SessionRepository;
+import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository;
+import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository.WxPusherBlogger;
 import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository.WxPusherMessage;
 import com.personal.tracker.service.positions.KolPositionService;
 import com.personal.tracker.service.resonance.ResonanceService;
+import com.personal.tracker.service.wxpusher.WxPusherBloggerMatcher;
+import com.personal.tracker.service.wxpusher.WxPusherClient;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -23,6 +27,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +43,7 @@ public class OpinionService {
   private final InstrumentRepository instruments;
   private final OpinionRepository opinions;
   private final SessionRepository sessions;
+  private final WxPusherBloggerRepository wxpusherBloggers;
   private final WxPusherMessageRepository wxpusherMessages;
   private final KolPositionService positions;
   private final ResonanceService resonance;
@@ -45,12 +52,14 @@ public class OpinionService {
       InstrumentRepository instruments,
       OpinionRepository opinions,
       SessionRepository sessions,
+      WxPusherBloggerRepository wxpusherBloggers,
       WxPusherMessageRepository wxpusherMessages,
       KolPositionService positions,
       ResonanceService resonance) {
     this.instruments = instruments;
     this.opinions = opinions;
     this.sessions = sessions;
+    this.wxpusherBloggers = wxpusherBloggers;
     this.wxpusherMessages = wxpusherMessages;
     this.positions = positions;
     this.resonance = resonance;
@@ -91,11 +100,17 @@ public class OpinionService {
     String safeKol = kolId == null || kolId.isBlank() ? KolRepository.DEFAULT_ID : kolId;
     boolean onlyMessages = "MESSAGE".equalsIgnoreCase(status);
     List<OpinionView> result = new ArrayList<>();
+    Set<String> opinionSessionIds = Set.of();
     if (!onlyMessages) {
-      result.addAll(opinions.find(safeKol, symbol, status, limit).stream().map(this::view).toList());
+      List<Opinion> stored = opinions.find(safeKol, symbol, status, limit);
+      opinionSessionIds = stored.stream()
+          .map(Opinion::sessionId)
+          .filter(value -> value != null && !value.isBlank())
+          .collect(Collectors.toSet());
+      result.addAll(stored.stream().map(this::view).toList());
     }
     if (includeMessages(symbol, status)) {
-      result.addAll(messageViews(safeKol, JdbcSupport.symbol(symbol)));
+      result.addAll(messageViews(safeKol, JdbcSupport.symbol(symbol), opinionSessionIds));
     }
     return result.stream()
         .sorted(Comparator.comparing((OpinionView item) -> item.opinion().opinionTime()).reversed())
@@ -124,14 +139,49 @@ public class OpinionService {
         opinions.findReview(opinion.id()).orElse(null));
   }
 
-  private List<OpinionView> messageViews(String kolId, String symbol) {
+  private List<OpinionView> messageViews(
+      String kolId,
+      String symbol,
+      Set<String> opinionSessionIds) {
     Instrument instrument = instruments.findBySymbol(symbol).orElse(null);
     String name = instrument == null ? "" : instrument.name();
     String instrumentId = instrument == null ? "" : instrument.id();
+    WxPusherBlogger blogger = configuredBlogger(kolId);
     return wxpusherMessages.findByKolSince(kolId, monthStart(), MESSAGE_LOOKBACK_LIMIT).stream()
+        .filter(message -> !opinionSessionIds.contains(message.sessionId()))
+        .filter(message -> matchesConfiguredBlogger(blogger, message))
         .filter(message -> mentions(messageText(message), symbol, name))
         .map(message -> messageView(message, instrumentId, symbol))
         .toList();
+  }
+
+  private WxPusherBlogger configuredBlogger(String kolId) {
+    return wxpusherBloggers.enabled().stream()
+        .filter(item -> item.kolId().equals(kolId))
+        .findFirst()
+        .orElse(null);
+  }
+
+  private boolean matchesConfiguredBlogger(WxPusherBlogger blogger, WxPusherMessage message) {
+    if (blogger == null) {
+      return true;
+    }
+    WxPusherClient.IncomingMessage incoming = new WxPusherClient.IncomingMessage(
+        "stored",
+        message.messageKey(),
+        message.bloggerName(),
+        message.title(),
+        messageText(message),
+        message.detailUrl(),
+        message.sourceUrl(),
+        message.messageTime(),
+        "",
+        message.rawPayloadJson(),
+        0L);
+    if (WxPusherBloggerMatcher.hasExplicitSource(incoming)) {
+      return WxPusherBloggerMatcher.matches(incoming, blogger);
+    }
+    return true;
   }
 
   private OpinionView messageView(WxPusherMessage message, String instrumentId, String symbol) {

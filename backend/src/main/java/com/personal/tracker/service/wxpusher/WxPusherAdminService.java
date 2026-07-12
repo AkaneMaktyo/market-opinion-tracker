@@ -128,6 +128,40 @@ public class WxPusherAdminService {
         .orElseThrow(() -> new IllegalArgumentException("消息不存在"));
   }
 
+  public RetryBatchResult retryBatch(String status, String kolId, int limit) {
+    List<WxPusherMessage> messages = messageRepository.listForRetry(retryStatus(status), kolId, limit);
+    int processed = 0;
+    int imported = 0;
+    int skipped = 0;
+    int failed = 0;
+    for (WxPusherMessage message : messages) {
+      processed++;
+      try {
+        ingestion.retry(message.id());
+      } catch (RuntimeException error) {
+        failed++;
+        continue;
+      }
+      WxPusherMessage updated = messageRepository.findById(message.id()).orElse(message);
+      if ("IMPORTED".equalsIgnoreCase(updated.status())) {
+        imported++;
+      } else if ("SKIPPED".equalsIgnoreCase(updated.status())) {
+        skipped++;
+      } else if ("FAILED".equalsIgnoreCase(updated.status())) {
+        failed++;
+      }
+    }
+    return new RetryBatchResult(processed, imported, skipped, failed);
+  }
+
+  private String retryStatus(String status) {
+    String value = status == null || status.isBlank() ? "SKIPPED" : status.trim().toUpperCase();
+    if (!List.of("SKIPPED", "FAILED").contains(value)) {
+      throw new IllegalArgumentException("只支持重试 SKIPPED/FAILED 消息");
+    }
+    return value;
+  }
+
   private List<BloggerView> enrich(List<WxPusherBlogger> bloggers) {
     Map<String, MessageSummary> summaries = messageRepository.summaryByKolIds(
         bloggers.stream().map(WxPusherBlogger::kolId).toList());
@@ -248,6 +282,13 @@ public class WxPusherAdminService {
       boolean llmReachable,
       String llmMessage,
       String llmCheckedAt) {
+  }
+
+  public record RetryBatchResult(
+      int processed,
+      int imported,
+      int skipped,
+      int failed) {
   }
 
   private record DefaultBlogger(String name, List<String> aliases) {

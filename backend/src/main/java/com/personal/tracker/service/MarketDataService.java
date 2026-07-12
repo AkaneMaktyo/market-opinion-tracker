@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -30,6 +31,8 @@ import org.springframework.stereotype.Service;
 public class MarketDataService {
   private static final Logger log = LoggerFactory.getLogger(MarketDataService.class);
   private static final int LIMIT = 1000;
+  private static final int DEFAULT_VISIBLE_LIMIT = 600;
+  private static final int LATEST_LIMIT = 3;
   private static final int DEEP_BACKFILL_MAX_PAGES = 80;
   private static final long EMPTY_REFRESH_TTL_MS = TimeUnit.SECONDS.toMillis(45);
   private static final long SUMMARY_REFRESH_TTL_MS = TimeUnit.SECONDS.toMillis(15);
@@ -65,11 +68,27 @@ public class MarketDataService {
   }
 
   public List<MarketBar> barsForSymbol(String symbol, String timeframe) {
+    return barsForSymbol(symbol, timeframe, DEFAULT_VISIBLE_LIMIT, null);
+  }
+
+  public List<MarketBar> barsForSymbol(
+      String symbol,
+      String timeframe,
+      int limit,
+      String before) {
     Instrument instrument = instruments.saveIfAbsent(symbol, symbol, "US", null);
     String frame = timeframe == null || timeframe.isBlank() ? "1D" : timeframe;
-    List<MarketBar> stored = bars.findBars(instrument.id(), frame);
+    List<MarketBar> stored = bars.findRecentBars(instrument.id(), frame, limit, before);
     queueInteractiveRefresh(instrument, frame, stored.isEmpty());
     return stored;
+  }
+
+  public Optional<MarketBar> fetchLatestBar(Instrument instrument, String timeframe) {
+    String frame = timeframe == null || timeframe.isBlank() ? "1D" : timeframe;
+    long end = Instant.now().toEpochMilli();
+    long start = end - latestLookbackMillis(frame);
+    return fetch(instrument, frame, start, end, LATEST_LIMIT).stream()
+        .max(java.util.Comparator.comparing(MarketBar::barTime));
   }
 
   public List<Instrument> instruments() {
@@ -82,7 +101,7 @@ public class MarketDataService {
 
   public RefreshResult refreshBars(Instrument instrument, String timeframe) {
     String frame = timeframe == null || timeframe.isBlank() ? "1D" : timeframe;
-    List<MarketBar> fetched = fetch(instrument, frame, null, null);
+    List<MarketBar> fetched = fetch(instrument, frame, null, null, LIMIT);
     if (fetched.isEmpty()) {
       return new RefreshResult(instrument.symbol(), frame, 0, true);
     }
@@ -98,7 +117,7 @@ public class MarketDataService {
     int fetchedTotal = 0;
     int pages = 0;
     for (int page = 0; page < DEEP_BACKFILL_MAX_PAGES; page++) {
-      List<MarketBar> fetched = fetch(instrument, frame, null, cursor);
+      List<MarketBar> fetched = fetch(instrument, frame, null, cursor, LIMIT);
       pause();
       if (fetched.isEmpty()) {
         break;
@@ -136,9 +155,14 @@ public class MarketDataService {
     return Instant.now().toEpochMilli();
   }
 
-  private List<MarketBar> fetch(Instrument instrument, String timeframe, Long start, Long end) {
+  private List<MarketBar> fetch(
+      Instrument instrument,
+      String timeframe,
+      Long start,
+      Long end,
+      int limit) {
     for (MarketBarProvider provider : providersFor(instrument)) {
-      List<MarketBar> fetched = provider.fetch(instrument, timeframe, start, end, LIMIT);
+      List<MarketBar> fetched = provider.fetch(instrument, timeframe, start, end, limit);
       if (!fetched.isEmpty()) {
         return fetched;
       }
@@ -277,6 +301,11 @@ public class MarketDataService {
 
   private static boolean present(String value) {
     return value != null && !value.isBlank();
+  }
+
+  private static long latestLookbackMillis(String timeframe) {
+    long days = "1D".equalsIgnoreCase(timeframe) ? 14 : 5;
+    return TimeUnit.DAYS.toMillis(days);
   }
 
   public record RefreshResult(String symbol, String timeframe, int fetched, boolean skipped) {

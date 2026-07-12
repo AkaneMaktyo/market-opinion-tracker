@@ -6,12 +6,17 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Component;
 
 @Component
 public class DemoDataService implements ApplicationRunner {
+  private static final Logger log = LoggerFactory.getLogger(DemoDataService.class);
+
   private final SessionRepository sessions;
   private final OpinionService opinions;
   private final MarketDataService marketData;
@@ -27,6 +32,14 @@ public class DemoDataService implements ApplicationRunner {
 
   @Override
   public void run(ApplicationArguments args) {
+    try {
+      seedIfEmpty();
+    } catch (DataAccessException ex) {
+      log.warn("数据库暂不可用，跳过演示数据初始化。", ex);
+    }
+  }
+
+  private void seedIfEmpty() {
     if (!sessions.findRecent("default", 1).isEmpty()) {
       return;
     }

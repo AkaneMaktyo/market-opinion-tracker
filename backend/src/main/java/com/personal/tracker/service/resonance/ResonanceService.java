@@ -6,9 +6,7 @@ import com.personal.tracker.repository.resonance.ResonanceRepository.ClusterItem
 import com.personal.tracker.repository.resonance.ResonanceRepository.ClusterRecord;
 import com.personal.tracker.repository.resonance.ResonanceRepository.ItemDraft;
 import com.personal.tracker.repository.resonance.ResonanceRepository.OpinionSignal;
-import com.personal.tracker.repository.resonance.ResonanceRepository.RecentMessage;
 import com.personal.tracker.service.resonance.ResonanceNotifier.AlertStatusView;
-import com.personal.tracker.service.wxpusher.instruments.MessageInstrumentExtractor;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -20,9 +18,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Function;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -40,23 +36,8 @@ public class ResonanceService {
 
   public List<ResonanceView> list(String symbol, int limit) {
     String since = Instant.now().minus(LIST_WINDOW).toString();
-    List<MessageMention> mentions = recentMentions(symbol, since);
-    Map<String, MessageMention> latestMentions = latestMentions(mentions);
-    List<ResonanceView> clusters = repository.list(symbol, since, Math.max(limit, 20)).stream()
+    return repository.list(symbol, since, limit).stream()
         .map(cluster -> new ResonanceView(cluster, repository.items(cluster.id())))
-        .toList();
-    var clusterSymbols = clusters.stream()
-        .map(view -> view.cluster().symbol())
-        .collect(Collectors.toSet());
-    return Stream.concat(
-            clusters.stream(),
-            mentions.stream()
-                .filter(mention -> !clusterSymbols.contains(mention.symbol()))
-                .map(this::messageView))
-        .sorted(Comparator
-            .comparing((ResonanceView view) -> radarTime(view, latestMentions)).reversed()
-            .thenComparing((ResonanceView view) -> view.cluster().score(), Comparator.reverseOrder()))
-        .limit(Math.max(1, Math.min(limit, 100)))
         .toList();
   }
 
@@ -131,82 +112,6 @@ public class ResonanceService {
     return signals.stream()
         .filter(item -> !parseTime(item.opinionTime()).isBefore(floor))
         .toList();
-  }
-
-  private List<MessageMention> recentMentions(String symbol, String since) {
-    String requested = safe(symbol).toUpperCase(Locale.ROOT);
-    return repository.recentMessages(since, 600).stream()
-        .flatMap(message -> MessageInstrumentExtractor.extract(messageText(message)).stream()
-            .map(item -> new MessageMention(
-                item,
-                message.bloggerName(),
-                thesis(message, item),
-                abbreviate(messageText(message), 500),
-                message.messageTime(),
-                message.id())))
-        .filter(mention -> requested.isBlank() || requested.equals(mention.symbol()))
-        .collect(Collectors.toMap(
-            MessageMention::symbol,
-            Function.identity(),
-            (left, right) -> parseTime(left.messageTime()).isBefore(parseTime(right.messageTime())) ? right : left,
-            java.util.LinkedHashMap::new))
-        .values()
-        .stream()
-        .toList();
-  }
-
-  private Map<String, MessageMention> latestMentions(List<MessageMention> mentions) {
-    return mentions.stream().collect(Collectors.toMap(MessageMention::symbol, Function.identity()));
-  }
-
-  private ResonanceView messageView(MessageMention mention) {
-    ClusterRecord cluster = new ClusterRecord(
-        "msg-" + mention.symbol() + "-" + mention.messageId(),
-        "",
-        mention.symbol(),
-        bucketDate(mention.messageTime()),
-        "WATCH",
-        "消息",
-        50,
-        "WATCH",
-        "最新消息关注",
-        "%s 最新消息提到 %s：%s".formatted(mention.sourceName(), mention.symbol(), mention.thesis()),
-        "",
-        "",
-        "",
-        "",
-        1,
-        1,
-        1,
-        0,
-        mention.sourceName(),
-        mention.messageTime(),
-        "ACTIVE",
-        "PENDING",
-        "",
-        "",
-        mention.messageTime(),
-        mention.messageTime());
-    ClusterItem item = new ClusterItem(
-        "wxmsg-" + mention.messageId(),
-        "SUPPORT",
-        mention.sourceName(),
-        "WATCH",
-        "消息",
-        mention.thesis(),
-        mention.sourceQuote(),
-        mention.messageTime());
-    return new ResonanceView(cluster, List.of(item));
-  }
-
-  private Instant radarTime(ResonanceView view, Map<String, MessageMention> latestMentions) {
-    Instant clusterTime = parseTime(view.cluster().lastOpinionAt());
-    MessageMention mention = latestMentions.get(view.cluster().symbol());
-    if (mention == null) {
-      return clusterTime;
-    }
-    Instant messageTime = parseTime(mention.messageTime());
-    return messageTime.isAfter(clusterTime) ? messageTime : clusterTime;
   }
 
   private ClusterKey clusterKey(OpinionSignal signal) {
@@ -308,30 +213,6 @@ public class ResonanceService {
         .collect(Collectors.joining("\n"));
   }
 
-  private String thesis(RecentMessage message, String symbol) {
-    String text = messageText(message);
-    for (String line : text.split("\\R")) {
-      String value = line.trim();
-      if (!value.isBlank() && value.toUpperCase(Locale.ROOT).contains(symbol)) {
-        return abbreviate(value, 160);
-      }
-    }
-    return abbreviate(safe(message.summary()).isBlank() ? safe(message.title()) : safe(message.summary()), 160);
-  }
-
-  private String messageText(RecentMessage message) {
-    return List.of(message.detailText(), message.summary(), message.title()).stream()
-        .map(ResonanceService::safe)
-        .filter(value -> !value.isBlank())
-        .findFirst()
-        .orElse("");
-  }
-
-  private String abbreviate(String value, int maxLength) {
-    String text = safe(value);
-    return text.length() <= maxLength ? text : text.substring(0, maxLength) + "...";
-  }
-
   private boolean hasAny(List<String> values) {
     return values.stream().anyMatch(value -> !safe(value).isBlank());
   }
@@ -387,15 +268,6 @@ public class ResonanceService {
   }
 
   private record ClusterKey(String direction, String horizon) {
-  }
-
-  private record MessageMention(
-      String symbol,
-      String sourceName,
-      String thesis,
-      String sourceQuote,
-      String messageTime,
-      String messageId) {
   }
 
   public record ResonanceView(ClusterRecord cluster, List<ClusterItem> items) {

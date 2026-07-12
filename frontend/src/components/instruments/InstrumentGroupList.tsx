@@ -67,7 +67,7 @@ export function InstrumentGroupList(props: Props) {
           {!group || !collapsedGroups.has(group)
             ? items.map((item) => (
               <InstrumentCard
-                dragEnabled
+                dragEnabled={manualMode}
                 dragging={draggingItem}
                 item={item}
                 key={item.id}

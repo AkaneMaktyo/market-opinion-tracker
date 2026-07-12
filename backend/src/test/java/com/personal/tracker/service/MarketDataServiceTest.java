@@ -2,6 +2,7 @@ package com.personal.tracker.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -17,10 +18,33 @@ import com.personal.tracker.repository.MarketBarRepository.BarCoverage;
 import com.personal.tracker.service.market.MarketBarProvider;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
+import java.math.BigDecimal;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class MarketDataServiceTest {
+  @Test
+  void fetchesOnlyLatestBarsWithoutWritingRepository() {
+    var instruments = mock(InstrumentRepository.class);
+    var bars = mock(MarketBarRepository.class);
+    var provider = mock(MarketBarProvider.class);
+    when(provider.name()).thenReturn("bitget");
+    var service = new MarketDataService(
+        instruments, bars, List.of(provider), new MarketDataProperties());
+    var instrument = new Instrument(
+        "inst-1", "BTC", "Bitcoin", "CRYPTO", null, null, null, null,
+        null, null, null, null, null);
+    var older = bar("old", "2026-07-10T01:00:00Z");
+    var latest = bar("latest", "2026-07-10T02:00:00Z");
+    when(provider.fetch(eq(instrument), eq("1H"), anyLong(), anyLong(), eq(3)))
+        .thenReturn(List.of(older, latest));
+
+    assertEquals(latest, service.fetchLatestBar(instrument, "1H").orElseThrow());
+
+    verify(provider).fetch(eq(instrument), eq("1H"), anyLong(), anyLong(), eq(3));
+    verify(bars, never()).saveAll(org.mockito.ArgumentMatchers.<List<MarketBar>>any());
+  }
+
   @Test
   void deepBackfillStartsBeforeExistingOldestBar() {
     var instruments = mock(InstrumentRepository.class);
@@ -45,5 +69,11 @@ class MarketDataServiceTest {
     assertEquals(0, result.fetched());
     verify(provider).fetch(eq(instrument), eq("1D"), isNull(), eq(cursor), eq(1000));
     verify(bars, never()).saveAll(org.mockito.ArgumentMatchers.<List<MarketBar>>any());
+  }
+
+  private static MarketBar bar(String id, String time) {
+    return new MarketBar(
+        id, "inst-1", "1H", time,
+        BigDecimal.ONE, BigDecimal.TEN, BigDecimal.ZERO, BigDecimal.TEN, BigDecimal.TEN);
   }
 }

@@ -58,4 +58,23 @@ public class KolRepository {
     jdbc.update("""
         INSERT INTO kols(id, name, description, created_at)
         VALUES (?, ?, ?, ?)
-#];ëİ­¢G§²ÚîÆ­yÓ¢6†'B×7–âã2Æ–æV"–æf–æ—FS²fÆWƒ¢WFó²Ğ ¤¶W–g&ÖW2&6¶f–ÆÂ×VÇ6R°¢R²&6¶w&÷VæB×÷6—F–öã¢RSS²Ğ¢R²&6¶w&÷VæB×÷6—F–öã¢##RSS²Ğ§Ğ
+        """, item.id(), item.name(), item.description(), item.createdAt());
+    return item;
+  }
+
+  private static String safeName(String name) {
+    String value = name == null || name.isBlank() ? UNNAMED : name.trim();
+    if (value.matches("\\?+")) {
+      throw new IllegalArgumentException("KOL åç§°ç–‘ä¼¼ç¼–ç æŸåï¼Œè¯·é‡æ–°è¾“å…¥ä¸­æ–‡åç§°");
+    }
+    return value;
+  }
+
+  private void ensureDefault() {
+    jdbc.update("""
+        INSERT INTO kols(id, name, description, created_at)
+        VALUES (?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description)
+        """, DEFAULT_ID, DEFAULT_NAME, DEFAULT_DESCRIPTION, JdbcSupport.now());
+  }
+}
