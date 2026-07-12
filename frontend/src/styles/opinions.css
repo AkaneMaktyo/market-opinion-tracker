@@ -111,6 +111,21 @@
   white-space: pre-wrap;
 }
 
+.quote-toggle {
+  background: transparent;
+  border: 0;
+  color: #c2410c;
+  cursor: pointer;
+  font-weight: 800;
+  margin-top: 8px;
+  padding: 0;
+}
+
+.quote-toggle:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
 .opinion-top,
 .review-row,
 .levels {

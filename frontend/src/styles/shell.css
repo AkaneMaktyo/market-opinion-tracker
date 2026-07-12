@@ -107,6 +107,14 @@
 }
 
 @media (max-width: 1160px) {
+  body { overflow: auto; }
+
+  .app {
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
+  }
+
   .topbar {
     align-items: flex-start;
     flex-direction: column;
@@ -114,5 +122,9 @@
 
   .workspace {
     grid-template-columns: 1fr;
+    overflow: visible;
   }
+
+  .center { order: -1; }
+  .right-column { overflow: visible; }
 }

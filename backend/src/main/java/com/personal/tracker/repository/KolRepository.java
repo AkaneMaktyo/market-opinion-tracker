@@ -10,8 +10,8 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class KolRepository {
   public static final String DEFAULT_ID = "default";
-  private static final String DEFAULT_NAME = "é»˜è®¤KOL";
-  private static final String DEFAULT_DESCRIPTION = "ç³»ç»Ÿè‡ªåŠ¨åˆ›å»ºçš„é»˜è®¤æ¥æº";
+  private static final String DEFAULT_NAME = "è‡ªé€‰è¡¨";
+  private static final String DEFAULT_DESCRIPTION = "æ‰‹åŠ¨ç»´æŠ¤çš„è‡ªé€‰æ ‡çš„åˆ—è¡¨";
   private static final String UNNAMED = "æœªå‘½åKOL";
 
   private final JdbcTemplate jdbc;
@@ -58,22 +58,4 @@ public class KolRepository {
     jdbc.update("""
         INSERT INTO kols(id, name, description, created_at)
         VALUES (?, ?, ?, ?)
-        """, item.id(), item.name(), item.description(), item.createdAt());
-    return item;
-  }
-
-  private static String safeName(String name) {
-    String value = name == null || name.isBlank() ? UNNAMED : name.trim();
-    if (value.matches("\\?+")) {
-      throw new IllegalArgumentException("KOL åç§°ç–‘ä¼¼ç¼–ç æŸåï¼Œè¯·é‡æ–°è¾“å…¥ä¸­æ–‡åç§°");
-    }
-    return value;
-  }
-
-  private void ensureDefault() {
-    jdbc.update("""
-        INSERT IGNORE INTO kols(id, name, description, created_at)
-        VALUES (?, ?, ?, ?)
-        """, DEFAULT_ID, DEFAULT_NAME, DEFAULT_DESCRIPTION, JdbcSupport.now());
-  }
-}
+#];ëİ­¢G§²ÚîÆ­yÓ¢6†'B×7–âã2Æ–æV"–æf–æ—FS²fÆWƒ¢WFó²Ğ ¤¶W–g&ÖW2&6¶f–ÆÂ×VÇ6R°¢R²&6¶w&÷VæB×÷6—F–öã¢RSS²Ğ¢R²&6¶w&÷VæB×÷6—F–öã¢##RSS²Ğ§Ğ
