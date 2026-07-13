@@ -75,7 +75,6 @@ public class InstrumentRepository {
         kolId.trim());
     return items.stream().map(item -> withGroup(item, groups.get(item.id()))).toList();
   }
-
   public List<Instrument> findCurrentByKol(String kolId, String query) {
     List<Object> args = new java.util.ArrayList<>();
     StringBuilder sql = new StringBuilder("""
