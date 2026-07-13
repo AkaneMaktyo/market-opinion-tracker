@@ -8,6 +8,7 @@ import { InstrumentLogo } from './InstrumentLogo';
 interface Props {
   instrument: Instrument;
   instruments: Instrument[];
+  kolId: string;
   groups: string[];
   onChanged: (nextSelected?: string) => void;
   onClose: () => void;
@@ -23,7 +24,7 @@ const PROVIDERS = [
   { value: 'bitget', label: 'Bitget' },
 ];
 
-export function InstrumentManager({ instrument, instruments, groups, onChanged, onClose }: Props) {
+export function InstrumentManager({ instrument, instruments, kolId, groups, onChanged, onClose }: Props) {
   const [tab, setTab] = useState<ManagerTab>('rename');
   const [symbol, setSymbol] = useState(instrument.symbol);
   const [name, setName] = useState(instrument.name || '');
@@ -73,7 +74,7 @@ export function InstrumentManager({ instrument, instruments, groups, onChanged, 
   async function doUpdateGroup() {
     setBusy(true);
     try {
-      await api.updateInstrumentGroup(instrument.id, newGroup.trim() || groupName.trim() || null);
+      await api.updateInstrumentGroup(instrument.id, kolId, newGroup.trim() || groupName.trim() || null);
       onChanged();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '更新分组失败');

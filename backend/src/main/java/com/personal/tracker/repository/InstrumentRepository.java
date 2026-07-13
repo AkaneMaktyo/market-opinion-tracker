@@ -1,7 +1,9 @@
 package com.personal.tracker.repository;
 
 import com.personal.tracker.domain.Instrument;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -61,6 +63,17 @@ public class InstrumentRepository {
     }
     sql.append(" GROUP BY i.id ORDER BY latest_opinion_at DESC, i.symbol");
     return jdbc.query(sql.toString(), mapper, args.toArray());
+  }
+
+  public List<Instrument> applyGroups(String kolId, List<Instrument> items) {
+    if (kolId == null || kolId.isBlank() || items.isEmpty()) {
+      return items;
+    }
+    Map<String, String> groups = new HashMap<>();
+    jdbc.query("SELECT instrument_id, group_name FROM kol_instrument_groups WHERE kol_id = ?",
+        (rs, rowNum) -> groups.put(rs.getString("instrument_id"), rs.getString("group_name")),
+        kolId.trim());
+    return items.stream().map(item -> withGroup(item, groups.get(item.id()))).toList();
   }
 
   public List<Instrument> findCurrentByKol(String kolId, String query) {
@@ -222,6 +235,11 @@ public class InstrumentRepository {
     if (sourceId.equals(targetId)) {
       throw new IllegalArgumentException("\u4e0d\u80fd\u5f52\u5e76\u5230\u81ea\u8eab");
     }
+    jdbc.update("""
+        INSERT IGNORE INTO kol_instrument_groups(kol_id, instrument_id, group_name)
+        SELECT kol_id, ?, group_name FROM kol_instrument_groups WHERE instrument_id = ?
+        """, targetId, sourceId);
+    jdbc.update("DELETE FROM kol_instrument_groups WHERE instrument_id = ?", sourceId);
     jdbc.update("UPDATE opinions SET instrument_id = ? WHERE instrument_id = ?", targetId, sourceId);
     jdbc.update("""
         DELETE mb1 FROM market_bars mb1
@@ -239,14 +257,24 @@ public class InstrumentRepository {
     }
     deleteResonanceData(instrumentId);
     deleteOpinionData(instrumentId);
+    jdbc.update("DELETE FROM kol_instrument_groups WHERE instrument_id = ?", instrumentId);
     jdbc.update("DELETE FROM kol_positions WHERE instrument_id = ?", instrumentId);
     jdbc.update("DELETE FROM market_bars WHERE instrument_id = ?", instrumentId);
     return jdbc.update("DELETE FROM instruments WHERE id = ?", instrumentId) > 0;
   }
 
-  public void updateGroup(String instrumentId, String groupName) {
+  public void updateGroup(String kolId, String instrumentId, String groupName) {
     String nextGroup = groupName == null || groupName.isBlank() ? null : groupName.trim();
-    jdbc.update("UPDATE instruments SET group_name = ? WHERE id = ?", nextGroup, instrumentId);
+    String safeKol = kolId == null || kolId.isBlank() ? KolRepository.DEFAULT_ID : kolId.trim();
+    if (nextGroup == null) {
+      jdbc.update("DELETE FROM kol_instrument_groups WHERE kol_id = ? AND instrument_id = ?", safeKol, instrumentId);
+      return;
+    }
+    jdbc.update("""
+        INSERT INTO kol_instrument_groups(kol_id, instrument_id, group_name)
+        VALUES (?, ?, ?)
+        ON DUPLICATE KEY UPDATE group_name = VALUES(group_name)
+        """, safeKol, instrumentId, nextGroup);
   }
 
   public void updateMarketDataProvider(String instrumentId, String provider) {
@@ -265,10 +293,16 @@ public class InstrumentRepository {
         .findFirst();
   }
 
-  public List<String> findAllGroups() {
+  public List<String> findAllGroups(String kolId) {
     return jdbc.queryForList(
-        "SELECT DISTINCT group_name FROM instruments WHERE group_name IS NOT NULL ORDER BY group_name",
-        String.class);
+        "SELECT DISTINCT group_name FROM kol_instrument_groups WHERE kol_id = ? ORDER BY group_name",
+        String.class, kolId == null || kolId.isBlank() ? KolRepository.DEFAULT_ID : kolId.trim());
+  }
+
+  private static Instrument withGroup(Instrument item, String groupName) {
+    return new Instrument(item.id(), item.symbol(), item.name(), item.market(), item.sector(), groupName,
+        item.logoUrl(), item.marketDataProvider(), item.bitgetCategory(), item.bitgetSymbol(),
+        item.bitgetStatus(), item.bitgetCheckedAt(), item.createdAt());
   }
 
   private void deleteResonanceData(String instrumentId) {

@@ -1,59 +1,72 @@
 .rail {
-  display: flex; flex-direction: column; gap: 10px; height: 100%; max-height: none; min-height: 0;
+  background: #fff; border-color: #cbd5e1; border-radius: 8px; color: #131722;
+  display: flex; flex-direction: column; font-family: Inter, "Microsoft YaHei", system-ui, sans-serif;
+  gap: 0; height: 100%; max-height: none; min-height: 0; padding: 12px;
 }
 .rail-head, .rail-head > div, .directory-main, .directory-meta, .manager-logo-row,
 .directory-toolbar, .directory-search, .directory-item, .symbol-product {
   align-items: center; display: flex;
 }
 .rail-head, .directory-item, .directory-toolbar { justify-content: space-between; }
+.rail-head { border-bottom: 1px solid #e0e3eb; min-height: 48px; padding: 0 12px; }
 .rail-head > div { align-items: baseline; gap: 8px; }
-.rail-head .panel-title { margin-bottom: 0; }
-.rail-note { color: #64748b; font-size: 12px; font-weight: 700; }
+.rail-head .panel-title { color: #131722; font-size: 15px; margin-bottom: 0; }
+.rail-note { color: #787b86; font-size: 11px; font-weight: 500; }
 .rail-manage {
-  align-items: center; background: #f0fdfa; border: 1px solid #99f6e4; border-radius: 6px;
-  color: #0f766e; display: inline-flex; gap: 6px; min-height: 32px; padding: 0 10px;
+  align-items: center; background: transparent; border: 0; border-radius: 4px;
+  color: #131722; display: inline-flex; gap: 5px; min-height: 30px; padding: 0 6px;
 }
+.rail-manage:hover { background: #f0f3fa; }
 .rail-sort {
-  background: #eef2f7; border: 1px solid #cbd5e1; border-radius: 6px; display: grid;
-  gap: 2px; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 2px;
+  border-bottom: 1px solid #e0e3eb; display: grid;
+  gap: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 4px 8px;
 }
 .sort-button {
-  align-items: center; background: transparent; border: 0; border-radius: 5px; color: #475569;
-  display: inline-flex; font-size: 12px; font-weight: 800; gap: 4px; justify-content: center;
-  min-height: 30px; padding: 6px 4px;
+  align-items: center; background: transparent; border: 0; border-radius: 3px; color: #787b86;
+  display: inline-flex; font-size: 11px; font-weight: 600; gap: 4px; justify-content: center;
+  min-height: 28px; padding: 4px;
 }
-.sort-button.active { background: #fff; box-shadow: 0 1px 3px rgba(15, 23, 42, .12); color: #0f172a; }
+.sort-button:hover { background: #f0f3fa; color: #131722; }
+.sort-button.active { background: #e8f0fe; box-shadow: none; color: #2962ff; }
 
 .rail-table-head, .symbol {
-  column-gap: 8px; display: grid; grid-template-columns: minmax(92px, 1fr) 76px 64px 62px;
+  column-gap: 8px; display: grid; grid-template-columns: minmax(92px, 1fr) 78px 66px 62px;
 }
 .rail-table-head {
-  border-bottom: 1px solid #e2e8f0; color: #64748b; font-size: 11px; font-weight: 700;
-  padding: 0 30px 8px 8px;
+  background: #fff; border-bottom: 1px solid #e0e3eb; color: #787b86; font-size: 12px; font-weight: 500;
+  min-height: 32px; padding: 8px 28px 6px 10px;
 }
 .rail-table-head span:not(:first-child), .symbol-value { text-align: right; }
-.rail-list { display: flex; flex: 1; flex-direction: column; min-height: 0; overflow-x: hidden; overflow-y: auto; padding-right: 2px; }
-.instrument-group { margin-bottom: 6px; }
+.rail-list {
+  display: flex; flex: 1; flex-direction: column; min-height: 0; overflow-x: hidden; overflow-y: auto; padding-right: 0;
+  scrollbar-color: #b8bdc8 transparent; scrollbar-width: thin;
+}
+.rail-list::-webkit-scrollbar { width: 6px; }
+.rail-list::-webkit-scrollbar-track { background: transparent; }
+.rail-list::-webkit-scrollbar-thumb { background: #b8bdc8; border: 1px solid transparent; border-radius: 999px; background-clip: padding-box; }
+.rail-list::-webkit-scrollbar-thumb:hover { background-color: #8f96a3; }
+.instrument-group { margin-bottom: 0; }
 .group-header {
-  align-items: center; background: transparent; border: 0; border-radius: 4px; color: #475569;
-  cursor: grab; display: flex; font-size: 12px; font-weight: 700; gap: 4px; padding: 8px 6px 6px;
+  align-items: center; background: #f7f8fa; border: 0; border-bottom: 1px solid #e0e3eb; border-radius: 0; color: #787b86;
+  cursor: grab; display: flex; font-size: 12px; font-weight: 600; gap: 5px; min-height: 32px; padding: 5px 10px;
   text-align: left; width: 100%;
 }
-.group-header:hover { background: #f8fafc; }
+.group-header:hover { background: #f0f3fa; color: #131722; }
 .group-header.dragging { cursor: grabbing; opacity: .5; }
-.group-header.drop-target { background: #ecfeff; box-shadow: inset 0 0 0 1px #67e8f9; }
+.group-header.drop-target { background: #e8f0fe; box-shadow: inset 0 0 0 1px #2962ff; }
 .group-count, .directory-badge, .directory-group-pill {
-  background: #e2e8f0; border-radius: 999px; color: #64748b; font-size: 10px; font-weight: 800; padding: 2px 6px;
+  background: transparent; border-radius: 0; color: #787b86; font-size: 11px; font-weight: 500; padding: 0;
 }
 .group-count { margin-left: auto; }
 
 .symbol {
-  align-items: center; background: transparent; border: 0; border-bottom: 1px solid #edf2f7;
-  border-left: 2px solid transparent; border-radius: 0; color: #0f172a; height: 40px;
-  min-height: 40px; padding: 4px 30px 4px 6px; position: relative; text-align: left; width: 100%;
+  align-items: center; background: #fff; border: 0; border-bottom: 1px solid #e0e3eb;
+  border-left: 3px solid transparent; border-radius: 0; color: #131722; height: 38px;
+  min-height: 38px; padding: 4px 28px 4px 8px; position: relative; text-align: left; width: 100%;
 }
-.symbol:hover { background: #f8fafc; }
-.symbol.active { background: #eff6ff; border-left-color: #3b82f6; }
+.symbol:hover { background: #f0f3fa; }
+.symbol.active { background: #dbe8ff; border-left-color: #2962ff; }
+.symbol:focus-visible { outline: 2px solid #2962ff; outline-offset: -2px; }
 .symbol.dragging { opacity: .52; }
 .symbol.manual { cursor: grab; }
 .symbol.movable { cursor: grab; }
@@ -61,21 +74,22 @@
 .symbol.movable:active { cursor: grabbing; }
 .symbol-product { align-self: center; gap: 8px; min-width: 0; overflow: hidden; white-space: nowrap; }
 .symbol-product-text {
-  color: #0f172a; display: block; font-weight: 700; line-height: 16px; min-width: 0;
+  color: #131722; display: block; font-size: 13px; font-weight: 600; line-height: 16px; min-width: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .symbol-value {
-  align-self: center; display: block; font-size: 13px; font-variant-numeric: tabular-nums;
-  font-weight: 700; line-height: 16px; min-width: 0; white-space: nowrap;
+  align-self: center; color: #131722; display: block; font-family: inherit;
+  font-size: 13px; font-variant-numeric: tabular-nums; font-weight: 700; line-height: 16px; min-width: 0; white-space: nowrap;
 }
-.symbol-move.no-data, .symbol-percent.no-data, .symbol-move.flat, .symbol-percent.flat { color: #94a3b8; }
-.symbol-move.up, .symbol-percent.up { color: #0f9d7a; }
-.symbol-move.down, .symbol-percent.down { color: #ef4444; }
+.symbol-move.no-data, .symbol-percent.no-data, .symbol-move.flat, .symbol-percent.flat { color: #9598a1; }
+.symbol-move.up, .symbol-percent.up { color: #089981; }
+.symbol-move.down, .symbol-percent.down { color: #f23645; }
 .symbol-manage {
-  align-items: center; background: #fff; border: 1px solid #dbe4ee; border-radius: 4px; color: #64748b;
-  display: inline-flex; height: 22px; justify-content: center; opacity: 0; position: absolute; right: 4px;
+  align-items: center; background: #fff; border: 1px solid #d1d4dc; border-radius: 3px; color: #787b86;
+  display: inline-flex; height: 22px; justify-content: center; opacity: 0; position: absolute; right: 3px;
   top: 50%; transform: translateY(-50%); transition: opacity .16s ease; width: 22px;
 }
+.symbol-manage:hover { background: #f0f3fa; color: #131722; }
 .symbol:hover .symbol-manage, .symbol:focus-within .symbol-manage, .symbol.active .symbol-manage { opacity: 1; }
 .stock-icon, .stock-icon-fallback { border-radius: 999px; height: 20px; justify-content: center; width: 20px; }
 .stock-icon { flex: 0 0 auto; object-fit: contain; }
@@ -106,7 +120,7 @@
 @media (max-width: 1280px) {
   .rail-table-head, .symbol {
     column-gap: 6px;
-    grid-template-columns: minmax(70px, 1fr) 68px 50px 50px;
+    grid-template-columns: minmax(70px, 1fr) 68px 54px 52px;
   }
   .rail-table-head { padding-right: 24px; }
   .symbol { padding-right: 24px; }

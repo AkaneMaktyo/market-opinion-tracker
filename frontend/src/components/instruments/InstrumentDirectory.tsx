@@ -7,12 +7,13 @@ import { InstrumentManager } from './InstrumentManager';
 interface Props {
   groups: string[];
   instruments: Instrument[];
+  kolId: string;
   selected: string;
   onChanged: (nextSelected?: string) => void;
   onClose: () => void;
 }
 
-export function InstrumentDirectory({ groups, instruments, selected, onChanged, onClose }: Props) {
+export function InstrumentDirectory({ groups, instruments, kolId, selected, onChanged, onClose }: Props) {
   const [query, setQuery] = useState('');
   const [managing, setManaging] = useState<Instrument | null>(null);
   const filtered = useMemo(() => {
@@ -81,6 +82,7 @@ export function InstrumentDirectory({ groups, instruments, selected, onChanged, 
           groups={groups}
           instrument={managing}
           instruments={instruments}
+          kolId={kolId}
           onChanged={(nextSelected) => {
             setManaging(null);
             onClose();

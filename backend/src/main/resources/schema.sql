@@ -338,6 +338,19 @@ CREATE TABLE IF NOT EXISTS kol_positions (
   INDEX idx_kol_position_instrument(instrument_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS kol_instrument_groups (
+  kol_id VARCHAR(64) NOT NULL,
+  instrument_id VARCHAR(64) NOT NULL,
+  group_name VARCHAR(255) NOT NULL,
+  PRIMARY KEY (kol_id, instrument_id),
+  INDEX idx_kol_instrument_group(kol_id, group_name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT IGNORE INTO kol_instrument_groups(kol_id, instrument_id, group_name)
+SELECT 'default', id, group_name
+FROM instruments
+WHERE group_name IS NOT NULL AND group_name <> '';
+
 CREATE TABLE IF NOT EXISTS resonance_clusters (
   id VARCHAR(64) PRIMARY KEY,
   instrument_id VARCHAR(64) NOT NULL,

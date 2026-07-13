@@ -59,12 +59,12 @@ export function useDashboardData() {
       setSelectedValue(nextSelected);
       void loadChart(kolId, nextSelected, timeframeRef.current);
     }
-    const instrumentsRequest = api.instruments(kolId, 'history', false);
+    const instrumentsRequest = api.watchlist(kolId, false);
     const shellRequest = Promise.all([
       api.kols(),
       api.sessions(kolId),
       api.marketBackfill(),
-      api.instrumentGroups(),
+      api.instrumentGroups(kolId),
     ]);
     const nextInstruments = await instrumentsRequest;
     if (seq !== shellSeq.current) return;
@@ -74,7 +74,7 @@ export function useDashboardData() {
     setInstruments(nextInstruments);
     setSelectedValue(nextSelected);
     void loadChart(kolId, nextSelected, timeframeRef.current);
-    void api.instruments(kolId, 'history').then((refreshed) => {
+    void api.watchlist(kolId).then((refreshed) => {
       if (seq !== shellSeq.current) return;
       instrumentCache.current.set(kolId, refreshed);
       writeInstrumentCache(kolId, refreshed);
@@ -96,7 +96,7 @@ export function useDashboardData() {
     if (quoteRefreshInFlight.current) return;
     quoteRefreshInFlight.current = true;
     try {
-      const nextInstruments = await api.instruments(kolRef.current, 'history');
+      const nextInstruments = await api.watchlist(kolRef.current);
       instrumentCache.current.set(kolRef.current, nextInstruments);
       writeInstrumentCache(kolRef.current, nextInstruments);
       setInstruments(nextInstruments);
