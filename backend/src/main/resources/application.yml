@@ -1,5 +1,9 @@
 server:
   port: 8080
+  compression:
+    enabled: true
+    min-response-size: 1024
+    mime-types: application/json
   servlet:
     encoding:
       charset: UTF-8
@@ -9,7 +13,9 @@ server:
 
 market-data:
   # Options: bitget, okx, binance, bybit, all. Tried in order.
+  startup-sync-enabled: ${MARKET_DATA_STARTUP_SYNC_ENABLED:false}
   providers:
+    - yahoo
     - bitget
 
 trading:
@@ -43,9 +49,21 @@ spring:
     username: ${SPRING_DATASOURCE_USERNAME}
     password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 0
+      connection-timeout: 15000
+      validation-timeout: 5000
+      idle-timeout: 30000
+      max-lifetime: 120000
+      keepalive-time: 30000
+      data-source-properties:
+        connectTimeout: 3000
+        socketTimeout: 30000
+        tcpKeepAlive: true
   sql:
     init:
-      mode: always
+      mode: ${SPRING_SQL_INIT_MODE:never}
       encoding: UTF-8
       schema-locations: classpath:schema.sql
       continue-on-error: true

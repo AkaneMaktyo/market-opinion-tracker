@@ -8,6 +8,9 @@ import java.util.regex.Pattern;
 
 public final class WxPusherBloggerMatcher {
   private static final Pattern BRACKET_SOURCE = Pattern.compile("\\[[^\\]\\n]*?｜\\s*([^\\]\\n:]{2,40})\\]");
+  private static final Pattern LEADING_BRACKET_SOURCE = Pattern.compile("^\\s*\\[([^\\]\\n:]{2,60})\\]");
+  private static final Pattern LEADING_COMPACT_SOURCE = Pattern.compile("^\\s*([^\\s:\\n]{2,80})\\s*(?:\\R|$)");
+  private static final Pattern LINE_BRACKET_SOURCE = Pattern.compile("(?m)^\\s*\\[([^\\]\\n:]{2,80})\\]");
   private static final Pattern LINE_SOURCE = Pattern.compile("(?m)^\\s*[^\\p{L}\\p{N}\\n]{0,6}｜\\s*([^\\n:]{2,40})\\s*$");
   private static final Pattern BRACKET_HANDLE = Pattern.compile("\\]\\s*([^:\\n]{2,40})\\s*:");
   private static final Pattern AT_HANDLE = Pattern.compile("@([\\p{L}\\p{N}_.-]{2,40})");
@@ -45,13 +48,21 @@ public final class WxPusherBloggerMatcher {
     return score(incoming, blogger) > 0;
   }
 
+  public static boolean hasExplicitSource(WxPusherClient.IncomingMessage incoming) {
+    return !sourceCandidates(incoming).isEmpty();
+  }
+
   private static int score(WxPusherClient.IncomingMessage incoming, WxPusherBlogger blogger) {
     int source = 0;
-    for (String candidate : sourceCandidates(incoming)) {
+    List<String> sources = sourceCandidates(incoming);
+    for (String candidate : sources) {
       source = Math.max(source, score(candidate, blogger));
     }
     if (source > 0) {
       return source + 3;
+    }
+    if (!sources.isEmpty()) {
+      return 0;
     }
     int best = 0;
     for (String candidate : authorCandidates(incoming)) {
@@ -141,9 +152,27 @@ public final class WxPusherBloggerMatcher {
   private static List<String> extractSources(String text) {
     String safe = text == null ? "" : text;
     List<String> values = new ArrayList<>();
+    collectDecoratedFirstLine(values, safe);
     collect(values, BRACKET_SOURCE, safe);
+    if (!hasSpecificHandle(safe)) {
+      collect(values, LEADING_BRACKET_SOURCE, safe);
+      collectLineBracketSources(values, safe);
+      collectCompactSource(values, safe);
+    }
     collect(values, LINE_SOURCE, safe);
     return values;
+  }
+
+  private static boolean hasSpecificHandle(String text) {
+    return extractHandles(text).stream().anyMatch(value -> !genericHandle(value));
+  }
+
+  private static boolean genericHandle(String value) {
+    String normalized = normalize(value);
+    return normalized.equals("premium signals")
+        || normalized.equals("feed")
+        || normalized.equals("reply")
+        || normalized.equals("embeds");
   }
 
   private static List<String> extractHandles(String text) {
@@ -159,6 +188,58 @@ public final class WxPusherBloggerMatcher {
     while (matcher.find()) {
       values.add(matcher.group(1));
     }
+  }
+
+  private static void collectLineBracketSources(List<String> values, String text) {
+    var matcher = LINE_BRACKET_SOURCE.matcher(text);
+    while (matcher.find()) {
+      String value = matcher.group(1);
+      if (!genericDecoratedLine("[" + value + "]")) {
+        values.add(value);
+      }
+    }
+  }
+
+  private static void collectDecoratedFirstLine(List<String> values, String text) {
+    for (String line : text.split("\\R")) {
+      String value = line.trim();
+      if (value.isBlank()) {
+        continue;
+      }
+      if (startsDecorated(value) && hasLetter(value) && !genericDecoratedLine(value)) {
+        values.add(value);
+      }
+      return;
+    }
+  }
+
+  private static boolean genericDecoratedLine(String value) {
+    String normalized = normalize(value);
+    return normalized.length() <= 12 && normalized.startsWith("[") && normalized.endsWith("]");
+  }
+
+  private static boolean hasLetter(String value) {
+    return value.codePoints().anyMatch(Character::isLetter);
+  }
+
+  private static void collectCompactSource(List<String> values, String text) {
+    var matcher = LEADING_COMPACT_SOURCE.matcher(text);
+    if (!matcher.find()) {
+      return;
+    }
+    String value = matcher.group(1);
+    if (value.contains("｜") || !startsDecorated(value)) {
+      return;
+    }
+    values.add(value);
+  }
+
+  private static boolean startsDecorated(String value) {
+    if (value == null || value.isBlank()) {
+      return false;
+    }
+    int first = value.codePointAt(0);
+    return !Character.isLetterOrDigit(first);
   }
 
   private static String normalize(String value) {

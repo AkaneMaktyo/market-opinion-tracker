@@ -1,8 +1,6 @@
 package com.personal.tracker.repository;
 
 import com.personal.tracker.domain.Instrument;
-import java.time.YearMonth;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -12,7 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public class InstrumentRepository {
-  private static final ZoneId APP_ZONE = ZoneId.of("Asia/Shanghai");
   private final JdbcTemplate jdbc;
   private final RowMapper<Instrument> mapper = (rs, rowNum) -> new Instrument(
       rs.getString("id"),
@@ -45,45 +42,15 @@ public class InstrumentRepository {
         """, mapper, like, like);
   }
 
-  public List<Instrument> findByKol(String kolId, String query) {
+  public List<Instrument> findOpinionHistoryByKol(String kolId, String query) {
     List<Object> args = new java.util.ArrayList<>();
     StringBuilder sql = new StringBuilder("""
-        SELECT DISTINCT i.* FROM instruments i
-        WHERE (
-          EXISTS (
-            SELECT 1 FROM opinions o
-            JOIN live_sessions s ON s.id = o.session_id
-            WHERE o.instrument_id = i.id AND s.kol_id = ?
-          )
-          OR EXISTS (
-            SELECT 1 FROM live_sessions s
-            WHERE s.kol_id = ? AND s.session_date >= ?
-              AND CHAR_LENGTH(i.symbol) >= 2
-              AND UPPER(CONCAT_WS(' ', s.title, s.raw_text))
-                REGEXP CONCAT('(^|[^A-Z0-9])', i.symbol, '([^A-Z0-9]|$)')
-          )
-        )
-        """);
-    String safeKol = kolId == null || kolId.isBlank() ? KolRepository.DEFAULT_ID : kolId.trim();
-    args.add(safeKol);
-    args.add(safeKol);
-    args.add(monthStart());
-    if (query != null && !query.isBlank()) {
-      String like = "%" + query.trim().toUpperCase() + "%";
-      sql.append(" AND (i.symbol LIKE ? OR UPPER(COALESCE(i.name, '')) LIKE ?)");
-      args.add(like);
-      args.add(like);
-    }
-    sql.append(" ORDER BY i.symbol");
-    return jdbc.query(sql.toString(), mapper, args.toArray());
-  }
-
-  public List<Instrument> findCurrentByKol(String kolId, String query) {
-    List<Object> args = new java.util.ArrayList<>();
-    StringBuilder sql = new StringBuilder("""
-        SELECT DISTINCT i.* FROM instruments i
-        JOIN kol_positions p ON p.instrument_id = i.id
-        WHERE p.kol_id = ? AND p.status = 'ACTIVE'
+        SELECT i.*, MAX(COALESCE(wm.message_time, o.opinion_time, s.created_at)) latest_opinion_at
+        FROM instruments i
+        JOIN opinions o ON o.instrument_id = i.id
+        JOIN live_sessions s ON s.id = o.session_id AND s.kol_id = ?
+        LEFT JOIN wxpusher_messages wm ON wm.session_id = s.id
+        WHERE 1 = 1
         """);
     args.add(kolId == null || kolId.isBlank() ? KolRepository.DEFAULT_ID : kolId.trim());
     if (query != null && !query.isBlank()) {
@@ -92,7 +59,37 @@ public class InstrumentRepository {
       args.add(like);
       args.add(like);
     }
-    sql.append(" ORDER BY i.symbol");
+    sql.append(" GROUP BY i.id ORDER BY latest_opinion_at DESC, i.symbol");
+    return jdbc.query(sql.toString(), mapper, args.toArray());
+  }
+
+  public List<Instrument> findCurrentByKol(String kolId, String query) {
+    List<Object> args = new java.util.ArrayList<>();
+    StringBuilder sql = new StringBuilder("""
+        SELECT i.*, COALESCE(oa.latest_opinion_at, p.updated_at, p.created_at) latest_activity_at
+        FROM instruments i
+        JOIN kol_positions p ON p.instrument_id = i.id
+        LEFT JOIN (
+          SELECT o.instrument_id,
+                 MAX(COALESCE(wm.message_time, o.opinion_time, s.created_at)) latest_opinion_at
+          FROM opinions o
+          JOIN live_sessions s ON s.id = o.session_id
+          LEFT JOIN wxpusher_messages wm ON wm.session_id = s.id
+          WHERE s.kol_id = ?
+          GROUP BY o.instrument_id
+        ) oa ON oa.instrument_id = i.id
+        WHERE p.kol_id = ? AND p.status = 'ACTIVE'
+        """);
+    String safeKol = kolId == null || kolId.isBlank() ? KolRepository.DEFAULT_ID : kolId.trim();
+    args.add(safeKol);
+    args.add(safeKol);
+    if (query != null && !query.isBlank()) {
+      String like = "%" + query.trim().toUpperCase() + "%";
+      sql.append(" AND (i.symbol LIKE ? OR UPPER(COALESCE(i.name, '')) LIKE ?)");
+      args.add(like);
+      args.add(like);
+    }
+    sql.append(" ORDER BY latest_activity_at DESC, i.symbol");
     return jdbc.query(sql.toString(), mapper, args.toArray());
   }
 
@@ -320,7 +317,4 @@ public class InstrumentRepository {
     return (left == null ? "" : left).equals(right == null ? "" : right);
   }
 
-  private static String monthStart() {
-    return YearMonth.now(APP_ZONE).atDay(1).toString();
-  }
 }

@@ -1,6 +1,7 @@
 import { CheckCircle2, CircleDot, XCircle } from 'lucide-react';
 import { api } from '../api/client';
 import type { OpinionView } from '../types';
+import { cleanRepeatedQuote, ExpandableQuote } from './opinions/ExpandableQuote';
 
 interface Props {
   symbol: string;
@@ -31,6 +32,7 @@ export function OpinionList({ symbol, opinions, onChanged }: Props) {
       <div className="timeline">
         {sorted.map(({ opinion, priceLevels, review: result }) => {
           const quote = originalText(opinion.sourceQuote, opinion.rawItemJson);
+          const fallback = fallbackOpinion(opinion.rawItemJson);
           const message = opinion.status === 'MESSAGE';
           return (
             <article className="opinion timeline-item" key={opinion.id}>
@@ -40,10 +42,16 @@ export function OpinionList({ symbol, opinions, onChanged }: Props) {
                 </span>
                 <time>{opinion.opinionTime.slice(0, 10)}</time>
               </div>
-              {opinion.rawDirection && <p className="raw-direction">{opinion.rawDirection}</p>}
-              <h3>{opinion.thesis}</h3>
-              <p>周期：{opinion.horizon}</p>
-              {priceLevels.length > 0 ? (
+              {fallback ? (
+                <ExpandableQuote sessionId={opinion.sessionId} text={quote || opinion.thesis} />
+              ) : (
+                <>
+                  {opinion.rawDirection && <p className="raw-direction">{opinion.rawDirection}</p>}
+                  <h3>{opinion.thesis}</h3>
+                  <p>周期：{opinion.horizon}</p>
+                </>
+              )}
+              {!fallback && priceLevels.length > 0 ? (
                 <div className="levels">
                   {priceLevels.map((level) => (
                     <span key={`${level.levelType}-${level.price}`}>
@@ -52,11 +60,11 @@ export function OpinionList({ symbol, opinions, onChanged }: Props) {
                   ))}
                 </div>
               ) : null}
-              {opinion.priceNotesText && <p className="detail-text">{opinion.priceNotesText}</p>}
-              {opinion.catalystsText && <p className="detail-text">催化：{opinion.catalystsText}</p>}
-              {opinion.risksText && <p className="detail-text">风险：{opinion.risksText}</p>}
-              {quote && <p className="source-quote">原文：{quote}</p>}
-              {message ? (
+              {!fallback && opinion.priceNotesText && <p className="detail-text">{opinion.priceNotesText}</p>}
+              {!fallback && opinion.catalystsText && <p className="detail-text">催化：{opinion.catalystsText}</p>}
+              {!fallback && opinion.risksText && <p className="detail-text">风险：{opinion.risksText}</p>}
+              {!fallback && quote && <ExpandableQuote sessionId={opinion.sessionId} text={quote} />}
+              {fallback ? null : message ? (
                 <div className="review-row"><span>来自 KOL 历史消息</span></div>
               ) : (
                 <div className="review-row">
@@ -109,13 +117,23 @@ function outcomeLabel(value: string) {
 }
 
 function originalText(sourceQuote?: string, rawItemJson?: string) {
-  if (sourceQuote?.trim()) return sourceQuote.trim();
+  if (sourceQuote?.trim()) return cleanRepeatedQuote(sourceQuote);
   if (!rawItemJson) return '';
   try {
     const raw = JSON.parse(rawItemJson) as Record<string, unknown>;
     const value = raw['原文摘录'] || raw.sourceQuote || raw.source_quote;
-    return typeof value === 'string' ? value.trim() : '';
+    return typeof value === 'string' ? cleanRepeatedQuote(value) : '';
   } catch {
     return '';
+  }
+}
+
+function fallbackOpinion(rawItemJson?: string) {
+  if (!rawItemJson) return false;
+  try {
+    const raw = JSON.parse(rawItemJson) as Record<string, unknown>;
+    return raw.fallback === 'keyword';
+  } catch {
+    return false;
   }
 }

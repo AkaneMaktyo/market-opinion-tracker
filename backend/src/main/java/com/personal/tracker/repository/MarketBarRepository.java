@@ -27,12 +27,32 @@ public class MarketBarRepository {
     this.jdbc = jdbc;
   }
 
-  public List<MarketBar> findBars(String instrumentId, String timeframe) {
+  public List<MarketBar> findRecentBars(
+      String instrumentId,
+      String timeframe,
+      int limit,
+      String before) {
+    int boundedLimit = Math.max(1, Math.min(limit, 2000));
+    if (before == null || before.isBlank()) {
+      return jdbc.query("""
+          SELECT * FROM (
+            SELECT * FROM market_bars
+            WHERE instrument_id = ? AND timeframe = ?
+            ORDER BY bar_time DESC
+            LIMIT ?
+          ) recent
+          ORDER BY bar_time
+          """, mapper, instrumentId, timeframe, boundedLimit);
+    }
     return jdbc.query("""
-        SELECT * FROM market_bars
-        WHERE instrument_id = ? AND timeframe = ?
+        SELECT * FROM (
+          SELECT * FROM market_bars
+          WHERE instrument_id = ? AND timeframe = ? AND bar_time < ?
+          ORDER BY bar_time DESC
+          LIMIT ?
+        ) recent
         ORDER BY bar_time
-        """, mapper, instrumentId, timeframe);
+        """, mapper, instrumentId, timeframe, before, boundedLimit);
   }
 
   public int count(String instrumentId, String timeframe) {
@@ -89,30 +109,30 @@ public class MarketBarRepository {
     }
     String placeholders = instrumentIds.stream().map(item -> "?").collect(Collectors.joining(", "));
     String sql = """
-        SELECT instrument_id,
-               MAX(CASE WHEN rn = 1 THEN bar_time END) latest_bar_time,
-               MAX(CASE WHEN rn = 1 THEN close END) latest_close,
-               MAX(CASE WHEN rn = 2 THEN close END) previous_close
-        FROM (
-          SELECT instrument_id, bar_time, close,
-                 ROW_NUMBER() OVER (
-                   PARTITION BY instrument_id
-                   ORDER BY bar_time DESC
-                 ) rn
-          FROM market_bars
-          WHERE timeframe = '1D'
-            AND bar_time <= ?
-            AND instrument_id IN (%s)
-        ) ranked
-        WHERE rn <= 2
-        GROUP BY instrument_id
+        SELECT i.id instrument_id,
+               (SELECT b.bar_time FROM market_bars b
+                WHERE b.instrument_id = i.id AND b.timeframe = '1D' AND b.bar_time <= ?
+                ORDER BY b.bar_time DESC LIMIT 1) latest_bar_time,
+               (SELECT b.close FROM market_bars b
+                WHERE b.instrument_id = i.id AND b.timeframe = '1D' AND b.bar_time <= ?
+                ORDER BY b.bar_time DESC LIMIT 1) latest_close,
+               (SELECT b.close FROM market_bars b
+                WHERE b.instrument_id = i.id AND b.timeframe = '1D' AND b.bar_time <= ?
+                ORDER BY b.bar_time DESC LIMIT 1 OFFSET 1) previous_close
+        FROM instruments i
+        WHERE i.id IN (%s)
         """.formatted(placeholders);
     List<Object> args = new java.util.ArrayList<>();
+    args.add(currentDate);
+    args.add(currentDate);
     args.add(currentDate);
     args.addAll(instrumentIds);
     return jdbc.query(sql, rs -> {
       Map<String, DailySnapshot> items = new java.util.HashMap<>();
       while (rs.next()) {
+        if (rs.getString("latest_bar_time") == null) {
+          continue;
+        }
         items.put(rs.getString("instrument_id"), new DailySnapshot(
             rs.getString("latest_bar_time"),
             rs.getBigDecimal("latest_close"),

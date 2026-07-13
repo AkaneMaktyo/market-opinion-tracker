@@ -8,6 +8,7 @@ import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository.WxPus
 import com.personal.tracker.service.wxpusher.WxPusherAdminService;
 import com.personal.tracker.service.wxpusher.WxPusherAdminService.BloggerCommand;
 import com.personal.tracker.service.wxpusher.WxPusherAdminService.BloggerView;
+import com.personal.tracker.service.wxpusher.WxPusherAdminService.RetryBatchResult;
 import com.personal.tracker.service.wxpusher.WxPusherAdminService.StatusView;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -103,6 +104,14 @@ public class WxPusherController {
   @PostMapping("/messages/{id}/retry")
   WxPusherMessage retry(@PathVariable String id) {
     return admin.retry(id);
+  }
+
+  @PostMapping("/messages/retry-batch")
+  RetryBatchResult retryBatch(
+      @RequestParam(defaultValue = "SKIPPED") String status,
+      @RequestParam(required = false) String kolId,
+      @RequestParam(defaultValue = "30") int limit) {
+    return admin.retryBatch(status, kolId, limit);
   }
 
   public record SettingsRequest(

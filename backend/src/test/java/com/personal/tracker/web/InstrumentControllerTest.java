@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.personal.tracker.repository.InstrumentRepository;
 import com.personal.tracker.repository.MarketBarRepository;
 import com.personal.tracker.service.MarketDataService;
+import com.personal.tracker.service.instruments.InstrumentHistoryService;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
@@ -21,7 +22,8 @@ class InstrumentControllerTest {
     var marketBars = mock(MarketBarRepository.class);
     var marketData = mock(MarketDataService.class);
     when(instruments.delete("inst-1")).thenReturn(true);
-    var controller = new InstrumentController(instruments, marketBars, marketData);
+    var controller = new InstrumentController(
+        instruments, mock(InstrumentHistoryService.class), marketBars, marketData);
 
     assertEquals(Map.of("status", "ok", "message", "删除完成"), controller.delete("inst-1"));
 
@@ -34,7 +36,8 @@ class InstrumentControllerTest {
     var marketBars = mock(MarketBarRepository.class);
     var marketData = mock(MarketDataService.class);
     when(instruments.delete("missing")).thenReturn(false);
-    var controller = new InstrumentController(instruments, marketBars, marketData);
+    var controller = new InstrumentController(
+        instruments, mock(InstrumentHistoryService.class), marketBars, marketData);
 
     ResponseStatusException error = assertThrows(
         ResponseStatusException.class,

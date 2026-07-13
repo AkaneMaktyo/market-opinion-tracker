@@ -3,19 +3,16 @@ import { useState } from 'react';
 import { api } from '../api/client';
 import type { PositionAction } from '../positionTypes';
 import type { Direction, ImportCandidate, ImportPreview } from '../types';
-
 interface Props {
   kolId: string;
   onImported: (symbol: string) => void;
 }
-
 const directions: { value: Direction; label: string }[] = [
   { value: 'BULLISH', label: '看多' },
   { value: 'BEARISH', label: '看空' },
   { value: 'RANGE', label: '震荡' },
   { value: 'WATCH', label: '观望' },
 ];
-
 const positionActions: { value: PositionAction; label: string }[] = [
   { value: 'IGNORE', label: '不改持仓' },
   { value: 'OPEN', label: '加入持仓' },

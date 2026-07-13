@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -14,6 +15,8 @@ import com.personal.tracker.domain.Opinion;
 import com.personal.tracker.repository.InstrumentRepository;
 import com.personal.tracker.repository.OpinionRepository;
 import com.personal.tracker.repository.SessionRepository;
+import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository;
+import com.personal.tracker.repository.wxpusher.WxPusherBloggerRepository.WxPusherBlogger;
 import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository.WxPusherMessage;
 import com.personal.tracker.service.positions.KolPositionService;
@@ -28,10 +31,11 @@ class OpinionServiceTest {
     var instruments = mock(InstrumentRepository.class);
     var opinions = mock(OpinionRepository.class);
     var sessions = mock(SessionRepository.class);
+    var bloggers = mock(WxPusherBloggerRepository.class);
     var messages = mock(WxPusherMessageRepository.class);
     var positions = mock(KolPositionService.class);
     var resonance = mock(ResonanceService.class);
-    var service = new OpinionService(instruments, opinions, sessions, messages, positions, resonance);
+    var service = new OpinionService(instruments, opinions, sessions, bloggers, messages, positions, resonance);
     var instrument = new Instrument(
         "inst-1", "NVDA", "NVIDIA", "US", "", "", "", "",
         "", "", "", "", "");
@@ -59,10 +63,11 @@ class OpinionServiceTest {
     var instruments = mock(InstrumentRepository.class);
     var opinions = mock(OpinionRepository.class);
     var sessions = mock(SessionRepository.class);
+    var bloggers = mock(WxPusherBloggerRepository.class);
     var messages = mock(WxPusherMessageRepository.class);
     var positions = mock(KolPositionService.class);
     var resonance = mock(ResonanceService.class);
-    var service = new OpinionService(instruments, opinions, sessions, messages, positions, resonance);
+    var service = new OpinionService(instruments, opinions, sessions, bloggers, messages, positions, resonance);
     var instrument = new Instrument(
         "inst-1", "NVDA", "NVIDIA", "US", "", "", "", "",
         "", "", "", "", "");
@@ -73,6 +78,7 @@ class OpinionServiceTest {
         "session-1", "now", "now");
     when(opinions.find("kol-1", "NVDA", null, 100)).thenReturn(List.of());
     when(instruments.findBySymbol("NVDA")).thenReturn(Optional.of(instrument));
+    when(bloggers.enabled()).thenReturn(List.of(blogger("kol-1", "顺哥", List.of("顺哥"))));
     when(messages.findByKolSince(anyString(), anyString(), anyInt())).thenReturn(List.of(message));
 
     var result = service.find("kol-1", "NVDA", null, 100);
@@ -80,5 +86,71 @@ class OpinionServiceTest {
     assertEquals(1, result.size());
     assertEquals("MESSAGE", result.get(0).opinion().status());
     assertEquals("NVDA", result.get(0).opinion().symbol());
+    verify(opinions).find("kol-1", "NVDA", null, 100);
+    verify(messages).findByKolSince(eq("kol-1"), anyString(), anyInt());
+  }
+
+  @Test
+  void hidesMessageWhenSameSessionAlreadyProducedOpinion() {
+    var instruments = mock(InstrumentRepository.class);
+    var opinions = mock(OpinionRepository.class);
+    var sessions = mock(SessionRepository.class);
+    var bloggers = mock(WxPusherBloggerRepository.class);
+    var messages = mock(WxPusherMessageRepository.class);
+    var service = new OpinionService(instruments, opinions, sessions, bloggers, messages,
+        mock(KolPositionService.class), mock(ResonanceService.class));
+    var instrument = new Instrument(
+        "inst-1", "AVGO", "Broadcom", "US", "", "", "", "", "", "", "", "", "");
+    var opinion = new Opinion(
+        "opinion-1", "session-1", "inst-1", "AVGO", "BULLISH", "短线",
+        "366 到 403 已全部套现", "", "", null, "", null, "", "", "",
+        "", "{}", "2026-07-11T10:00:00", "ACTIVE", "now");
+    var message = new WxPusherMessage(
+        "msg-1", "key-1", "kol-1", "顺哥", "标题", "AVGO 366 到 403 已全部套现",
+        "", "", "2026-07-11T10:00:00Z", "", "AVGO 366 到 403 已全部套现", "",
+        "IMPORTED", "", "session-1", "now", "now");
+    when(opinions.find("kol-1", "AVGO", null, 100)).thenReturn(List.of(opinion));
+    when(opinions.findLevels("opinion-1")).thenReturn(List.of());
+    when(opinions.findReview("opinion-1")).thenReturn(Optional.empty());
+    when(instruments.findBySymbol("AVGO")).thenReturn(Optional.of(instrument));
+    when(bloggers.enabled()).thenReturn(List.of());
+    when(messages.findByKolSince(anyString(), anyString(), anyInt())).thenReturn(List.of(message));
+
+    var result = service.find("kol-1", "AVGO", null, 100);
+
+    assertEquals(1, result.size());
+    assertEquals("ACTIVE", result.get(0).opinion().status());
+  }
+
+  @Test
+  void hidesMessageHintsFromUnconfiguredNestedSource() {
+    var instruments = mock(InstrumentRepository.class);
+    var opinions = mock(OpinionRepository.class);
+    var sessions = mock(SessionRepository.class);
+    var bloggers = mock(WxPusherBloggerRepository.class);
+    var messages = mock(WxPusherMessageRepository.class);
+    var positions = mock(KolPositionService.class);
+    var resonance = mock(ResonanceService.class);
+    var service = new OpinionService(instruments, opinions, sessions, bloggers, messages, positions, resonance);
+    var instrument = new Instrument(
+        "inst-1", "GOLD", "Gold", "US", "", "", "", "",
+        "", "", "", "", "");
+    var message = new WxPusherMessage(
+        "msg-gold", "key-gold", "kol-1", "顺哥", "标题",
+        "GOLD SELL NOW", "", "", "2026-07-08T14:00:00Z",
+        "", "✨黄金帝国-PREMIUM-CIRCLE-⭕\nGOLD SELL NOW @ 4081", "", "SKIPPED", "",
+        "session-1", "now", "now");
+    when(opinions.find("kol-1", "GOLD", null, 100)).thenReturn(List.of());
+    when(instruments.findBySymbol("GOLD")).thenReturn(Optional.of(instrument));
+    when(bloggers.enabled()).thenReturn(List.of(blogger("kol-1", "顺哥", List.of("CIA-信息推送", "顺哥"))));
+    when(messages.findByKolSince(anyString(), anyString(), anyInt())).thenReturn(List.of(message));
+
+    var result = service.find("kol-1", "GOLD", null, 100);
+
+    assertEquals(0, result.size());
+  }
+
+  private WxPusherBlogger blogger(String kolId, String name, List<String> aliases) {
+    return new WxPusherBlogger("blogger-" + kolId, kolId, name, aliases, true, "LAST_30", null, "", "");
   }
 }

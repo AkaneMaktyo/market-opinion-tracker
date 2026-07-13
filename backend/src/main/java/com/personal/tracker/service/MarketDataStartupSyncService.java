@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -20,13 +21,21 @@ public class MarketDataStartupSyncService {
   private static final int WORKERS = 4;
 
   private final MarketDataService marketData;
+  private final boolean enabled;
 
-  public MarketDataStartupSyncService(MarketDataService marketData) {
+  public MarketDataStartupSyncService(
+      MarketDataService marketData,
+      @Value("${market-data.startup-sync-enabled:false}") boolean enabled) {
     this.marketData = marketData;
+    this.enabled = enabled;
   }
 
   @EventListener(ApplicationReadyEvent.class)
   public void start() {
+    if (!enabled) {
+      log.info("启动 K 线后台更新已关闭。");
+      return;
+    }
     Thread worker = new Thread(this::syncAll, "market-bar-startup-sync");
     worker.setDaemon(true);
     worker.start();

@@ -8,9 +8,10 @@ import type {
   Timeframe,
 } from '../../types';
 import { useChartData } from './useChartData';
+import { pickSelectedSymbol, readInstrumentCache, writeInstrumentCache } from './instrumentCache';
 
-const DEFAULT_KOL = 'kzg';
-const QUOTE_REFRESH_MS = 6000;
+const DEFAULT_KOL = 'default';
+const QUOTE_REFRESH_MS = 12000;
 
 export function useDashboardData() {
   const [selected, setSelected] = useState('');
@@ -23,12 +24,15 @@ export function useDashboardData() {
   const [backfillBusy, setBackfillBusy] = useState(false);
   const [backfillError, setBackfillError] = useState('');
   const [instrumentGroups, setInstrumentGroups] = useState<string[]>([]);
-  const { bars, opinions, chartLoading, chartRefreshing, chartMessage, loadChart } = useChartData();
+  const chart = useChartData();
+  const { bars, opinions, chartLoading, chartRefreshing, chartMessage, loadChart } = chart;
 
   const selectedRef = useRef(selected);
   const kolRef = useRef(selectedKol);
   const timeframeRef = useRef(timeframe);
   const shellSeq = useRef(0);
+  const quoteRefreshInFlight = useRef(false);
+  const instrumentCache = useRef(new Map<string, Instrument[]>());
 
   const setSelectedValue = useCallback((value: string) => {
     selectedRef.current = value;
@@ -47,22 +51,41 @@ export function useDashboardData() {
 
   const loadShell = useCallback(async (kolId = kolRef.current, requested = selectedRef.current) => {
     const seq = ++shellSeq.current;
-    const [nextKols, nextInstruments, nextSessions, nextBackfill, nextGroups] = await Promise.all([
+    const cached = instrumentCache.current.get(kolId) || readInstrumentCache(kolId);
+    if (cached) {
+      instrumentCache.current.set(kolId, cached);
+      const nextSelected = pickSelectedSymbol(cached, requested);
+      setInstruments(cached);
+      setSelectedValue(nextSelected);
+      void loadChart(kolId, nextSelected, timeframeRef.current);
+    }
+    const instrumentsRequest = api.instruments(kolId, 'history', false);
+    const shellRequest = Promise.all([
       api.kols(),
-      api.instruments(kolId, 'history'),
       api.sessions(kolId),
       api.marketBackfill(),
       api.instrumentGroups(),
     ]);
+    const nextInstruments = await instrumentsRequest;
     if (seq !== shellSeq.current) return;
     const nextSelected = pickSelectedSymbol(nextInstruments, requested);
-    setKols(nextKols);
+    instrumentCache.current.set(kolId, nextInstruments);
+    writeInstrumentCache(kolId, nextInstruments);
     setInstruments(nextInstruments);
+    setSelectedValue(nextSelected);
+    void loadChart(kolId, nextSelected, timeframeRef.current);
+    void api.instruments(kolId, 'history').then((refreshed) => {
+      if (seq !== shellSeq.current) return;
+      instrumentCache.current.set(kolId, refreshed);
+      writeInstrumentCache(kolId, refreshed);
+      setInstruments(refreshed);
+    }).catch(() => undefined);
+    const [nextKols, nextSessions, nextBackfill, nextGroups] = await shellRequest;
+    if (seq !== shellSeq.current) return;
+    setKols(nextKols);
     setSessions(nextSessions);
     setBackfill(nextBackfill);
     setInstrumentGroups(nextGroups);
-    setSelectedValue(nextSelected);
-    void loadChart(kolId, nextSelected, timeframeRef.current);
   }, [loadChart, setSelectedValue]);
 
   useEffect(() => {
@@ -70,18 +93,26 @@ export function useDashboardData() {
   }, [loadShell]);
 
   const refreshQuotes = useCallback(async () => {
-    const nextInstruments = await api.instruments(kolRef.current, 'history');
-    setInstruments(nextInstruments);
-    const nextSelected = pickSelectedSymbol(nextInstruments, selectedRef.current);
-    if (nextSelected && nextSelected !== selectedRef.current) {
-      setSelectedValue(nextSelected);
+    if (quoteRefreshInFlight.current) return;
+    quoteRefreshInFlight.current = true;
+    try {
+      const nextInstruments = await api.instruments(kolRef.current, 'history');
+      instrumentCache.current.set(kolRef.current, nextInstruments);
+      writeInstrumentCache(kolRef.current, nextInstruments);
+      setInstruments(nextInstruments);
+      const nextSelected = pickSelectedSymbol(nextInstruments, selectedRef.current);
+      if (nextSelected && nextSelected !== selectedRef.current) {
+        setSelectedValue(nextSelected);
+      }
+    } finally {
+      quoteRefreshInFlight.current = false;
     }
   }, [setSelectedValue]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
       if (document.hidden) return;
-      void refreshQuotes();
+      void refreshQuotes().catch(() => undefined);
     }, QUOTE_REFRESH_MS);
     return () => window.clearInterval(timer);
   }, [refreshQuotes]);
@@ -159,11 +190,9 @@ export function useDashboardData() {
     backfill, backfillBusy, backfillError, instrumentGroups, chartLoading,
     chartRefreshing, chartMessage, setKols, selectKol, selectSymbol, changeTimeframe,
     reload, refreshOpinions, startBackfillAll, startBackfillCurrent,
+    chartLiveStatus: chart.chartLiveStatus,
+    lastRealtimeAt: chart.lastRealtimeAt,
+    historyLoading: chart.historyLoading,
+    loadOlderBars: chart.loadOlderBars,
   };
-}
-
-function pickSelectedSymbol(instruments: Instrument[], requested: string) {
-  return requested && instruments.some((item) => item.symbol === requested)
-    ? requested
-    : instruments[0]?.symbol || '';
 }

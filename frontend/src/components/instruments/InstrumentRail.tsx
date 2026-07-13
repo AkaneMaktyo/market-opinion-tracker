@@ -14,13 +14,14 @@ const GROUP_ORDER_STORAGE_KEY = 'market-opinion-group-order';
 const LEGACY_GROUP_ORDER_STORAGE_KEY = 'market-opinion-instrument-group-order';
 const SORT_STORAGE_KEY = 'market-opinion-instrument-sort';
 const COLLAPSED_GROUPS_KEY = 'market-opinion-collapsed-groups';
+const DEFAULT_KOL = 'default';
 
 interface Props {
-  instruments: Instrument[]; selected: string; groups: string[];
+  instruments: Instrument[]; selected: string; groups: string[]; kolId: string;
   onSelect: (symbol: string) => void; onChanged: (nextSelected?: string) => void;
 }
 
-export function InstrumentRail({ instruments, selected, groups, onSelect, onChanged }: Props) {
+export function InstrumentRail({ instruments, selected, groups, kolId, onSelect, onChanged }: Props) {
   const [order, setOrder] = useState<string[]>([]);
   const [groupOrder, setGroupOrder] = useState<string[]>([]);
   const [mode, setMode] = useState<SortMode>('manual');
@@ -30,8 +31,9 @@ export function InstrumentRail({ instruments, selected, groups, onSelect, onChan
   const [managing, setManaging] = useState<Instrument | null>(null);
   const [directoryOpen, setDirectoryOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-  const manualItems = applyManualOrder(mergeDefaultInstrument(instruments), order);
-  const grouped = useMemo(() => groupItems(sortItems(manualItems, mode), groupOrder), [groupOrder, manualItems, mode]);
+  const customMode = kolId === DEFAULT_KOL;
+  const railItems = customMode ? applyManualOrder(mergeDefaultInstrument(instruments), order) : instruments;
+  const grouped = useMemo(() => (customMode ? groupItems(sortItems(railItems, mode), groupOrder) : [{ group: '', items: railItems }]), [customMode, groupOrder, railItems, mode]);
   const instrumentMap = useMemo(() => new Map(instruments.map((item) => [item.symbol, item])), [instruments]);
 
   useEffect(() => {
@@ -53,6 +55,7 @@ export function InstrumentRail({ instruments, selected, groups, onSelect, onChan
   }, []);
 
   useEffect(() => {
+    if (!customMode) return;
     setGroupOrder((current) => {
       const next = [
         ...current.filter((group) => groups.includes(group)),
@@ -64,7 +67,7 @@ export function InstrumentRail({ instruments, selected, groups, onSelect, onChan
       window.localStorage.setItem(GROUP_ORDER_STORAGE_KEY, JSON.stringify(next));
       return next;
     });
-  }, [groups]);
+  }, [customMode, groups]);
 
   function toggleGroup(group: string) {
     setCollapsedGroups((current) => {
@@ -82,8 +85,8 @@ export function InstrumentRail({ instruments, selected, groups, onSelect, onChan
 
   function dropItemOn(event: DragEvent<HTMLDivElement>, target: string) {
     event.preventDefault();
-    if (mode !== 'manual' || !draggingItem || draggingItem === target) return resetItemDrag();
-    const current = manualItems.map((item) => item.symbol).filter((symbol) => symbol !== draggingItem);
+    if (!customMode || mode !== 'manual' || !draggingItem || draggingItem === target) return resetItemDrag();
+    const current = railItems.map((item) => item.symbol).filter((symbol) => symbol !== draggingItem);
     const rect = event.currentTarget.getBoundingClientRect();
     const insertAt = current.indexOf(target) + (event.clientY > rect.top + rect.height / 2 ? 1 : 0);
     const next = [...current.slice(0, insertAt), draggingItem, ...current.slice(insertAt)];
@@ -94,6 +97,7 @@ export function InstrumentRail({ instruments, selected, groups, onSelect, onChan
 
   async function moveItemToGroup(group: string) {
     const item = instrumentMap.get(draggingItem);
+    if (!customMode) return resetItemDrag();
     if (!item || item.groupName === group) return resetItemDrag();
     try {
       await api.updateInstrumentGroup(item.id, group);
@@ -105,16 +109,12 @@ export function InstrumentRail({ instruments, selected, groups, onSelect, onChan
 
   function dropGroupOn(event: DragEvent<HTMLButtonElement>, target: string) {
     event.preventDefault();
-    if (mode !== 'manual' || !draggingGroup || draggingGroup === target) return setDraggingGroup('');
+    if (!customMode || mode !== 'manual' || !draggingGroup || draggingGroup === target) return setDraggingGroup('');
     const current = grouped.map((entry) => entry.group).filter(Boolean);
     const withoutDragging = current.filter((group) => group !== draggingGroup);
     const rect = event.currentTarget.getBoundingClientRect();
     const insertAt = withoutDragging.indexOf(target) + (event.clientY > rect.top + rect.height / 2 ? 1 : 0);
-    const next = [
-      ...withoutDragging.slice(0, insertAt),
-      draggingGroup,
-      ...withoutDragging.slice(insertAt),
-    ];
+    const next = [...withoutDragging.slice(0, insertAt), draggingGroup, ...withoutDragging.slice(insertAt)];
     setGroupOrder(next);
     window.localStorage.setItem(GROUP_ORDER_STORAGE_KEY, JSON.stringify(next));
     setDraggingGroup('');
@@ -134,20 +134,17 @@ export function InstrumentRail({ instruments, selected, groups, onSelect, onChan
       <div className="rail-head">
         <div>
           <div className="panel-title">相关标的</div>
-          <span className="rail-note">{mode === 'manual' ? '拖动排序' : '行情排序'}</span>
+          <span className="rail-note">{customMode ? (mode === 'manual' ? '拖动排序' : '行情排序') : '最新观点排序'}</span>
         </div>
         <button className="rail-manage" onClick={() => setDirectoryOpen(true)} type="button">
           <FolderTree size={14} />
           <span>管理</span>
         </button>
       </div>
-      <InstrumentSortBar
-        mode={mode}
-        onChange={(nextMode) => {
-          setMode(nextMode);
-          window.localStorage.setItem(SORT_STORAGE_KEY, nextMode);
-        }}
-      />
+      {customMode ? <InstrumentSortBar mode={mode} onChange={(nextMode) => {
+        setMode(nextMode);
+        window.localStorage.setItem(SORT_STORAGE_KEY, nextMode);
+      }} /> : null}
       <div className="rail-table-head">
         <span>商品</span>
         <span>最新价</span>
@@ -160,9 +157,9 @@ export function InstrumentRail({ instruments, selected, groups, onSelect, onChan
         draggingItem={draggingItem}
         dropGroup={dropGroup}
         grouped={grouped}
-        manualMode={mode === 'manual'}
+        manualMode={customMode && mode === 'manual'}
         onDragItemEnd={resetItemDrag}
-        onDragItemOver={(event) => mode === 'manual' && event.preventDefault()}
+        onDragItemOver={(event) => customMode && mode === 'manual' && event.preventDefault()}
         onDragItemStart={setDraggingItem}
         onDropGroup={onGroupDrop}
         onDropItem={dropItemOn}

@@ -26,8 +26,10 @@ public class MarketController {
   @GetMapping("/{symbol}/bars")
   List<MarketBar> bars(
       @PathVariable String symbol,
-      @RequestParam(defaultValue = "1D") String timeframe) {
-    return marketData.barsForSymbol(symbol, timeframe);
+      @RequestParam(defaultValue = "1D") String timeframe,
+      @RequestParam(defaultValue = "600") int limit,
+      @RequestParam(required = false) String before) {
+    return marketData.barsForSymbol(symbol, timeframe, limit, before);
   }
 
   @PostMapping("/backfill")
