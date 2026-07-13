@@ -17,11 +17,11 @@ class MarketControllerTest {
     var marketData = mock(MarketDataService.class);
     var backfill = mock(MarketDataBackfillService.class);
     List<MarketBar> bars = List.of();
-    when(marketData.barsForSymbol("BTC", "1H")).thenReturn(bars);
+    when(marketData.barsForSymbol("BTC", "1H", 600, null)).thenReturn(bars);
     var controller = new MarketController(marketData, backfill);
 
-    assertEquals(bars, controller.bars("BTC", "1H"));
+    assertEquals(bars, controller.bars("BTC", "1H", 600, null));
 
-    verify(marketData).barsForSymbol("BTC", "1H");
+    verify(marketData).barsForSymbol("BTC", "1H", 600, null);
   }
 }

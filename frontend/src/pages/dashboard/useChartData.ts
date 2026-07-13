@@ -1,29 +1,37 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../api/client';
 import { apiBase } from '../../api/http';
-import type { MarketBar, OpinionView, Timeframe } from '../../types';
-
-const BAR_RETRY_MS = 2400;
-const BAR_RETRY_LIMIT = 15;
-const MIN_USABLE_BARS = 20;
-
-type StreamRequest = {
-  kolId: string;
-  symbol: string;
-  frame: Timeframe;
-};
+import type { ChartLiveStatus, MarketBar, OpinionView, Timeframe } from '../../types';
+import {
+  BAR_RETRY_LIMIT,
+  BAR_RETRY_MS,
+  HISTORY_PAGE_SIZE,
+  INITIAL_BAR_COUNT,
+  MIN_USABLE_BARS,
+  liveStatus,
+  mergeBars,
+  requestKey,
+  sameRequest,
+  streamUrl,
+} from './chartDataUtils';
+import type { BarCacheEntry, StreamRequest } from './chartDataUtils';
 
 export function useChartData() {
   const [bars, setBars] = useState<MarketBar[]>([]);
   const [opinions, setOpinions] = useState<OpinionView[]>([]);
   const [chartLoading, setChartLoading] = useState(false);
   const [chartRefreshing, setChartRefreshing] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [hasMoreBars, setHasMoreBars] = useState(false);
   const [chartMessage, setChartMessage] = useState('');
+  const [chartLiveStatus, setChartLiveStatus] = useState<ChartLiveStatus>('connecting');
+  const [lastRealtimeAt, setLastRealtimeAt] = useState<number | null>(null);
   const [streamKey, setStreamKey] = useState('');
-  const barsCache = useRef(new Map<string, MarketBar[]>());
-  const streamRequest = useRef<StreamRequest | null>(null);
-  const chartSeq = useRef(0);
+  const cache = useRef(new Map<string, BarCacheEntry>());
+  const requestRef = useRef<StreamRequest | null>(null);
+  const requestSeq = useRef(0);
   const retryTimer = useRef<number | null>(null);
+  const olderInFlight = useRef(false);
 
   const clearRetry = useCallback(() => {
     if (retryTimer.current == null) return;
@@ -31,98 +39,119 @@ export function useChartData() {
     retryTimer.current = null;
   }, []);
 
-  const loadChart = useCallback(async function runChartLoad(
-    kolId: string,
-    symbol: string,
-    frame: Timeframe,
+  const fetchBars = useCallback(async function run(
+    request: StreamRequest,
+    seq: number,
     attempt = 0,
   ) {
-    clearRetry();
-    const seq = ++chartSeq.current;
-    if (!symbol) {
-      streamRequest.current = null;
-      setStreamKey('');
-      setBars([]);
-      setOpinions([]);
-      setChartLoading(false);
-      setChartRefreshing(false);
-      setChartMessage('');
-      return;
-    }
-
-    streamRequest.current = { kolId, symbol, frame };
-    setStreamKey(`${kolId}:${symbol}:${frame}`);
-    const cacheKey = `${symbol}:${frame}`;
-    const cached = barsCache.current.get(cacheKey);
-    setBars(cached || []);
-    setChartLoading(!cached);
-    setChartRefreshing(Boolean(cached));
-    setChartMessage(cached ? '正在刷新 K 线' : '正在加载 K 线');
-
     try {
-      const [nextBars, nextOpinions] = await Promise.all([
-        api.bars(symbol, frame),
-        api.opinions(kolId, symbol),
-      ]);
-      if (seq !== chartSeq.current) return;
-      barsCache.current.set(cacheKey, nextBars);
+      const nextBars = await api.bars(request.symbol, request.frame, { limit: INITIAL_BAR_COUNT });
+      if (seq !== requestSeq.current || !sameRequest(requestRef.current, request)) return;
+      const entry = { bars: nextBars, hasMore: nextBars.length === INITIAL_BAR_COUNT };
+      cache.current.set(requestKey(request), entry);
       setBars(nextBars);
-      setOpinions(nextOpinions);
+      setHasMoreBars(entry.hasMore);
       setChartLoading(false);
       setChartRefreshing(false);
-      handleSparseBars(runChartLoad, kolId, symbol, frame, attempt, nextBars.length);
+      setLastRealtimeAt(Date.now());
+      if (nextBars.length >= MIN_USABLE_BARS) {
+        setChartMessage('');
+      } else if (attempt < BAR_RETRY_LIMIT) {
+        setChartMessage('正在后台补全历史行情，无需手动刷新');
+        retryTimer.current = window.setTimeout(
+          () => void run(request, seq, attempt + 1),
+          BAR_RETRY_MS,
+        );
+      } else {
+        setChartMessage(nextBars.length ? '可用历史行情较短' : '暂时没有行情数据');
+      }
     } catch (error) {
-      if (seq !== chartSeq.current) return;
+      if (seq !== requestSeq.current) return;
       setChartLoading(false);
       setChartRefreshing(false);
       setChartMessage(error instanceof Error ? error.message : 'K 线加载失败');
     }
-  }, [clearRetry]);
+  }, []);
 
-  function handleSparseBars(
-    runChartLoad: typeof loadChart,
-    kolId: string,
-    symbol: string,
-    frame: Timeframe,
-    attempt: number,
-    count: number,
-  ) {
-    if (count >= MIN_USABLE_BARS) {
+  const loadChart = useCallback(async (kolId: string, symbol: string, frame: Timeframe) => {
+    clearRetry();
+    const seq = ++requestSeq.current;
+    if (!symbol) {
+      requestRef.current = null;
+      setStreamKey('');
+      setBars([]);
+      setOpinions([]);
+      setChartLoading(false);
       setChartMessage('');
       return;
     }
-    if (attempt < BAR_RETRY_LIMIT) {
-      setChartMessage('正在后台补全 K 线，稍后自动刷新');
-      retryTimer.current = window.setTimeout(
-        () => void runChartLoad(kolId, symbol, frame, attempt + 1),
-        BAR_RETRY_MS,
-      );
-      return;
+    const request = { kolId, symbol, frame };
+    requestRef.current = request;
+    setStreamKey(`${kolId}:${symbol}:${frame}`);
+    setChartLiveStatus('connecting');
+    const cached = cache.current.get(requestKey(request));
+    setBars(cached?.bars || []);
+    setHasMoreBars(cached?.hasMore || false);
+    setChartLoading(!cached);
+    setChartRefreshing(Boolean(cached));
+    setChartMessage('');
+    void api.opinions(kolId, symbol).then((items) => {
+      if (seq === requestSeq.current) setOpinions(items);
+    }).catch(() => undefined);
+    await fetchBars(request, seq);
+  }, [clearRetry, fetchBars]);
+
+  const loadOlderBars = useCallback(async () => {
+    const request = requestRef.current;
+    if (!request || olderInFlight.current || !hasMoreBars || bars.length === 0) return;
+    olderInFlight.current = true;
+    setHistoryLoading(true);
+    const before = bars[0].barTime;
+    try {
+      const older = await api.bars(request.symbol, request.frame, {
+        before,
+        limit: HISTORY_PAGE_SIZE,
+      });
+      if (!sameRequest(requestRef.current, request)) return;
+      setBars((current) => {
+        const next = mergeBars(current, older);
+        cache.current.set(requestKey(request), {
+          bars: next,
+          hasMore: older.length === HISTORY_PAGE_SIZE,
+        });
+        return next;
+      });
+      setHasMoreBars(older.length === HISTORY_PAGE_SIZE);
+    } finally {
+      olderInFlight.current = false;
+      setHistoryLoading(false);
     }
-    setChartMessage(count > 0 ? 'K 线历史较短，可以尝试回填当前品种' : '暂时没有 K 线数据，可以尝试回填当前品种');
-  }
+  }, [bars, hasMoreBars]);
 
   useEffect(() => {
     if (!streamKey) return;
-    const request = streamRequest.current;
+    const request = requestRef.current;
     if (!request) return;
-    const source = new EventSource(streamUrl(request.symbol, request.frame));
+    const source = new EventSource(streamUrl(apiBase, request.symbol, request.frame));
     let closed = false;
+    source.onopen = () => !closed && setChartLiveStatus('connecting');
+    source.addEventListener('status', (event) => {
+      if (!closed) setChartLiveStatus(liveStatus((event as MessageEvent).data));
+    });
     source.addEventListener('bar', (event) => {
-      if (closed || !sameStreamRequest(streamRequest.current, request)) return;
-      const nextBar = JSON.parse(event.data) as MarketBar;
+      if (closed || !sameRequest(requestRef.current, request)) return;
+      const nextBar = JSON.parse((event as MessageEvent).data) as MarketBar;
       setBars((current) => {
-        const nextBars = mergeBar(current, nextBar);
-        barsCache.current.set(`${request.symbol}:${request.frame}`, nextBars);
-        return nextBars;
+        const next = mergeBars(current, [nextBar]);
+        const prior = cache.current.get(requestKey(request));
+        cache.current.set(requestKey(request), { bars: next, hasMore: prior?.hasMore || false });
+        return next;
       });
+      setLastRealtimeAt(Date.now());
+      setChartLiveStatus('live');
       setChartMessage('');
     });
-    source.onerror = () => {
-      if (!closed && sameStreamRequest(streamRequest.current, request)) {
-        setChartMessage('实时 K 线连接中断，正在重连');
-      }
-    };
+    source.onerror = () => !closed && setChartLiveStatus('reconnecting');
     return () => {
       closed = true;
       source.close();
@@ -131,25 +160,8 @@ export function useChartData() {
 
   useEffect(() => clearRetry, [clearRetry]);
 
-  return { bars, opinions, chartLoading, chartRefreshing, chartMessage, loadChart };
-}
-
-function streamUrl(symbol: string, frame: Timeframe) {
-  const params = new URLSearchParams({ timeframe: frame });
-  return `${apiBase}/market/${encodeURIComponent(symbol)}/stream?${params}`;
-}
-
-function mergeBar(current: MarketBar[], bar: MarketBar) {
-  const index = current.findIndex((item) =>
-    item.timeframe === bar.timeframe && item.barTime === bar.barTime);
-  if (index >= 0) {
-    return current.map((item, itemIndex) => (itemIndex === index ? bar : item));
-  }
-  return [...current, bar].sort((left, right) => left.barTime.localeCompare(right.barTime));
-}
-
-function sameStreamRequest(current: StreamRequest | null, request: StreamRequest) {
-  return current?.kolId === request.kolId
-    && current.symbol === request.symbol
-    && current.frame === request.frame;
+  return {
+    bars, opinions, chartLoading, chartRefreshing, chartMessage, chartLiveStatus,
+    lastRealtimeAt, historyLoading, loadChart, loadOlderBars,
+  };
 }

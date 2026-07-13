@@ -5,6 +5,7 @@ import com.personal.tracker.repository.InstrumentRepository;
 import com.personal.tracker.repository.MarketBarRepository;
 import com.personal.tracker.repository.MarketBarRepository.DailySnapshot;
 import com.personal.tracker.service.MarketDataService;
+import com.personal.tracker.service.instruments.InstrumentHistoryService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.DayOfWeek;
@@ -34,14 +35,17 @@ public class InstrumentController {
   private static final LocalTime MARKET_OPEN = LocalTime.of(9, 30);
 
   private final InstrumentRepository instruments;
+  private final InstrumentHistoryService instrumentHistory;
   private final MarketBarRepository marketBars;
   private final MarketDataService marketData;
 
   public InstrumentController(
       InstrumentRepository instruments,
+      InstrumentHistoryService instrumentHistory,
       MarketBarRepository marketBars,
       MarketDataService marketData) {
     this.instruments = instruments;
+    this.instrumentHistory = instrumentHistory;
     this.marketBars = marketBars;
     this.marketData = marketData;
   }
@@ -50,13 +54,18 @@ public class InstrumentController {
   List<InstrumentView> list(
       @RequestParam(required = false) String kolId,
       @RequestParam(defaultValue = "history") String scope,
+      @RequestParam(defaultValue = "true") boolean quotes,
       @RequestParam(required = false) String query) {
     boolean currentScope = "current".equalsIgnoreCase(scope) && kolId != null && !kolId.isBlank();
     List<Instrument> items = currentScope
         ? instruments.findCurrentByKol(kolId, query)
         : kolId == null || kolId.isBlank()
         ? instruments.findAll(query)
-        : instruments.findByKol(kolId, query);
+        : instrumentHistory.findByKol(kolId, query);
+    items = instruments.applyGroups(kolId, items);
+    if (!quotes) {
+      return items.stream().map(item -> viewOf(item, null)).toList();
+    }
     Map<String, DailySnapshot> snapshots = marketBars.latestDailySnapshots(
         items.stream().map(Instrument::id).toList(),
         currentMarketDate().toString());
@@ -109,9 +118,9 @@ public class InstrumentController {
   InstrumentView updateGroup(
       @PathVariable String id,
       @RequestBody UpdateGroupRequest request) {
-    instruments.updateGroup(id, request.groupName());
+    instruments.updateGroup(request.kolId(), id, request.groupName());
     return instruments.findById(id)
-        .map(item -> viewOf(item, null))
+        .map(item -> viewOf(instruments.applyGroups(request.kolId(), List.of(item)).get(0), null))
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "\u54c1\u79cd\u4e0d\u5b58\u5728"));
   }
 
@@ -126,8 +135,8 @@ public class InstrumentController {
   }
 
   @GetMapping("/groups")
-  List<String> groups() {
-    return instruments.findAllGroups();
+  List<String> groups(@RequestParam(required = false) String kolId) {
+    return instruments.findAllGroups(kolId);
   }
 
   private static InstrumentView viewOf(Instrument item, DailySnapshot snapshot) {
@@ -200,6 +209,7 @@ public class InstrumentController {
   }
 
   public record UpdateGroupRequest(
+      String kolId,
       String groupName) {
   }
 

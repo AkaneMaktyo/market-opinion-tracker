@@ -1,9 +1,9 @@
 package com.personal.tracker.repository;
 
 import com.personal.tracker.domain.Instrument;
-import java.time.YearMonth;
-import java.time.ZoneId;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -12,7 +12,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public class InstrumentRepository {
-  private static final ZoneId APP_ZONE = ZoneId.of("Asia/Shanghai");
   private final JdbcTemplate jdbc;
   private final RowMapper<Instrument> mapper = (rs, rowNum) -> new Instrument(
       rs.getString("id"),
@@ -45,50 +44,37 @@ public class InstrumentRepository {
         """, mapper, like, like);
   }
 
-  public List<Instrument> findByKol(String kolId, String query) {
+  public List<Instrument> findOpinionHistoryByKol(String kolId, String query) {
     List<Object> args = new java.util.ArrayList<>();
     StringBuilder sql = new StringBuilder("""
-        SELECT i.*, oa.latest_opinion_at, ma.latest_mention_at
+        SELECT i.*, MAX(COALESCE(wm.message_time, o.opinion_time, s.created_at)) latest_opinion_at
         FROM instruments i
-        LEFT JOIN (
-          SELECT o.instrument_id,
-                 MAX(COALESCE(wm.message_time, o.opinion_time, s.created_at)) latest_opinion_at
-          FROM opinions o
-          JOIN live_sessions s ON s.id = o.session_id
-          LEFT JOIN wxpusher_messages wm ON wm.session_id = s.id
-          WHERE s.kol_id = ?
-          GROUP BY o.instrument_id
-        ) oa ON oa.instrument_id = i.id
-        LEFT JOIN (
-          SELECT i2.id instrument_id, MAX(CONCAT(s2.session_date, ' ', s2.created_at)) latest_mention_at
-          FROM instruments i2
-          JOIN live_sessions s2 ON s2.kol_id = ? AND s2.session_date >= ?
-          WHERE CHAR_LENGTH(i2.symbol) >= 2
-            AND UPPER(CONCAT_WS(' ', s2.title, s2.raw_text))
-              REGEXP CONCAT('(^|[^A-Z0-9])', i2.symbol, '([^A-Z0-9]|$)')
-          GROUP BY i2.id
-        ) ma ON ma.instrument_id = i.id
-        WHERE oa.latest_opinion_at IS NOT NULL OR ma.latest_mention_at IS NOT NULL
+        JOIN opinions o ON o.instrument_id = i.id
+        JOIN live_sessions s ON s.id = o.session_id AND s.kol_id = ?
+        LEFT JOIN wxpusher_messages wm ON wm.session_id = s.id
+        WHERE 1 = 1
         """);
-    String safeKol = kolId == null || kolId.isBlank() ? KolRepository.DEFAULT_ID : kolId.trim();
-    args.add(safeKol);
-    args.add(safeKol);
-    args.add(monthStart());
+    args.add(kolId == null || kolId.isBlank() ? KolRepository.DEFAULT_ID : kolId.trim());
     if (query != null && !query.isBlank()) {
       String like = "%" + query.trim().toUpperCase() + "%";
       sql.append(" AND (i.symbol LIKE ? OR UPPER(COALESCE(i.name, '')) LIKE ?)");
       args.add(like);
       args.add(like);
     }
-    sql.append("""
-        ORDER BY CASE WHEN oa.latest_opinion_at IS NULL THEN 1 ELSE 0 END,
-                 oa.latest_opinion_at DESC,
-                 ma.latest_mention_at DESC,
-                 i.symbol
-        """);
+    sql.append(" GROUP BY i.id ORDER BY latest_opinion_at DESC, i.symbol");
     return jdbc.query(sql.toString(), mapper, args.toArray());
   }
 
+  public List<Instrument> applyGroups(String kolId, List<Instrument> items) {
+    if (kolId == null || kolId.isBlank() || items.isEmpty()) {
+      return items;
+    }
+    Map<String, String> groups = new HashMap<>();
+    jdbc.query("SELECT instrument_id, group_name FROM kol_instrument_groups WHERE kol_id = ?",
+        (rs, rowNum) -> groups.put(rs.getString("instrument_id"), rs.getString("group_name")),
+        kolId.trim());
+    return items.stream().map(item -> withGroup(item, groups.get(item.id()))).toList();
+  }
   public List<Instrument> findCurrentByKol(String kolId, String query) {
     List<Object> args = new java.util.ArrayList<>();
     StringBuilder sql = new StringBuilder("""
@@ -248,6 +234,11 @@ public class InstrumentRepository {
     if (sourceId.equals(targetId)) {
       throw new IllegalArgumentException("\u4e0d\u80fd\u5f52\u5e76\u5230\u81ea\u8eab");
     }
+    jdbc.update("""
+        INSERT IGNORE INTO kol_instrument_groups(kol_id, instrument_id, group_name)
+        SELECT kol_id, ?, group_name FROM kol_instrument_groups WHERE instrument_id = ?
+        """, targetId, sourceId);
+    jdbc.update("DELETE FROM kol_instrument_groups WHERE instrument_id = ?", sourceId);
     jdbc.update("UPDATE opinions SET instrument_id = ? WHERE instrument_id = ?", targetId, sourceId);
     jdbc.update("""
         DELETE mb1 FROM market_bars mb1
@@ -265,14 +256,24 @@ public class InstrumentRepository {
     }
     deleteResonanceData(instrumentId);
     deleteOpinionData(instrumentId);
+    jdbc.update("DELETE FROM kol_instrument_groups WHERE instrument_id = ?", instrumentId);
     jdbc.update("DELETE FROM kol_positions WHERE instrument_id = ?", instrumentId);
     jdbc.update("DELETE FROM market_bars WHERE instrument_id = ?", instrumentId);
     return jdbc.update("DELETE FROM instruments WHERE id = ?", instrumentId) > 0;
   }
 
-  public void updateGroup(String instrumentId, String groupName) {
+  public void updateGroup(String kolId, String instrumentId, String groupName) {
     String nextGroup = groupName == null || groupName.isBlank() ? null : groupName.trim();
-    jdbc.update("UPDATE instruments SET group_name = ? WHERE id = ?", nextGroup, instrumentId);
+    String safeKol = kolId == null || kolId.isBlank() ? KolRepository.DEFAULT_ID : kolId.trim();
+    if (nextGroup == null) {
+      jdbc.update("DELETE FROM kol_instrument_groups WHERE kol_id = ? AND instrument_id = ?", safeKol, instrumentId);
+      return;
+    }
+    jdbc.update("""
+        INSERT INTO kol_instrument_groups(kol_id, instrument_id, group_name)
+        VALUES (?, ?, ?)
+        ON DUPLICATE KEY UPDATE group_name = VALUES(group_name)
+        """, safeKol, instrumentId, nextGroup);
   }
 
   public void updateMarketDataProvider(String instrumentId, String provider) {
@@ -291,10 +292,16 @@ public class InstrumentRepository {
         .findFirst();
   }
 
-  public List<String> findAllGroups() {
+  public List<String> findAllGroups(String kolId) {
     return jdbc.queryForList(
-        "SELECT DISTINCT group_name FROM instruments WHERE group_name IS NOT NULL ORDER BY group_name",
-        String.class);
+        "SELECT DISTINCT group_name FROM kol_instrument_groups WHERE kol_id = ? ORDER BY group_name",
+        String.class, kolId == null || kolId.isBlank() ? KolRepository.DEFAULT_ID : kolId.trim());
+  }
+
+  private static Instrument withGroup(Instrument item, String groupName) {
+    return new Instrument(item.id(), item.symbol(), item.name(), item.market(), item.sector(), groupName,
+        item.logoUrl(), item.marketDataProvider(), item.bitgetCategory(), item.bitgetSymbol(),
+        item.bitgetStatus(), item.bitgetCheckedAt(), item.createdAt());
   }
 
   private void deleteResonanceData(String instrumentId) {
@@ -343,7 +350,4 @@ public class InstrumentRepository {
     return (left == null ? "" : left).equals(right == null ? "" : right);
   }
 
-  private static String monthStart() {
-    return YearMonth.now(APP_ZONE).atDay(1).toString();
-  }
 }

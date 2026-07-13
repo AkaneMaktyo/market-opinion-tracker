@@ -47,6 +47,7 @@
   align-items: center;
   cursor: pointer;
   display: flex;
+  flex: 0 0 auto;
   gap: 12px;
   justify-content: space-between;
   overflow: hidden;

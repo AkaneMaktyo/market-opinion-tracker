@@ -17,6 +17,14 @@ import { positionApi } from './positions';
 import { wxpusherApi } from './wxpusher';
 import { youtubeApi } from './youtube';
 
+async function fetchWatchlist(kolId: string, quotes = true) {
+  const [history, current] = await Promise.all([
+    api.instruments(kolId, 'history', quotes),
+    api.instruments(kolId, 'current', quotes),
+  ]);
+  return [...new Map([...history, ...current].map((item) => [item.symbol, item])).values()];
+}
+
 export const api = {
   ...llmApi,
   ...wxpusherApi,
@@ -25,19 +33,33 @@ export const api = {
   kols: () => json<Kol[]>('/api/kols'),
   createKol: (body: { name: string; description?: string }) =>
     json<Kol>('/api/kols', { method: 'POST', body: JSON.stringify(body) }),
-  instruments: (kolId?: string, scope: 'history' | 'current' = 'history') => {
+  instruments: (
+    kolId?: string,
+    scope: 'history' | 'current' = 'history',
+    quotes = true,
+  ) => {
     const params = new URLSearchParams();
     if (kolId) params.set('kolId', kolId);
     if (scope) params.set('scope', scope);
+    params.set('quotes', String(quotes));
     const query = params.toString() ? `?${params}` : '';
     return json<Instrument[]>(`/api/instruments${query}`);
   },
+  watchlist: fetchWatchlist,
   sessions: (kolId?: string) => {
     const query = kolId ? `?kolId=${encodeURIComponent(kolId)}` : '';
     return json<LiveSession[]>(`/api/sessions${query}`);
   },
-  bars: (symbol: string, timeframe: Timeframe) => {
+  session: (id: string) =>
+    json<LiveSession>(`/api/sessions/${encodeURIComponent(id)}`),
+  bars: (
+    symbol: string,
+    timeframe: Timeframe,
+    options: { limit?: number; before?: string } = {},
+  ) => {
     const params = new URLSearchParams({ timeframe });
+    if (options.limit) params.set('limit', String(options.limit));
+    if (options.before) params.set('before', options.before);
     return json<MarketBar[]>(`/api/market/${encodeURIComponent(symbol)}/bars?${params}`);
   },
   marketBackfill: () => json<MarketBackfillStatus>('/api/market/backfill'),
@@ -128,15 +150,16 @@ export const api = {
     json<{ status: string; message: string }>(`/api/instruments/${id}`, {
       method: 'DELETE',
     }),
-  updateInstrumentGroup: (id: string, groupName: string | null) =>
+  updateInstrumentGroup: (id: string, kolId: string, groupName: string | null) =>
     json<Instrument>(`/api/instruments/${id}/group`, {
       method: 'PUT',
-      body: JSON.stringify({ groupName }),
+      body: JSON.stringify({ kolId, groupName }),
     }),
   updateInstrumentMarketProvider: (id: string, provider: string | null) =>
     json<Instrument>(`/api/instruments/${id}/market-provider`, {
       method: 'PUT',
       body: JSON.stringify({ provider }),
     }),
-  instrumentGroups: () => json<string[]>('/api/instruments/groups'),
+  instrumentGroups: (kolId: string) =>
+    json<string[]>(`/api/instruments/groups?kolId=${encodeURIComponent(kolId)}`),
 };

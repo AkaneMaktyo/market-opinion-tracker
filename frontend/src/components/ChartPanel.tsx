@@ -1,10 +1,9 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import type { ChartLiveStatus, MarketBackfillStatus, MarketBar, OpinionView, Timeframe } from '../types';
 import { BackfillControls } from './BackfillControls';
 import { ChartCanvas } from './chart/ChartCanvas';
-import { compareTime, markerTime } from './chartTime';
-import type { PriceLineView } from './chart/ChartCanvas';
-import type { SeriesMarker, Time } from 'lightweight-charts';
-import type { MarketBackfillStatus, MarketBar, OpinionView, Timeframe } from '../types';
+import { ChartHeader } from './chart/ChartHeader';
+import { buildMarkers, buildPriceLines } from './chart/chartViews';
 
 interface Props {
   symbol: string;
@@ -13,151 +12,95 @@ interface Props {
   opinions: OpinionView[];
   loading: boolean;
   refreshing: boolean;
+  historyLoading: boolean;
+  liveStatus: ChartLiveStatus;
+  lastRealtimeAt: number | null;
   message: string;
   backfill?: MarketBackfillStatus | null;
   backfillBusy: boolean;
   backfillError?: string;
   onTimeframeChange: (timeframe: Timeframe) => void;
+  onLoadOlder: () => void;
   onBackfillCurrent: () => void;
   onBackfillAll: () => void;
 }
 
-const colors = {
-  BULLISH: '#16a34a',
-  BEARISH: '#dc2626',
-  RANGE: '#ca8a04',
-  WATCH: '#64748b',
-};
-
-export function ChartPanel({
-  symbol,
-  timeframe,
-  bars,
-  opinions,
-  loading,
-  refreshing,
-  message,
-  backfill,
-  backfillBusy,
-  backfillError,
-  onTimeframeChange,
-  onBackfillCurrent,
-  onBackfillAll,
-}: Props) {
+export function ChartPanel(props: Props) {
+  const [showOpinions, setShowOpinions] = useState(true);
+  const [showLevels, setShowLevels] = useState(true);
   const chartBars = useMemo(
-    () => bars.filter((bar) => bar.timeframe?.toUpperCase() === timeframe),
-    [bars, timeframe],
+    () => props.bars.filter((bar) => bar.timeframe?.toUpperCase() === props.timeframe),
+    [props.bars, props.timeframe],
   );
   const markers = useMemo(
-    () => opinions.map(({ opinion }): SeriesMarker<Time> => {
-      const bullish = opinion.direction === 'BULLISH';
-      const messageItem = opinion.status === 'MESSAGE';
-      return {
-        time: markerTime(opinion.opinionTime, timeframe),
-        position: bullish ? 'belowBar' : 'aboveBar',
-        color: colors[opinion.direction] || colors.WATCH,
-        shape: bullish ? 'arrowUp' : opinion.direction === 'BEARISH' ? 'arrowDown' : 'circle',
-        text: messageItem ? '消息' : `${label(opinion.direction)} ${opinion.confidence || ''}`,
-      };
-    }).sort((left, right) => compareTime(left.time, right.time)),
-    [opinions, timeframe],
+    () => showOpinions ? buildMarkers(props.opinions, props.timeframe) : [],
+    [props.opinions, props.timeframe, showOpinions],
   );
-  const priceLines = useMemo<PriceLineView[]>(
-    () => opinions.flatMap((item) => item.priceLevels.map((level) => ({
-      price: Number(level.price),
-      color: levelColor(level.levelType),
-      title: level.levelType,
-    }))),
-    [opinions],
+  const priceLines = useMemo(
+    () => showLevels ? buildPriceLines(props.opinions) : [],
+    [props.opinions, showLevels],
   );
+  const lastBar = chartBars[chartBars.length - 1];
+  const previousBar = chartBars[chartBars.length - 2];
 
   return (
     <section className="chart-panel">
-      <div className="chart-header">
-        <div>
-          <span className="eyebrow">K 线复盘</span>
-          <h2>{symbol || '暂无标的'}</h2>
-        </div>
-        <div className="chart-tools">
-          <div className="timeframe-switch">
-            {(['1H', '4H', '1D'] as Timeframe[]).map((item) => (
-              <button
-                className={timeframe === item ? 'timeframe-button active' : 'timeframe-button'}
-                key={item}
-                onClick={() => onTimeframeChange(item)}
-                type="button"
-              >
-                {item === '1H' ? '1小时' : item === '4H' ? '4小时' : '日线'}
-              </button>
-            ))}
-          </div>
-          <div className="legend">
-            <span>看多</span>
-            <span>看空</span>
-            <span>关键价位</span>
-          </div>
-        </div>
-      </div>
+      <ChartHeader
+        barsCount={chartBars.length}
+        lastBar={lastBar}
+        lastRealtimeAt={props.lastRealtimeAt}
+        liveStatus={props.liveStatus}
+        onTimeframeChange={props.onTimeframeChange}
+        onToggleLevels={() => setShowLevels((value) => !value)}
+        onToggleOpinions={() => setShowOpinions((value) => !value)}
+        previousBar={previousBar}
+        showLevels={showLevels}
+        showOpinions={showOpinions}
+        symbol={props.symbol}
+        timeframe={props.timeframe}
+      />
       <BackfillControls
-        status={backfill}
-        busy={backfillBusy}
-        error={backfillError}
-        symbol={symbol}
-        onCurrent={onBackfillCurrent}
-        onAll={onBackfillAll}
+        status={props.backfill}
+        busy={props.backfillBusy}
+        error={props.backfillError}
+        symbol={props.symbol}
+        onCurrent={props.onBackfillCurrent}
+        onAll={props.onBackfillAll}
       />
       <div className="chart-frame">
-        {renderChartBody(symbol, chartBars, timeframe, markers, priceLines)}
-        {(loading || refreshing) ? (
-          <div className="chart-loading">
-            <span className="chart-spinner" />
-            {loading ? '加载中' : '刷新中'}
+        {renderBody(props, chartBars, markers, priceLines)}
+        {(props.loading || props.refreshing) ? (
+          <div className="chart-loading"><span className="chart-spinner" />
+            {props.loading ? '载入行情' : '同步最新行情'}
           </div>
         ) : null}
-        {message && !loading ? <div className="chart-note">{message}</div> : null}
+        {props.message && !props.loading ? <div className="chart-note">{props.message}</div> : null}
       </div>
     </section>
   );
 }
 
-function renderChartBody(
-  symbol: string,
-  chartBars: MarketBar[],
-  timeframe: Timeframe,
-  markers: SeriesMarker<Time>[],
-  priceLines: PriceLineView[],
+function renderBody(
+  props: Props,
+  bars: MarketBar[],
+  markers: ReturnType<typeof buildMarkers>,
+  priceLines: ReturnType<typeof buildPriceLines>,
 ) {
-  if (!symbol) {
-    return <div className="chart chart-empty"><span>当前 KOL 还没有相关标的</span></div>;
+  if (!props.symbol) {
+    return <div className="chart chart-empty"><span>选择一个标的开始复盘</span></div>;
   }
-  if (chartBars.length === 0) {
-    return <div className="chart chart-empty"><span>等待 K 线数据</span></div>;
+  if (bars.length === 0) {
+    return <div className="chart chart-empty"><span>正在准备行情数据…</span></div>;
   }
   return (
     <ChartCanvas
-      bars={chartBars}
+      bars={bars}
+      historyLoading={props.historyLoading}
       markers={markers}
+      onLoadOlder={props.onLoadOlder}
       priceLines={priceLines}
-      timeframe={timeframe}
-      viewKey={`${symbol}:${timeframe}`}
+      timeframe={props.timeframe}
+      viewKey={`${props.symbol}:${props.timeframe}`}
     />
   );
-}
-
-function label(direction: string) {
-  return {
-    BULLISH: '看多',
-    BEARISH: '看空',
-    RANGE: '震荡',
-    WATCH: '观望',
-  }[direction] || '观点';
-}
-
-function levelColor(type: string) {
-  return {
-    SUPPORT: '#22c55e',
-    RESISTANCE: '#f97316',
-    TARGET: '#38bdf8',
-    STOP: '#ef4444',
-  }[type] || '#94a3b8';
 }

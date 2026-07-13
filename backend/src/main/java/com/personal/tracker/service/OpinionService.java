@@ -27,6 +27,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,11 +100,17 @@ public class OpinionService {
     String safeKol = kolId == null || kolId.isBlank() ? KolRepository.DEFAULT_ID : kolId;
     boolean onlyMessages = "MESSAGE".equalsIgnoreCase(status);
     List<OpinionView> result = new ArrayList<>();
+    Set<String> opinionSessionIds = Set.of();
     if (!onlyMessages) {
-      result.addAll(opinions.find(safeKol, symbol, status, limit).stream().map(this::view).toList());
+      List<Opinion> stored = opinions.find(safeKol, symbol, status, limit);
+      opinionSessionIds = stored.stream()
+          .map(Opinion::sessionId)
+          .filter(value -> value != null && !value.isBlank())
+          .collect(Collectors.toSet());
+      result.addAll(stored.stream().map(this::view).toList());
     }
     if (includeMessages(symbol, status)) {
-      result.addAll(messageViews(safeKol, JdbcSupport.symbol(symbol)));
+      result.addAll(messageViews(safeKol, JdbcSupport.symbol(symbol), opinionSessionIds));
     }
     return result.stream()
         .sorted(Comparator.comparing((OpinionView item) -> item.opinion().opinionTime()).reversed())
@@ -131,12 +139,16 @@ public class OpinionService {
         opinions.findReview(opinion.id()).orElse(null));
   }
 
-  private List<OpinionView> messageViews(String kolId, String symbol) {
+  private List<OpinionView> messageViews(
+      String kolId,
+      String symbol,
+      Set<String> opinionSessionIds) {
     Instrument instrument = instruments.findBySymbol(symbol).orElse(null);
     String name = instrument == null ? "" : instrument.name();
     String instrumentId = instrument == null ? "" : instrument.id();
     WxPusherBlogger blogger = configuredBlogger(kolId);
     return wxpusherMessages.findByKolSince(kolId, monthStart(), MESSAGE_LOOKBACK_LIMIT).stream()
+        .filter(message -> !opinionSessionIds.contains(message.sessionId()))
         .filter(message -> matchesConfiguredBlogger(blogger, message))
         .filter(message -> mentions(messageText(message), symbol, name))
         .map(message -> messageView(message, instrumentId, symbol))

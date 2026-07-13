@@ -31,7 +31,6 @@ export function DashboardPage() {
         <SourceManagerButton onChanged={() => dashboard.reload()} />
         <YouTubePageButton />
         <ManualPositionForm
-          defaultSymbol={dashboard.selected}
           kolId={dashboard.selectedKol}
           onAdded={(next) => dashboard.reload(next || dashboard.selected)}
         />
@@ -58,12 +57,16 @@ export function DashboardPage() {
             backfillError={dashboard.backfillError}
             bars={dashboard.bars}
             loading={dashboard.chartLoading}
+            liveStatus={dashboard.chartLiveStatus}
+            lastRealtimeAt={dashboard.lastRealtimeAt}
             message={dashboard.chartMessage}
             onBackfillAll={() => void dashboard.startBackfillAll()}
             onBackfillCurrent={() => void dashboard.startBackfillCurrent()}
             onTimeframeChange={dashboard.changeTimeframe}
+            onLoadOlder={dashboard.loadOlderBars}
             opinions={dashboard.opinions}
             refreshing={dashboard.chartRefreshing}
+            historyLoading={dashboard.historyLoading}
             symbol={dashboard.selected}
             timeframe={dashboard.timeframe}
           />

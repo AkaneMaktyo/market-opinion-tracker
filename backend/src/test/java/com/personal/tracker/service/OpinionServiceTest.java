@@ -91,6 +91,38 @@ class OpinionServiceTest {
   }
 
   @Test
+  void hidesMessageWhenSameSessionAlreadyProducedOpinion() {
+    var instruments = mock(InstrumentRepository.class);
+    var opinions = mock(OpinionRepository.class);
+    var sessions = mock(SessionRepository.class);
+    var bloggers = mock(WxPusherBloggerRepository.class);
+    var messages = mock(WxPusherMessageRepository.class);
+    var service = new OpinionService(instruments, opinions, sessions, bloggers, messages,
+        mock(KolPositionService.class), mock(ResonanceService.class));
+    var instrument = new Instrument(
+        "inst-1", "AVGO", "Broadcom", "US", "", "", "", "", "", "", "", "", "");
+    var opinion = new Opinion(
+        "opinion-1", "session-1", "inst-1", "AVGO", "BULLISH", "短线",
+        "366 到 403 已全部套现", "", "", null, "", null, "", "", "",
+        "", "{}", "2026-07-11T10:00:00", "ACTIVE", "now");
+    var message = new WxPusherMessage(
+        "msg-1", "key-1", "kol-1", "顺哥", "标题", "AVGO 366 到 403 已全部套现",
+        "", "", "2026-07-11T10:00:00Z", "", "AVGO 366 到 403 已全部套现", "",
+        "IMPORTED", "", "session-1", "now", "now");
+    when(opinions.find("kol-1", "AVGO", null, 100)).thenReturn(List.of(opinion));
+    when(opinions.findLevels("opinion-1")).thenReturn(List.of());
+    when(opinions.findReview("opinion-1")).thenReturn(Optional.empty());
+    when(instruments.findBySymbol("AVGO")).thenReturn(Optional.of(instrument));
+    when(bloggers.enabled()).thenReturn(List.of());
+    when(messages.findByKolSince(anyString(), anyString(), anyInt())).thenReturn(List.of(message));
+
+    var result = service.find("kol-1", "AVGO", null, 100);
+
+    assertEquals(1, result.size());
+    assertEquals("ACTIVE", result.get(0).opinion().status());
+  }
+
+  @Test
   void hidesMessageHintsFromUnconfiguredNestedSource() {
     var instruments = mock(InstrumentRepository.class);
     var opinions = mock(OpinionRepository.class);

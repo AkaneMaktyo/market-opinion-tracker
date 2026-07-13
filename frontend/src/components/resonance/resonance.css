@@ -14,8 +14,7 @@
 .resonance-meta,
 .resonance-factors,
 .source-strip,
-.resonance-alert,
-.resonance-empty {
+.resonance-alert {
   align-items: center;
   display: flex;
 }
@@ -87,8 +86,7 @@
 .resonance-factors,
 .signal-line span,
 .source-strip span,
-.resonance-loading,
-.resonance-empty {
+.resonance-loading {
   color: #93c5fd;
   font-size: 12px;
 }
@@ -177,7 +175,6 @@
   gap: 6px;
 }
 
-.resonance-empty,
 .resonance-loading {
   background: rgba(15, 23, 42, 0.5);
   border: 1px dashed rgba(148, 163, 184, 0.22);
