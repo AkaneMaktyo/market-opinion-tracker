@@ -17,6 +17,14 @@ import { positionApi } from './positions';
 import { wxpusherApi } from './wxpusher';
 import { youtubeApi } from './youtube';
 
+async function fetchWatchlist(kolId: string, quotes = true) {
+  const [history, current] = await Promise.all([
+    api.instruments(kolId, 'history', quotes),
+    api.instruments(kolId, 'current', quotes),
+  ]);
+  return [...new Map([...history, ...current].map((item) => [item.symbol, item])).values()];
+}
+
 export const api = {
   ...llmApi,
   ...wxpusherApi,
@@ -37,6 +45,7 @@ export const api = {
     const query = params.toString() ? `?${params}` : '';
     return json<Instrument[]>(`/api/instruments${query}`);
   },
+  watchlist: fetchWatchlist,
   sessions: (kolId?: string) => {
     const query = kolId ? `?kolId=${encodeURIComponent(kolId)}` : '';
     return json<LiveSession[]>(`/api/sessions${query}`);
@@ -141,15 +150,16 @@ export const api = {
     json<{ status: string; message: string }>(`/api/instruments/${id}`, {
       method: 'DELETE',
     }),
-  updateInstrumentGroup: (id: string, groupName: string | null) =>
+  updateInstrumentGroup: (id: string, kolId: string, groupName: string | null) =>
     json<Instrument>(`/api/instruments/${id}/group`, {
       method: 'PUT',
-      body: JSON.stringify({ groupName }),
+      body: JSON.stringify({ kolId, groupName }),
     }),
   updateInstrumentMarketProvider: (id: string, provider: string | null) =>
     json<Instrument>(`/api/instruments/${id}/market-provider`, {
       method: 'PUT',
       body: JSON.stringify({ provider }),
     }),
-  instrumentGroups: () => json<string[]>('/api/instruments/groups'),
+  instrumentGroups: (kolId: string) =>
+    json<string[]>(`/api/instruments/groups?kolId=${encodeURIComponent(kolId)}`),
 };

@@ -1,4 +1,4 @@
-import { AlertTriangle, Bell, Radar, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Bell, RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import {
   resonanceApi,
@@ -55,6 +55,8 @@ export function ResonancePanel({ symbol }: { symbol: string }) {
     void load();
   }, [symbol]);
 
+  if (items.length === 0) return null;
+
   return (
     <section className="resonance-panel">
       <div className="resonance-head">
@@ -73,12 +75,6 @@ export function ResonancePanel({ symbol }: { symbol: string }) {
         </div>
       ) : null}
       {message ? <div className="resonance-message">{message}</div> : null}
-      {items.length === 0 && !loading ? (
-        <div className="resonance-empty">
-          <Radar size={18} />
-          暂无可展示共振，等更多独立来源确认。
-        </div>
-      ) : null}
       <div className="resonance-list">
         {items.map(({ cluster, items: detail }) => {
           const support = detail.filter((item) => item.role === 'SUPPORT');

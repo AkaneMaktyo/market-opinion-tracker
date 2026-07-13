@@ -1,24 +1,17 @@
 import { Plus } from 'lucide-react';
 import type { FormEvent } from 'react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { api } from '../api/client';
 
 interface Props {
   kolId: string;
-  defaultSymbol: string;
   onAdded: (symbol: string) => void;
 }
 
-export function ManualPositionForm({ kolId, defaultSymbol, onAdded }: Props) {
-  const [symbol, setSymbol] = useState(defaultSymbol);
+export function ManualPositionForm({ kolId, onAdded }: Props) {
+  const [symbol, setSymbol] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
-
-  useEffect(() => {
-    if (!symbol && defaultSymbol) {
-      setSymbol(defaultSymbol);
-    }
-  }, [defaultSymbol, symbol]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -31,7 +24,7 @@ export function ManualPositionForm({ kolId, defaultSymbol, onAdded }: Props) {
     setMessage('');
     try {
       await api.openPosition({ kolId, symbol: value });
-      setSymbol(value);
+      setSymbol('');
       setMessage(`已加入：${value}`);
       onAdded(value);
     } catch (error) {

@@ -31,7 +31,6 @@ export function DashboardPage() {
         <SourceManagerButton onChanged={() => dashboard.reload()} />
         <YouTubePageButton />
         <ManualPositionForm
-          defaultSymbol={dashboard.selected}
           kolId={dashboard.selectedKol}
           onAdded={(next) => dashboard.reload(next || dashboard.selected)}
         />

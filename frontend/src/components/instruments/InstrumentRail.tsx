@@ -100,7 +100,7 @@ export function InstrumentRail({ instruments, selected, groups, kolId, onSelect,
     if (!customMode) return resetItemDrag();
     if (!item || item.groupName === group) return resetItemDrag();
     try {
-      await api.updateInstrumentGroup(item.id, group);
+      await api.updateInstrumentGroup(item.id, kolId, group);
       onChanged(draggingItem);
     } finally {
       resetItemDrag();
@@ -133,7 +133,7 @@ export function InstrumentRail({ instruments, selected, groups, kolId, onSelect,
     <aside className="rail">
       <div className="rail-head">
         <div>
-          <div className="panel-title">相关标的</div>
+          <div className="panel-title">自选表</div>
           <span className="rail-note">{customMode ? (mode === 'manual' ? '拖动排序' : '行情排序') : '最新观点排序'}</span>
         </div>
         <button className="rail-manage" onClick={() => setDirectoryOpen(true)} type="button">
@@ -174,6 +174,7 @@ export function InstrumentRail({ instruments, selected, groups, kolId, onSelect,
         <InstrumentDirectory
           groups={groups}
           instruments={instruments}
+          kolId={kolId}
           onChanged={onChanged}
           onClose={() => setDirectoryOpen(false)}
           selected={selected}
@@ -184,6 +185,7 @@ export function InstrumentRail({ instruments, selected, groups, kolId, onSelect,
           groups={groups}
           instrument={managing}
           instruments={instruments}
+          kolId={kolId}
           onChanged={(nextSelected) => {
             setManaging(null);
             onChanged(nextSelected);

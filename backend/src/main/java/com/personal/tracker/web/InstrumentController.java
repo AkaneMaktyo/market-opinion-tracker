@@ -62,6 +62,7 @@ public class InstrumentController {
         : kolId == null || kolId.isBlank()
         ? instruments.findAll(query)
         : instrumentHistory.findByKol(kolId, query);
+    items = instruments.applyGroups(kolId, items);
     if (!quotes) {
       return items.stream().map(item -> viewOf(item, null)).toList();
     }
@@ -117,9 +118,9 @@ public class InstrumentController {
   InstrumentView updateGroup(
       @PathVariable String id,
       @RequestBody UpdateGroupRequest request) {
-    instruments.updateGroup(id, request.groupName());
+    instruments.updateGroup(request.kolId(), id, request.groupName());
     return instruments.findById(id)
-        .map(item -> viewOf(item, null))
+        .map(item -> viewOf(instruments.applyGroups(request.kolId(), List.of(item)).get(0), null))
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "\u54c1\u79cd\u4e0d\u5b58\u5728"));
   }
 
@@ -134,8 +135,8 @@ public class InstrumentController {
   }
 
   @GetMapping("/groups")
-  List<String> groups() {
-    return instruments.findAllGroups();
+  List<String> groups(@RequestParam(required = false) String kolId) {
+    return instruments.findAllGroups(kolId);
   }
 
   private static InstrumentView viewOf(Instrument item, DailySnapshot snapshot) {
@@ -208,6 +209,7 @@ public class InstrumentController {
   }
 
   public record UpdateGroupRequest(
+      String kolId,
       String groupName) {
   }
 
