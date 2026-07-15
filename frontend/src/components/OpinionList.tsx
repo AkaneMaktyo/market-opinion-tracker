@@ -1,23 +1,15 @@
-import { CheckCircle2, CircleDot, XCircle } from 'lucide-react';
-import { api } from '../api/client';
 import type { OpinionView } from '../types';
 import { cleanRepeatedQuote, ExpandableQuote } from './opinions/ExpandableQuote';
 
 interface Props {
   symbol: string;
   opinions: OpinionView[];
-  onChanged: () => void;
 }
 
-export function OpinionList({ symbol, opinions, onChanged }: Props) {
+export function OpinionList({ symbol, opinions }: Props) {
   const sorted = [...opinions].sort((left, right) =>
     right.opinion.opinionTime.localeCompare(left.opinion.opinionTime),
   );
-
-  async function review(id: string, outcome: string) {
-    await api.review(id, { outcome });
-    onChanged();
-  }
 
   return (
     <section className="opinions">
@@ -30,12 +22,14 @@ export function OpinionList({ symbol, opinions, onChanged }: Props) {
       </div>
       {sorted.length === 0 && <div className="empty">当前标的还没有观点或消息</div>}
       <div className="timeline">
-        {sorted.map(({ opinion, priceLevels, review: result }) => {
+        {sorted.map(({ opinion, priceLevels }, index) => {
           const quote = originalText(opinion.sourceQuote, opinion.rawItemJson);
           const fallback = fallbackOpinion(opinion.rawItemJson);
           const message = opinion.status === 'MESSAGE';
+          const previous = sorted[index - 1]?.opinion;
+          const sameDay = previous && previous.opinionTime.slice(0, 10) === opinion.opinionTime.slice(0, 10);
           return (
-            <article className="opinion timeline-item" key={opinion.id}>
+            <article className={`opinion timeline-item${sameDay ? ' same-day' : ''}`} key={opinion.id}>
               <div className="opinion-top">
                 <span className={`badge ${opinion.direction.toLowerCase()}`}>
                   {message ? '消息' : directionLabel(opinion.direction)}
@@ -64,22 +58,6 @@ export function OpinionList({ symbol, opinions, onChanged }: Props) {
               {!fallback && opinion.catalystsText && <p className="detail-text">催化：{opinion.catalystsText}</p>}
               {!fallback && opinion.risksText && <p className="detail-text">风险：{opinion.risksText}</p>}
               {!fallback && quote && <ExpandableQuote sessionId={opinion.sessionId} text={quote} />}
-              {fallback ? null : message ? (
-                <div className="review-row"><span>来自 KOL 历史消息</span></div>
-              ) : (
-                <div className="review-row">
-                  <span>{result ? outcomeLabel(result.outcome) : '待复盘'}</span>
-                  <button onClick={() => review(opinion.id, 'HIT')} title="标记命中" type="button">
-                    <CheckCircle2 size={16} />
-                  </button>
-                  <button onClick={() => review(opinion.id, 'PARTIAL')} title="标记部分命中" type="button">
-                    <CircleDot size={16} />
-                  </button>
-                  <button onClick={() => review(opinion.id, 'MISS')} title="标记失败" type="button">
-                    <XCircle size={16} />
-                  </button>
-                </div>
-              )}
             </article>
           );
         })}
@@ -104,15 +82,6 @@ function levelLabel(value: string) {
     TARGET: '目标',
     STOP: '止损',
     NOTE: '价位',
-  }[value] || value;
-}
-
-function outcomeLabel(value: string) {
-  return {
-    HIT: '命中',
-    PARTIAL: '部分命中',
-    MISS: '失败',
-    PENDING: '未触发',
   }[value] || value;
 }
 

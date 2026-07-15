@@ -161,6 +161,29 @@ public class WxPusherMessageRepository {
         """, mapper, kolId, sinceDate, Math.max(1, Math.min(limit, 1000)));
   }
 
+  public List<WxPusherMessage> findByKolSinceContaining(
+      String kolId, String sinceDate, String symbol, String name, int limit) {
+    String symbolPattern = "%" + symbol.trim() + "%";
+    String namePattern = name == null || name.trim().length() < 3 ? symbolPattern : "%" + name.trim() + "%";
+    return jdbc.query("""
+        SELECT * FROM wxpusher_messages
+        WHERE kol_id = ? AND message_time >= ? AND status <> 'IMPORTED'
+          AND (title LIKE ? OR summary LIKE ? OR detail_text LIKE ?
+               OR title LIKE ? OR summary LIKE ? OR detail_text LIKE ?)
+        ORDER BY message_time DESC, updated_at DESC
+        LIMIT ?
+        """, mapper,
+        kolId,
+        sinceDate,
+        symbolPattern,
+        symbolPattern,
+        symbolPattern,
+        namePattern,
+        namePattern,
+        namePattern,
+        Math.max(1, Math.min(limit, 1000)));
+  }
+
   public Map<String, MessageSummary> summaryByKolIds(List<String> kolIds) {
     List<String> safeKolIds = kolIds == null ? List.of() : kolIds.stream()
         .filter(item -> item != null && !item.isBlank())
