@@ -5,6 +5,9 @@ import sys
 
 import paramiko
 
+SFTP_STALL_TIMEOUT_SECONDS = 300
+UPLOAD_PROGRESS_STEP = 10
+
 
 def parser():
     result = argparse.ArgumentParser()
@@ -52,7 +55,18 @@ def run(client, command, timeout=300):
 
 def upload(sftp, local_path, remote_path):
     print(f"upload {os.path.basename(local_path)} -> {remote_path}")
-    sftp.put(local_path, remote_path)
+    total_size = os.path.getsize(local_path)
+    reported_percent = -UPLOAD_PROGRESS_STEP
+
+    def report_progress(transferred, total):
+        nonlocal reported_percent
+        expected_total = total or total_size
+        percent = 100 if not expected_total else int(transferred * 100 / expected_total)
+        if percent >= reported_percent + UPLOAD_PROGRESS_STEP or percent == 100:
+            reported_percent = percent
+            print(f"upload {os.path.basename(local_path)}: {percent}%")
+
+    sftp.put(local_path, remote_path, callback=report_progress)
 
 
 def main():
@@ -67,6 +81,7 @@ def main():
         run(client, f"mkdir -p {args.remote_dir}", timeout=60)
         sftp = client.open_sftp()
         try:
+            sftp.get_channel().settimeout(SFTP_STALL_TIMEOUT_SECONDS)
             upload(sftp, args.jar, remote_jar)
             upload(sftp, args.archive, remote_archive)
             upload(sftp, args.script, remote_script)
