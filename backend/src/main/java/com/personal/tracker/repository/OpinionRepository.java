@@ -5,7 +5,10 @@ import com.personal.tracker.domain.PriceLevel;
 import com.personal.tracker.domain.Review;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -99,6 +102,16 @@ public class OpinionRepository {
         opinionId);
   }
 
+  public Map<String, List<PriceLevel>> findLevelsByOpinionIds(List<String> opinionIds) {
+    if (opinionIds.isEmpty()) {
+      return Map.of();
+    }
+    String sql = "SELECT * FROM price_levels WHERE opinion_id IN (%s) ORDER BY level_type"
+        .formatted(placeholders(opinionIds.size()));
+    return jdbc.query(sql, levelMapper, opinionIds.toArray()).stream()
+        .collect(Collectors.groupingBy(PriceLevel::opinionId));
+  }
+
   public void replaceLevels(String opinionId, List<PriceLevel> levels) {
     jdbc.update("DELETE FROM price_levels WHERE opinion_id = ?", opinionId);
     if (levels == null || levels.isEmpty()) {
@@ -124,6 +137,16 @@ public class OpinionRepository {
     return rows.stream().findFirst();
   }
 
+  public Map<String, Review> findReviewsByOpinionIds(List<String> opinionIds) {
+    if (opinionIds.isEmpty()) {
+      return Map.of();
+    }
+    String sql = "SELECT * FROM reviews WHERE opinion_id IN (%s)"
+        .formatted(placeholders(opinionIds.size()));
+    return jdbc.query(sql, reviewMapper, opinionIds.toArray()).stream()
+        .collect(Collectors.toMap(Review::opinionId, Function.identity()));
+  }
+
   public Review saveReview(Review input) {
     Review item = new Review(
         JdbcSupport.id(), input.opinionId(), input.outcome(), input.notes(),
@@ -139,5 +162,9 @@ public class OpinionRepository {
         """, item.id(), item.opinionId(), item.outcome(), item.notes(),
         item.resultPrice(), item.reviewDate(), item.createdAt());
     return findReview(input.opinionId()).orElse(item);
+  }
+
+  private static String placeholders(int count) {
+    return String.join(", ", java.util.Collections.nCopies(count, "?"));
   }
 }

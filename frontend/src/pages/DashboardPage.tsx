@@ -76,7 +76,6 @@ export function DashboardPage() {
           <MarketSummaryPanel sessions={dashboard.sessions} />
           <OpinionList
             opinions={dashboard.opinions}
-            onChanged={dashboard.refreshOpinions}
             symbol={dashboard.selected}
           />
         </div>

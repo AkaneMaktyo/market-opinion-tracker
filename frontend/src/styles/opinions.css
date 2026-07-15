@@ -63,6 +63,10 @@
   position: relative;
 }
 
+.timeline-item.same-day {
+  margin-top: 12px;
+}
+
 .timeline-item::before {
   background: #0f766e;
   border: 3px solid #ffffff;
@@ -127,7 +131,6 @@
 }
 
 .opinion-top,
-.review-row,
 .levels {
   align-items: center;
   display: flex;
@@ -157,18 +160,6 @@
 
 .badge.watch {
   background: #64748b;
-}
-
-.review-row {
-  margin-top: 10px;
-}
-
-.review-row button {
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
-  height: 30px;
-  width: 34px;
 }
 
 .empty {
