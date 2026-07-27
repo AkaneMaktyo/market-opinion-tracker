@@ -22,6 +22,7 @@ import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository.WxPush
 import com.personal.tracker.service.positions.KolPositionService;
 import com.personal.tracker.service.resonance.ResonanceService;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
@@ -49,6 +50,8 @@ class OpinionServiceTest {
         "session-1", "kol-1", "2026-06-06", "直播", "TEST", "", "now")));
     when(opinions.findLevels("opinion-1")).thenReturn(List.of());
     when(opinions.findReview("opinion-1")).thenReturn(Optional.empty());
+    when(opinions.findLevelsByOpinionIds(any())).thenReturn(Map.of());
+    when(opinions.findReviewsByOpinionIds(any())).thenReturn(Map.of());
 
     service.create(new OpinionService.CreateOpinionCommand(
         "session-1", "NVDA", "NVIDIA", "US", null, "BULLISH", "OPEN",
@@ -79,7 +82,8 @@ class OpinionServiceTest {
     when(opinions.find("kol-1", "NVDA", null, 100)).thenReturn(List.of());
     when(instruments.findBySymbol("NVDA")).thenReturn(Optional.of(instrument));
     when(bloggers.enabled()).thenReturn(List.of(blogger("kol-1", "顺哥", List.of("顺哥"))));
-    when(messages.findByKolSince(anyString(), anyString(), anyInt())).thenReturn(List.of(message));
+    when(messages.findByKolSinceContaining(anyString(), anyString(), anyString(), anyString(), anyInt()))
+        .thenReturn(List.of(message));
 
     var result = service.find("kol-1", "NVDA", null, 100);
 
@@ -87,7 +91,7 @@ class OpinionServiceTest {
     assertEquals("MESSAGE", result.get(0).opinion().status());
     assertEquals("NVDA", result.get(0).opinion().symbol());
     verify(opinions).find("kol-1", "NVDA", null, 100);
-    verify(messages).findByKolSince(eq("kol-1"), anyString(), anyInt());
+    verify(messages).findByKolSinceContaining(eq("kol-1"), anyString(), eq("NVDA"), eq("NVIDIA"), anyInt());
   }
 
   @Test
@@ -112,9 +116,12 @@ class OpinionServiceTest {
     when(opinions.find("kol-1", "AVGO", null, 100)).thenReturn(List.of(opinion));
     when(opinions.findLevels("opinion-1")).thenReturn(List.of());
     when(opinions.findReview("opinion-1")).thenReturn(Optional.empty());
+    when(opinions.findLevelsByOpinionIds(any())).thenReturn(Map.of());
+    when(opinions.findReviewsByOpinionIds(any())).thenReturn(Map.of());
     when(instruments.findBySymbol("AVGO")).thenReturn(Optional.of(instrument));
     when(bloggers.enabled()).thenReturn(List.of());
-    when(messages.findByKolSince(anyString(), anyString(), anyInt())).thenReturn(List.of(message));
+    when(messages.findByKolSinceContaining(anyString(), anyString(), anyString(), anyString(), anyInt()))
+        .thenReturn(List.of(message));
 
     var result = service.find("kol-1", "AVGO", null, 100);
 
@@ -143,7 +150,8 @@ class OpinionServiceTest {
     when(opinions.find("kol-1", "GOLD", null, 100)).thenReturn(List.of());
     when(instruments.findBySymbol("GOLD")).thenReturn(Optional.of(instrument));
     when(bloggers.enabled()).thenReturn(List.of(blogger("kol-1", "顺哥", List.of("CIA-信息推送", "顺哥"))));
-    when(messages.findByKolSince(anyString(), anyString(), anyInt())).thenReturn(List.of(message));
+    when(messages.findByKolSinceContaining(anyString(), anyString(), anyString(), anyString(), anyInt()))
+        .thenReturn(List.of(message));
 
     var result = service.find("kol-1", "GOLD", null, 100);
 

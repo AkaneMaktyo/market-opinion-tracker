@@ -26,8 +26,8 @@ interface Props {
 }
 
 export function ChartPanel(props: Props) {
-  const [showOpinions, setShowOpinions] = useState(true);
-  const [showLevels, setShowLevels] = useState(true);
+  const [showOpinions, setShowOpinions] = useState(false);
+  const [showLevels, setShowLevels] = useState(false);
   const chartBars = useMemo(
     () => props.bars.filter((bar) => bar.timeframe?.toUpperCase() === props.timeframe),
     [props.bars, props.timeframe],

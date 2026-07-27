@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.regex.Pattern;
@@ -103,11 +104,16 @@ public class OpinionService {
     Set<String> opinionSessionIds = Set.of();
     if (!onlyMessages) {
       List<Opinion> stored = opinions.find(safeKol, symbol, status, limit);
+      List<String> opinionIds = stored.stream().map(Opinion::id).toList();
+      Map<String, List<PriceLevel>> levels = opinionIds.isEmpty()
+          ? Map.of() : opinions.findLevelsByOpinionIds(opinionIds);
+      Map<String, Review> reviews = opinionIds.isEmpty()
+          ? Map.of() : opinions.findReviewsByOpinionIds(opinionIds);
       opinionSessionIds = stored.stream()
           .map(Opinion::sessionId)
           .filter(value -> value != null && !value.isBlank())
           .collect(Collectors.toSet());
-      result.addAll(stored.stream().map(this::view).toList());
+      result.addAll(stored.stream().map(item -> view(item, levels, reviews)).toList());
     }
     if (includeMessages(symbol, status)) {
       result.addAll(messageViews(safeKol, JdbcSupport.symbol(symbol), opinionSessionIds));
@@ -139,6 +145,13 @@ public class OpinionService {
         opinions.findReview(opinion.id()).orElse(null));
   }
 
+  private OpinionView view(
+      Opinion opinion,
+      Map<String, List<PriceLevel>> levels,
+      Map<String, Review> reviews) {
+    return new OpinionView(opinion, levels.getOrDefault(opinion.id(), List.of()), reviews.get(opinion.id()));
+  }
+
   private List<OpinionView> messageViews(
       String kolId,
       String symbol,
@@ -147,7 +160,8 @@ public class OpinionService {
     String name = instrument == null ? "" : instrument.name();
     String instrumentId = instrument == null ? "" : instrument.id();
     WxPusherBlogger blogger = configuredBlogger(kolId);
-    return wxpusherMessages.findByKolSince(kolId, monthStart(), MESSAGE_LOOKBACK_LIMIT).stream()
+    return wxpusherMessages.findByKolSinceContaining(
+            kolId, monthStart(), symbol, name, MESSAGE_LOOKBACK_LIMIT).stream()
         .filter(message -> !opinionSessionIds.contains(message.sessionId()))
         .filter(message -> matchesConfiguredBlogger(blogger, message))
         .filter(message -> mentions(messageText(message), symbol, name))

@@ -20,11 +20,69 @@ jobs:
         shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command ". '{0}'"
     env:
       PSExecutionPolicyPreference: Bypass
+      # 可选的专用代理；实际 HTTP(S) 代理在预检后写入后续步骤环境。
+      DEPLOY_HTTP_PROXY: ${{ secrets.DEPLOY_HTTP_PROXY }}
+      DEPLOY_HTTPS_PROXY: ${{ secrets.DEPLOY_HTTPS_PROXY }}
+      DEPLOY_NO_PROXY: ${{ secrets.DEPLOY_NO_PROXY }}
       SSH_HOST: ${{ secrets.KMT_SSH_HOST }}
       SSH_PORT: ${{ secrets.KMT_SSH_PORT }}
       SSH_USER: ${{ secrets.KMT_SSH_USER }}
       SSH_PASSWORD: ${{ secrets.KMT_SSH_PASSWORD }}
     steps:
+      - name: Check Runner access to GitHub
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $targets = @('github.com', 'api.github.com', 'codeload.github.com')
+          $winHttpProxy = netsh winhttp show proxy | Out-String
+          $winHttpProxyState = if ($winHttpProxy -match 'Direct access') { 'not set' } else { 'set' }
+          Write-Host "WinHTTP proxy: $winHttpProxyState"
+          $proxyVariables = 'HTTP_PROXY', 'HTTPS_PROXY', 'NO_PROXY', 'DEPLOY_HTTP_PROXY', 'DEPLOY_HTTPS_PROXY', 'DEPLOY_NO_PROXY'
+          foreach ($name in $proxyVariables) {
+            $state = if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) { 'not set' } else { 'set' }
+            Write-Host "Environment proxy $name : $state"
+          }
+          $gitProxy = git config --global --get http.proxy 2>$null
+          $gitProxyState = if ([string]::IsNullOrWhiteSpace($gitProxy)) { 'not set' } else { 'set' }
+          Write-Host "Git global HTTP proxy: $gitProxyState"
+          foreach ($target in $targets) {
+            try {
+              $addresses = Resolve-DnsName -Name $target -Type A -ErrorAction Stop |
+                Select-Object -ExpandProperty IPAddress -Unique
+              Write-Host "DNS $target : $($addresses -join ', ')"
+            } catch {
+              throw "Runner DNS lookup failed for $target. Check the Runner machine DNS, VPN, or proxy configuration. $($_.Exception.Message)"
+            }
+          }
+          $connection = Test-NetConnection -ComputerName github.com -Port 443 -WarningAction SilentlyContinue
+          Write-Host "Direct TCP github.com:443 : $($connection.TcpTestSucceeded)"
+          $directOk = $false
+          if ($connection.TcpTestSucceeded) {
+            curl.exe --noproxy '*' --fail --silent --show-error --head --connect-timeout 5 --max-time 15 https://github.com | Out-Null
+            $directOk = $LASTEXITCODE -eq 0
+          }
+          $proxyUrl = $env:DEPLOY_HTTPS_PROXY
+          if ([string]::IsNullOrWhiteSpace($proxyUrl)) { $proxyUrl = $env:DEPLOY_HTTP_PROXY }
+          if (-not $directOk -and [string]::IsNullOrWhiteSpace($proxyUrl)) {
+            $localProxy = Test-NetConnection -ComputerName 127.0.0.1 -Port 7897 -WarningAction SilentlyContinue
+            if ($localProxy.TcpTestSucceeded) { $proxyUrl = 'http://127.0.0.1:7897' }
+          }
+          if (-not $directOk -and -not [string]::IsNullOrWhiteSpace($proxyUrl)) {
+            curl.exe --proxy $proxyUrl --fail --silent --show-error --head --connect-timeout 5 --max-time 20 https://github.com | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "Runner proxy HTTPS request to github.com failed with curl exit code $LASTEXITCODE." }
+          }
+          if (-not $directOk -and [string]::IsNullOrWhiteSpace($proxyUrl)) {
+            throw 'Runner cannot reach github.com:443 directly and no usable deployment proxy is configured.'
+          }
+          $jobProxy = if ($directOk) { '' } else { $proxyUrl }
+          $jobNoProxy = if ([string]::IsNullOrWhiteSpace($env:DEPLOY_NO_PROXY)) { '' } else { $env:DEPLOY_NO_PROXY }
+          $jobEnvironment = "HTTP_PROXY=$jobProxy`nHTTPS_PROXY=$jobProxy`nNO_PROXY=$jobNoProxy`n"
+          [IO.File]::AppendAllText($env:GITHUB_ENV, $jobEnvironment, (New-Object System.Text.UTF8Encoding($false)))
+          if ($directOk) {
+            Write-Host 'GitHub route selected: direct.'
+          } else {
+            Write-Host 'GitHub route selected: proxy.'
+          }
+
       - name: Checkout
         uses: actions/checkout@v4
 
