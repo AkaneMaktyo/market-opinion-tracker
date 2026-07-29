@@ -1,4 +1,5 @@
 import { AppBrand } from '../components/brand/AppBrand';
+import { PriceAlertButton } from '../components/alerts/PriceAlertButton';
 import { ChartPanel } from '../components/ChartPanel';
 import { JsonImportPanel } from '../components/JsonImportPanel';
 import { KolPicker } from '../components/KolPicker';
@@ -29,6 +30,10 @@ export function DashboardPage() {
         />
         <JsonImportPanel kolId={dashboard.selectedKol} onImported={dashboard.reload} />
         <SourceManagerButton onChanged={() => dashboard.reload()} />
+        <PriceAlertButton
+          selectedSymbol={dashboard.selected}
+          onJumpToChart={dashboard.selectSymbol}
+        />
         <YouTubePageButton />
         <ManualPositionForm
           kolId={dashboard.selectedKol}

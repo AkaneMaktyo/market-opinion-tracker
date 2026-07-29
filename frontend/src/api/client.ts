@@ -12,6 +12,7 @@ import type {
   Timeframe,
 } from '../types';
 import { json } from './http';
+import { priceAlertApi } from './alerts';
 import { llmApi } from './llm';
 import { positionApi } from './positions';
 import { wxpusherApi } from './wxpusher';
@@ -26,6 +27,7 @@ async function fetchWatchlist(kolId: string, quotes = true) {
 }
 
 export const api = {
+  ...priceAlertApi,
   ...llmApi,
   ...wxpusherApi,
   ...youtubeApi,

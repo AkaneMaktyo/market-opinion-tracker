@@ -239,6 +239,7 @@ public class InstrumentRepository {
         SELECT kol_id, ?, group_name FROM kol_instrument_groups WHERE instrument_id = ?
         """, targetId, sourceId);
     jdbc.update("DELETE FROM kol_instrument_groups WHERE instrument_id = ?", sourceId);
+    jdbc.update("UPDATE price_signal_alerts SET instrument_id = ? WHERE instrument_id = ?", targetId, sourceId);
     jdbc.update("UPDATE opinions SET instrument_id = ? WHERE instrument_id = ?", targetId, sourceId);
     jdbc.update("""
         DELETE mb1 FROM market_bars mb1
@@ -256,6 +257,7 @@ public class InstrumentRepository {
     }
     deleteResonanceData(instrumentId);
     deleteOpinionData(instrumentId);
+    jdbc.update("DELETE FROM price_signal_alerts WHERE instrument_id = ?", instrumentId);
     jdbc.update("DELETE FROM kol_instrument_groups WHERE instrument_id = ?", instrumentId);
     jdbc.update("DELETE FROM kol_positions WHERE instrument_id = ?", instrumentId);
     jdbc.update("DELETE FROM market_bars WHERE instrument_id = ?", instrumentId);

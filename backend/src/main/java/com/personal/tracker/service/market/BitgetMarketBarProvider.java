@@ -1,31 +1,21 @@
 package com.personal.tracker.service.market;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.personal.tracker.domain.Instrument;
 import com.personal.tracker.domain.MarketBar;
 import com.personal.tracker.repository.InstrumentRepository;
 import com.personal.tracker.repository.JdbcSupport;
-import java.io.IOException;
+import com.personal.tracker.service.market.bitget.BitgetPublicApiClient;
 import java.math.BigDecimal;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.time.Duration;
 import java.time.Instant;
-import java.util.concurrent.CompletableFuture;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @Component
@@ -38,25 +28,15 @@ public class BitgetMarketBarProvider implements MarketBarProvider {
       "4H", "4H");
   private static final int DEFAULT_LIMIT = 1000;
   private static final String MAPPED = "MAPPED";
-  private final ObjectMapper mapper;
   private final InstrumentRepository instruments;
-  private final RestClient client;
+  private final BitgetPublicApiClient client;
   private final Map<String, CachedMapping> mappings = new ConcurrentHashMap<>();
 
-  public BitgetMarketBarProvider(ObjectMapper mapper, InstrumentRepository instruments) {
-    this.mapper = mapper;
+  public BitgetMarketBarProvider(
+      InstrumentRepository instruments,
+      BitgetPublicApiClient client) {
     this.instruments = instruments;
-    this.client = RestClient.builder()
-        .baseUrl("https://api.bitget.com")
-        .requestFactory(requestFactory())
-        .build();
-  }
-
-  private SimpleClientHttpRequestFactory requestFactory() {
-    SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-    factory.setConnectTimeout(Duration.ofSeconds(8));
-    factory.setReadTimeout(Duration.ofSeconds(15));
-    return factory;
+    this.client = client;
   }
 
   @Override
@@ -192,7 +172,7 @@ public class BitgetMarketBarProvider implements MarketBarProvider {
       if (endTime != null) {
         builder.queryParam("endTime", endTime);
       }
-      JsonNode root = request(builder.toUriString());
+      JsonNode root = client.get(builder.toUriString());
       if (root == null) {
         return FetchOutcome.failed();
       }
@@ -206,112 +186,6 @@ public class BitgetMarketBarProvider implements MarketBarProvider {
     } catch (RuntimeException error) {
       log.debug("Bitget K line fetch failed for {}", query.symbol(), error);
       return FetchOutcome.failed();
-    }
-  }
-
-  private JsonNode request(String uri) {
-    try {
-      return client.get().uri(uri).retrieve().body(JsonNode.class);
-    } catch (RestClientResponseException error) {
-      JsonNode body = readJson(error.getResponseBodyAsByteArray());
-      if (body != null) {
-        return body;
-      }
-      log.debug("Bitget Java client status error, trying PowerShell fallback: {}", error.getMessage());
-      return requestWithPowerShell("https://api.bitget.com" + uri);
-    } catch (RuntimeException error) {
-      log.debug("Bitget Java client failed, trying PowerShell fallback: {}", error.getMessage());
-      return requestWithPowerShell("https://api.bitget.com" + uri);
-    }
-  }
-
-  private JsonNode requestWithPowerShell(String url) {
-    Path output = null;
-    try {
-      output = Files.createTempFile("bitget-bars-", ".json");
-      String command = """
-          $ProgressPreference = 'SilentlyContinue';
-          [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new();
-          try {
-            $response = Invoke-WebRequest -Uri '%s' -TimeoutSec 15 -UseBasicParsing;
-            $response.Content;
-          } catch {
-            if ($_.ErrorDetails -ne $null -and -not [string]::IsNullOrWhiteSpace($_.ErrorDetails.Message)) {
-              $_.ErrorDetails.Message;
-              exit 0;
-            }
-            if ($_.Exception.Response -ne $null) {
-              $stream = $_.Exception.Response.GetResponseStream();
-              if ($stream -ne $null) {
-                $reader = [System.IO.StreamReader]::new($stream);
-                $reader.ReadToEnd();
-                exit 0;
-              }
-            }
-            throw;
-          }
-          """.formatted(url.replace("'", "''"));
-      Process process = new ProcessBuilder(
-          "powershell",
-          "-NoProfile",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-Command",
-          command)
-          .redirectErrorStream(true)
-          .redirectOutput(output.toFile())
-          .start();
-      Process running = process;
-      CompletableFuture<Integer> exitCode = CompletableFuture.supplyAsync(() -> waitFor(running));
-      try {
-        if (exitCode.get(20, TimeUnit.SECONDS) != 0) {
-          return null;
-        }
-        return readJson(Files.readAllBytes(output));
-      } finally {
-        if (process.isAlive()) {
-          process.destroyForcibly();
-        }
-      }
-    } catch (TimeoutException error) {
-      log.debug("Bitget PowerShell fallback timed out: {}", url);
-      return null;
-    } catch (InterruptedException error) {
-      Thread.currentThread().interrupt();
-      log.debug("Bitget PowerShell fallback failed: {}", error.getMessage());
-      return null;
-    } catch (Exception error) {
-      log.debug("Bitget PowerShell fallback failed: {}", error.getMessage());
-      return null;
-    } finally {
-      if (output != null) {
-        try {
-          Files.deleteIfExists(output);
-        } catch (IOException error) {
-          log.debug("Bitget temp file cleanup failed: {}", error.getMessage());
-        }
-      }
-    }
-  }
-
-  private JsonNode readJson(byte[] data) {
-    if (data == null || data.length == 0) {
-      return null;
-    }
-    try {
-      return mapper.readTree(data);
-    } catch (IOException error) {
-      log.debug("Bitget JSON parse failed: {}", error.getMessage());
-      return null;
-    }
-  }
-
-  private int waitFor(Process process) {
-    try {
-      return process.waitFor();
-    } catch (InterruptedException error) {
-      Thread.currentThread().interrupt();
-      return -1;
     }
   }
 

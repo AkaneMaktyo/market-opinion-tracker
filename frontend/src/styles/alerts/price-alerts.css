@@ -1,0 +1,105 @@
+.price-alert-modal {
+  max-height: min(760px, calc(100vh - 48px));
+  max-width: min(820px, calc(100vw - 48px));
+  overflow-y: auto;
+  width: 100%;
+}
+
+.price-alert-form {
+  align-items: end;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(120px, 1fr)) auto;
+  margin: 14px 0;
+}
+
+.price-alert-form label {
+  margin: 0;
+}
+
+.price-alert-form .primary {
+  height: 38px;
+}
+
+.text-button {
+  background: transparent;
+  border: 0;
+  color: #475569;
+  height: 38px;
+  padding: 0 8px;
+}
+
+.price-monitor-status {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 10px 12px;
+}
+
+.price-monitor-status span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.monitor-dot {
+  background: #f59e0b;
+  border-radius: 50%;
+  height: 9px;
+  width: 9px;
+}
+
+.monitor-dot.live {
+  background: #10b981;
+  box-shadow: 0 0 0 4px #d1fae5;
+}
+
+.price-alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.price-alert-row {
+  align-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  padding: 11px 12px;
+}
+
+.price-alert-main > div {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.price-alert-main p {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 7px 0 4px;
+}
+
+.price-alert-main small {
+  color: #64748b;
+  display: block;
+}
+
+.alert-error {
+  color: #b91c1c !important;
+}
+
+.icon-button.danger {
+  color: #b91c1c;
+}
+
+@media (max-width: 720px) {
+  .price-alert-form {
+    grid-template-columns: 1fr;
+  }
+}

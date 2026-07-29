@@ -409,3 +409,21 @@ CREATE TABLE IF NOT EXISTS resonance_alerts (
   created_at VARCHAR(64) NOT NULL,
   INDEX idx_resonance_alert_cluster(cluster_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS price_signal_alerts (
+  id VARCHAR(64) PRIMARY KEY,
+  instrument_id VARCHAR(64) NOT NULL,
+  alert_type VARCHAR(16) NOT NULL DEFAULT 'RANGE',
+  lower_price DECIMAL(24, 8) NOT NULL,
+  upper_price DECIMAL(24, 8) NOT NULL,
+  target_price DECIMAL(24, 8),
+  status VARCHAR(32) NOT NULL,
+  last_price DECIMAL(24, 8),
+  last_checked_at VARCHAR(64),
+  triggered_at VARCHAR(64),
+  notify_status VARCHAR(32) NOT NULL,
+  error_message TEXT,
+  created_at VARCHAR(64) NOT NULL,
+  updated_at VARCHAR(64) NOT NULL,
+  INDEX idx_price_signal_active(status, instrument_id, updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
