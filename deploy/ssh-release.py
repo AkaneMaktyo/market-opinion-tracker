@@ -19,6 +19,7 @@ def parser():
     result.add_argument("--archive", required=True)
     result.add_argument("--script", required=True)
     result.add_argument("--mux-script", required=True)
+    result.add_argument("--runtime-env")
     return result
 
 
@@ -75,6 +76,7 @@ def main():
     remote_archive = posixpath.join(args.remote_dir, "frontend-dist.tar.gz")
     remote_script = posixpath.join(args.remote_dir, "apply-release.sh")
     remote_mux = posixpath.join(args.remote_dir, "ssh_http_mux.py")
+    remote_runtime_env = posixpath.join(args.remote_dir, "runtime.env")
 
     client = connect(args)
     try:
@@ -86,9 +88,25 @@ def main():
             upload(sftp, args.archive, remote_archive)
             upload(sftp, args.script, remote_script)
             upload(sftp, args.mux_script, remote_mux)
+            if args.runtime_env:
+                upload(sftp, args.runtime_env, remote_runtime_env)
         finally:
             sftp.close()
-        run(client, f"bash {remote_script} {remote_jar} {remote_archive}", timeout=300)
+        runtime_arg = f" {remote_runtime_env}" if args.runtime_env else ""
+        if args.runtime_env:
+            run(client, f"chmod 600 {remote_runtime_env}", timeout=30)
+        try:
+            run(
+                client,
+                f"bash {remote_script} {remote_jar} {remote_archive}{runtime_arg}",
+                timeout=300,
+            )
+        finally:
+            if args.runtime_env:
+                try:
+                    run(client, f"rm -f {remote_runtime_env}", timeout=30)
+                except Exception:
+                    pass
     finally:
         client.close()
 

@@ -3,6 +3,7 @@ set -euo pipefail
 
 JAR_PATH="${1:?jar path required}"
 DIST_ARCHIVE="${2:?frontend archive path required}"
+RUNTIME_ENV_PATH="${3:-}"
 APP_BASE="${APP_BASE:-/opt/market-opinion-tracker}"
 ENV_DIR="${ENV_DIR:-/etc/market-opinion-tracker}"
 WWW_ROOT="${WWW_ROOT:-/var/www/market-opinion-tracker}"
@@ -46,6 +47,24 @@ chmod 755 "$MUX_BASE/ssh_http_mux.py"
 if [[ ! -f "$ENV_DIR/app.env" ]]; then
   echo "Missing $ENV_DIR/app.env" >&2
   exit 1
+fi
+
+if [[ -n "$RUNTIME_ENV_PATH" && -f "$RUNTIME_ENV_PATH" ]]; then
+  while IFS= read -r line; do
+    [[ "$line" == *=* ]] || continue
+    key="${line%%=*}"
+    value="${line#*=}"
+    case "$key" in
+      PRICE_ALERT_WXPUSHER_SPT)
+        temp_env="$(mktemp)"
+        grep -v "^${key}=" "$ENV_DIR/app.env" > "$temp_env" || true
+        printf '%s=%s\n' "$key" "$value" >> "$temp_env"
+        cat "$temp_env" > "$ENV_DIR/app.env"
+        rm -f "$temp_env"
+        ;;
+    esac
+  done < "$RUNTIME_ENV_PATH"
+  rm -f "$RUNTIME_ENV_PATH"
 fi
 
 if grep -q '^SERVER_ADDRESS=' "$ENV_DIR/app.env"; then

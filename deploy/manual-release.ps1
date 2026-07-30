@@ -22,6 +22,7 @@ $remoteScript = "$remoteDir/apply-release.sh"
 $resolvedJarPath = if ($JarPath) { (Resolve-Path $JarPath).Path } else { $defaultJarPath }
 $resolvedArchivePath = if ($FrontendArchivePath) { (Resolve-Path $FrontendArchivePath).Path } else { $defaultArchivePath }
 $localReleaseScript = Join-Path $env:TEMP "mot-apply-release-$PID.sh"
+$localRuntimeEnv = Join-Path $env:TEMP "mot-runtime-env-$PID"
 $localMuxScript = Join-Path $PSScriptRoot "ssh_http_mux.py"
 $releaseClient = Join-Path $PSScriptRoot "ssh-release.py"
 
@@ -115,20 +116,32 @@ if (-not (Test-Path $releaseClient)) {
 try {
     $env:MOT_SSH_PASSWORD = $SshPassword
     $pythonCommand = Find-PythonCommand
-    & $pythonCommand[0] @($pythonCommand | Select-Object -Skip 1) $releaseClient `
-        --host $SshHost `
-        --port $SshPort `
-        --user $SshUser `
-        --remote-dir $remoteDir `
-        --jar $resolvedJarPath `
-        --archive $resolvedArchivePath `
-        --script $localReleaseScript `
-        --mux-script $localMuxScript
+    $releaseArgs = @(
+        "--host", $SshHost,
+        "--port", $SshPort,
+        "--user", $SshUser,
+        "--remote-dir", $remoteDir,
+        "--jar", $resolvedJarPath,
+        "--archive", $resolvedArchivePath,
+        "--script", $localReleaseScript,
+        "--mux-script", $localMuxScript
+    )
+    if (-not [string]::IsNullOrWhiteSpace($env:PRICE_ALERT_WXPUSHER_SPT)) {
+        $runtimeSpt = $env:PRICE_ALERT_WXPUSHER_SPT -replace "[`r`n]", ""
+        [IO.File]::WriteAllText(
+            $localRuntimeEnv,
+            "PRICE_ALERT_WXPUSHER_SPT=$runtimeSpt`n",
+            (New-Object System.Text.UTF8Encoding($false))
+        )
+        $releaseArgs += @("--runtime-env", $localRuntimeEnv)
+    }
+    & $pythonCommand[0] @($pythonCommand | Select-Object -Skip 1) $releaseClient @releaseArgs
     if ($LASTEXITCODE -ne 0) {
         throw "Remote release failed."
     }
     Write-Output "Release complete: http://$($SshHost):8888/market/"
 } finally {
     Remove-Item $localReleaseScript -ErrorAction SilentlyContinue
+    Remove-Item $localRuntimeEnv -ErrorAction SilentlyContinue
     Remove-Item Env:MOT_SSH_PASSWORD -ErrorAction SilentlyContinue
 }
