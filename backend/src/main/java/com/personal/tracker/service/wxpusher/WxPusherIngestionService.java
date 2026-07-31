@@ -16,7 +16,9 @@ import com.personal.tracker.service.imports.OpinionImportWriter;
 import com.personal.tracker.service.json.JsonOpinionParser;
 import com.personal.tracker.service.wxpusher.fallback.WxPusherFallbackOpinionExtractor;
 import com.personal.tracker.service.wxpusher.instruments.MessageInstrumentExtractor;
+import com.personal.tracker.service.wxpusher.ocr.WxPusherImageOcrService;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -32,6 +34,7 @@ public class WxPusherIngestionService {
   private final WxPusherMessageRepository messageRepository;
   private final WxPusherSharedMessageRepository sharedRepository;
   private final WxPusherArticleExtractor articleExtractor;
+  private final WxPusherImageOcrService imageOcrService;
   private final OpenAiJsonExtractor aiExtractor;
   private final JsonOpinionParser parser;
   private final OpinionImportWriter writer;
@@ -44,6 +47,7 @@ public class WxPusherIngestionService {
       WxPusherMessageRepository messageRepository,
       WxPusherSharedMessageRepository sharedRepository,
       WxPusherArticleExtractor articleExtractor,
+      WxPusherImageOcrService imageOcrService,
       OpenAiJsonExtractor aiExtractor,
       JsonOpinionParser parser,
       OpinionImportWriter writer,
@@ -54,6 +58,7 @@ public class WxPusherIngestionService {
     this.messageRepository = messageRepository;
     this.sharedRepository = sharedRepository;
     this.articleExtractor = articleExtractor;
+    this.imageOcrService = imageOcrService;
     this.aiExtractor = aiExtractor;
     this.parser = parser;
     this.writer = writer;
@@ -107,6 +112,43 @@ public class WxPusherIngestionService {
     process(message, null);
   }
 
+  public OcrBackfillResult backfillOcrHistory(int limit) {
+    int eligible = 0;
+    int converted = 0;
+    int imported = 0;
+    List<String> failedIds = new ArrayList<>();
+    for (WxPusherMessage message : messageRepository.listLegacyImageMessages(limit)) {
+      if (!imageOcrService.requiresSourceRefresh(message.bloggerName(), message.detailText())) {
+        continue;
+      }
+      eligible++;
+      try {
+        if ("IMPORTED".equalsIgnoreCase(message.status())) {
+          refreshImportedOcrText(message);
+        } else {
+          process(message, null);
+        }
+        WxPusherMessage updated = messageRepository.findById(message.id()).orElse(message);
+        if (imageOcrService.containsOcrText(updated.detailText())) {
+          converted++;
+          if ("IMPORTED".equalsIgnoreCase(updated.status())) {
+            imported++;
+          }
+        } else {
+          failedIds.add(message.id());
+        }
+      } catch (RuntimeException error) {
+        failedIds.add(message.id());
+      }
+    }
+    return new OcrBackfillResult(
+        eligible,
+        converted,
+        imported,
+        failedIds.size(),
+        failedIds.stream().limit(50).toList());
+  }
+
   private boolean importFromShared(WxPusherClient.IncomingMessage incoming) {
     var matched = matchBlogger(incoming);
     if (matched.isEmpty()) {
@@ -114,6 +156,16 @@ public class WxPusherIngestionService {
       return false;
     }
     return processMatched(incoming, matched.get(), incoming.messageKey());
+  }
+
+  private void refreshImportedOcrText(WxPusherMessage message) {
+    String detailText = fetchDetail(message);
+    detailText = imageOcrService.convert(message.bloggerName(), detailText);
+    if (!imageOcrService.containsOcrText(detailText)) {
+      throw new IllegalStateException("历史消息没有取得可入库的图片文字");
+    }
+    ensureSession(message, detailText);
+    messageRepository.updateDetailText(message.id(), detailText);
   }
 
   private boolean processMatched(
@@ -156,6 +208,7 @@ public class WxPusherIngestionService {
         return;
       }
       message = reassignFromDetail(message, detailText);
+      detailText = imageOcrService.convert(message.bloggerName(), detailText);
       sessionId = ensureSession(message, detailText);
       saveMentionedInstruments(message, detailText);
       if (!aiExtractor.extractionEnabled()) {
@@ -192,6 +245,9 @@ public class WxPusherIngestionService {
     if (message.sessionId() != null && !message.sessionId().isBlank()) {
       var current = sessionRepository.findById(message.sessionId());
       if (current.isPresent() && current.get().kolId().equals(message.kolId())) {
+        if (imageOcrService.containsOcrText(detailText)) {
+          sessionRepository.updateRawText(message.sessionId(), detailText);
+        }
         return message.sessionId();
       }
     }
@@ -277,10 +333,13 @@ public class WxPusherIngestionService {
   }
 
   private String fetchDetail(WxPusherMessage message) {
-    if (message.detailText() != null && !message.detailText().isBlank()) {
+    boolean refreshLegacyImage = imageOcrService.requiresSourceRefresh(
+        message.bloggerName(),
+        message.detailText());
+    if (message.detailText() != null && !message.detailText().isBlank() && !refreshLegacyImage) {
       return unusableDetail(message.detailText()) ? fallbackText(message) : message.detailText();
     }
-    if (isRetryState(message.status())) {
+    if (isRetryState(message.status()) && !refreshLegacyImage) {
       return fallbackText(message);
     }
     if (message.detailUrl() == null || message.detailUrl().isBlank()) {
@@ -365,5 +424,13 @@ public class WxPusherIngestionService {
       return messageTime.substring(0, 10);
     }
     return LocalDate.now().toString();
+  }
+
+  public record OcrBackfillResult(
+      int eligible,
+      int converted,
+      int imported,
+      int failed,
+      List<String> failedMessageIds) {
   }
 }

@@ -29,6 +29,7 @@ import com.personal.tracker.service.ImportService.ImportPreview;
 import com.personal.tracker.service.imports.OpinionImportWriter;
 import com.personal.tracker.service.imports.OpinionImportWriter.WriteResult;
 import com.personal.tracker.service.json.JsonOpinionParser;
+import com.personal.tracker.service.wxpusher.ocr.WxPusherImageOcrService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -156,6 +157,43 @@ class WxPusherIngestionServiceTest {
         eq("msg-symbols"), eq("NVDA BUY NOW and AMZN BUY NOW"), contains("keyword"), eq("session-symbols"));
   }
 
+  @Test
+  void backfillsImportedVipImageTextWithoutDuplicatingOpinions() {
+    var fx = fixture();
+    String legacyText = "💎｜顺哥vip小群\n[图片]";
+    String fetchedText = "💎｜顺哥vip小群\nWXPUSHER_IMAGE_URL=https://img.example/signal.png";
+    String ocrText = "💎｜顺哥vip小群\n[图片转文字 1]\nNVDA 看多\n[/图片转文字]";
+    WxPusherMessage legacy = new WxPusherMessage(
+        "msg-history", "key-history", "kol-shun", "顺哥", "", "顺哥vip小群",
+        "https://wxpusher.zjiecode.com/api/message/1", "https://source",
+        "2026-07-01T06:00:00Z", "{}", legacyText, "{}", "IMPORTED", "",
+        "session-history", "", "");
+    WxPusherMessage updated = new WxPusherMessage(
+        "msg-history", "key-history", "kol-shun", "顺哥", "", "顺哥vip小群",
+        legacy.detailUrl(), legacy.sourceUrl(), legacy.messageTime(), "{}", ocrText, "{}",
+        "IMPORTED", "", "session-history", "", "");
+    when(fx.messages.listLegacyImageMessages(1000)).thenReturn(List.of(legacy));
+    when(fx.imageOcr.requiresSourceRefresh("顺哥", legacyText)).thenReturn(true);
+    when(fx.settings.get()).thenReturn(settings());
+    when(fx.articles.fetchText(legacy.detailUrl(), settings())).thenReturn(fetchedText);
+    when(fx.imageOcr.convert("顺哥", fetchedText)).thenReturn(ocrText);
+    when(fx.imageOcr.containsOcrText(ocrText)).thenReturn(true);
+    when(fx.sessions.findById("session-history"))
+        .thenReturn(java.util.Optional.of(session("session-history", "kol-shun", legacyText)));
+    when(fx.messages.findById("msg-history")).thenReturn(java.util.Optional.of(updated));
+
+    var result = fx.service.backfillOcrHistory(1000);
+
+    assertEquals(1, result.eligible());
+    assertEquals(1, result.converted());
+    assertEquals(1, result.imported());
+    assertEquals(0, result.failed());
+    verify(fx.sessions).updateRawText("session-history", ocrText);
+    verify(fx.messages).updateDetailText("msg-history", ocrText);
+    verify(fx.writer, never()).write(
+        anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyList());
+  }
+
   private Fixture fixture() {
     var sessions = mock(SessionRepository.class);
     var settings = mock(WxPusherSettingsRepository.class);
@@ -163,13 +201,16 @@ class WxPusherIngestionServiceTest {
     var messages = mock(WxPusherMessageRepository.class);
     var shared = mock(WxPusherSharedMessageRepository.class);
     var articles = mock(WxPusherArticleExtractor.class);
+    var imageOcr = mock(WxPusherImageOcrService.class);
     var ai = mock(OpenAiJsonExtractor.class);
     var parser = mock(JsonOpinionParser.class);
     var writer = mock(OpinionImportWriter.class);
     var instruments = mock(InstrumentRepository.class);
+    when(imageOcr.convert(anyString(), anyString())).thenAnswer(call -> call.getArgument(1));
     var service = new WxPusherIngestionService(
-        sessions, settings, bloggers, messages, shared, articles, ai, parser, writer, instruments);
-    return new Fixture(service, sessions, settings, bloggers, messages, shared, articles, ai, parser, writer, instruments);
+        sessions, settings, bloggers, messages, shared, articles, imageOcr, ai, parser, writer, instruments);
+    return new Fixture(
+        service, sessions, settings, bloggers, messages, shared, articles, imageOcr, ai, parser, writer, instruments);
   }
 
   private ImportPreview preview(String symbol) {
@@ -221,6 +262,7 @@ class WxPusherIngestionServiceTest {
       WxPusherMessageRepository messages,
       WxPusherSharedMessageRepository shared,
       WxPusherArticleExtractor articles,
+      WxPusherImageOcrService imageOcr,
       OpenAiJsonExtractor ai,
       JsonOpinionParser parser,
       OpinionImportWriter writer,

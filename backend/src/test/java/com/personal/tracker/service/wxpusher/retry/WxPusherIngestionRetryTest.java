@@ -25,6 +25,7 @@ import com.personal.tracker.repository.wxpusher.WxPusherSharedMessageRepository;
 import com.personal.tracker.service.imports.OpinionImportWriter;
 import com.personal.tracker.service.imports.OpinionImportWriter.WriteResult;
 import com.personal.tracker.service.json.JsonOpinionParser;
+import com.personal.tracker.service.wxpusher.ocr.WxPusherImageOcrService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -123,6 +124,41 @@ class WxPusherIngestionRetryTest {
   }
 
   @Test
+  void retryRefetchesLegacyImagePlaceholderForTargetGroup() {
+    var fx = fixture();
+    when(fx.settings.get()).thenReturn(settings());
+    when(fx.bloggers.enabled()).thenReturn(List.of(blogger("顺哥vip小群", "kol-shun", List.of())));
+    when(fx.ai.extractionEnabled()).thenReturn(false);
+    when(fx.messages.findById("msg-image")).thenReturn(java.util.Optional.of(
+        new WxPusherMessage(
+            "msg-image", "key", "kol-shun", "顺哥vip小群", "title", "summary",
+            "https://wxpusher.zjiecode.com/api/message/1", "https://source",
+            "2026-05-31T06:00:00Z", "{}", "[图片]", "", "SKIPPED", "", "old-session", "", "")));
+    when(fx.imageOcr.requiresSourceRefresh("顺哥vip小群", "[图片]")).thenReturn(true);
+    when(fx.articles.fetchText(anyString(), any()))
+        .thenReturn("WXPUSHER_IMAGE_URL=https://img.example/signal.png");
+    when(fx.imageOcr.convert("顺哥vip小群", "WXPUSHER_IMAGE_URL=https://img.example/signal.png"))
+        .thenReturn("[图片转文字 1]\nNVDA BUY NOW\n[/图片转文字]");
+    when(fx.imageOcr.containsOcrText("[图片转文字 1]\nNVDA BUY NOW\n[/图片转文字]"))
+        .thenReturn(true);
+    when(fx.sessions.findById("old-session"))
+        .thenReturn(java.util.Optional.of(session("old-session", "kol-shun")));
+    when(fx.writer.write(anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyList()))
+        .thenReturn(new WriteResult("old-session", 1));
+
+    fx.service.retry("msg-image");
+
+    verify(fx.articles).fetchText(anyString(), any());
+    verify(fx.sessions).updateRawText(
+        "old-session",
+        "[图片转文字 1]\nNVDA BUY NOW\n[/图片转文字]");
+    verify(fx.writer).write(
+        eq("old-session"), eq("kol-shun"), contains("顺哥vip小群"),
+        eq("2026-05-31"), eq("WXPUSHER_KEYWORD_FALLBACK"),
+        eq("[图片转文字 1]\nNVDA BUY NOW\n[/图片转文字]"), anyList());
+  }
+
+  @Test
   void retryFallsBackWhenStoredDetailIsExpiredNotice() {
     var fx = fixture();
     when(fx.bloggers.enabled()).thenReturn(List.of(
@@ -210,13 +246,15 @@ class WxPusherIngestionRetryTest {
     var messages = mock(WxPusherMessageRepository.class);
     var shared = mock(WxPusherSharedMessageRepository.class);
     var articles = mock(WxPusherArticleExtractor.class);
+    var imageOcr = mock(WxPusherImageOcrService.class);
     var ai = mock(OpenAiJsonExtractor.class);
     var parser = mock(JsonOpinionParser.class);
     var writer = mock(OpinionImportWriter.class);
     var instruments = mock(InstrumentRepository.class);
+    when(imageOcr.convert(anyString(), anyString())).thenAnswer(call -> call.getArgument(1));
     var service = new WxPusherIngestionService(
-        sessions, settings, bloggers, messages, shared, articles, ai, parser, writer, instruments);
-    return new Fixture(service, sessions, settings, bloggers, messages, articles, ai, writer);
+        sessions, settings, bloggers, messages, shared, articles, imageOcr, ai, parser, writer, instruments);
+    return new Fixture(service, sessions, settings, bloggers, messages, articles, imageOcr, ai, writer);
   }
 
   private WxPusherSettings settings() {
@@ -285,6 +323,7 @@ class WxPusherIngestionRetryTest {
       WxPusherBloggerRepository bloggers,
       WxPusherMessageRepository messages,
       WxPusherArticleExtractor articles,
+      WxPusherImageOcrService imageOcr,
       OpenAiJsonExtractor ai,
       OpinionImportWriter writer) {
   }

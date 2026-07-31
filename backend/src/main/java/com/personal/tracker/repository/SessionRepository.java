@@ -71,6 +71,13 @@ public class SessionRepository {
     return rows.stream().findFirst();
   }
 
+  public void updateRawText(String id, String rawText) {
+    jdbc.update(
+        "UPDATE live_sessions SET raw_text = ? WHERE id = ?",
+        blank(rawText, ""),
+        id);
+  }
+
   private static String blank(String value, String fallback) {
     return value == null || value.isBlank() ? fallback : value.trim();
   }

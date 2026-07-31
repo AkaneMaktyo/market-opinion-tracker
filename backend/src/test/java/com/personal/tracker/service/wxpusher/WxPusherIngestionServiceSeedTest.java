@@ -16,6 +16,7 @@ import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository.WxPusherSettings;
 import com.personal.tracker.service.imports.OpinionImportWriter;
 import com.personal.tracker.service.json.JsonOpinionParser;
+import com.personal.tracker.service.wxpusher.ocr.WxPusherImageOcrService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -28,6 +29,7 @@ class WxPusherIngestionServiceSeedTest {
     var messageRepository = mock(WxPusherMessageRepository.class);
     var sharedRepository = mock(WxPusherSharedMessageRepository.class);
     var articleExtractor = mock(WxPusherArticleExtractor.class);
+    var imageOcrService = mock(WxPusherImageOcrService.class);
     var aiExtractor = mock(OpenAiJsonExtractor.class);
     var parser = mock(JsonOpinionParser.class);
     var writer = mock(OpinionImportWriter.class);
@@ -39,6 +41,7 @@ class WxPusherIngestionServiceSeedTest {
         messageRepository,
         sharedRepository,
         articleExtractor,
+        imageOcrService,
         aiExtractor,
         parser,
         writer,

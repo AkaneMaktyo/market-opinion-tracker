@@ -95,6 +95,14 @@ public class WxPusherMessageRepository {
     updateState(id, "IMPORTED", "", detailText, llmOutputJson, sessionId);
   }
 
+  public void updateDetailText(String id, String detailText) {
+    jdbc.update("""
+        UPDATE wxpusher_messages
+        SET detail_text = ?, updated_at = ?
+        WHERE id = ?
+        """, blank(detailText), JdbcSupport.now(), id);
+  }
+
   public void attachSession(String id, String sessionId) {
     jdbc.update("""
         UPDATE wxpusher_messages
@@ -150,6 +158,15 @@ public class WxPusherMessageRepository {
         ORDER BY updated_at DESC, created_at DESC
         LIMIT ?
         """, mapper, Math.max(1, Math.min(limit, 200)));
+  }
+
+  public List<WxPusherMessage> listLegacyImageMessages(int limit) {
+    return jdbc.query("""
+        SELECT * FROM wxpusher_messages
+        WHERE detail_text LIKE '%[图片]%'
+        ORDER BY message_time ASC, updated_at ASC
+        LIMIT ?
+        """, mapper, Math.max(1, Math.min(limit, 5000)));
   }
 
   public List<WxPusherMessage> findByKolSince(String kolId, String sinceDate, int limit) {

@@ -10,6 +10,7 @@ import com.personal.tracker.service.wxpusher.WxPusherAdminService.BloggerCommand
 import com.personal.tracker.service.wxpusher.WxPusherAdminService.BloggerView;
 import com.personal.tracker.service.wxpusher.WxPusherAdminService.RetryBatchResult;
 import com.personal.tracker.service.wxpusher.WxPusherAdminService.StatusView;
+import com.personal.tracker.service.wxpusher.WxPusherIngestionService.OcrBackfillResult;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -112,6 +113,12 @@ public class WxPusherController {
       @RequestParam(required = false) String kolId,
       @RequestParam(defaultValue = "30") int limit) {
     return admin.retryBatch(status, kolId, limit);
+  }
+
+  @PostMapping("/messages/ocr-backfill")
+  OcrBackfillResult backfillOcrHistory(
+      @RequestParam(defaultValue = "1000") int limit) {
+    return admin.backfillOcrHistory(limit);
   }
 
   public record SettingsRequest(

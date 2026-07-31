@@ -10,6 +10,7 @@ import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository.WxPush
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository.UpdateCommand;
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository.WxPusherSettings;
+import com.personal.tracker.service.wxpusher.WxPusherIngestionService.OcrBackfillResult;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -152,6 +153,10 @@ public class WxPusherAdminService {
       }
     }
     return new RetryBatchResult(processed, imported, skipped, failed);
+  }
+
+  public OcrBackfillResult backfillOcrHistory(int limit) {
+    return ingestion.backfillOcrHistory(limit);
   }
 
   private String retryStatus(String status) {
