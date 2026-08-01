@@ -30,6 +30,7 @@ import com.personal.tracker.service.imports.OpinionImportWriter;
 import com.personal.tracker.service.imports.OpinionImportWriter.WriteResult;
 import com.personal.tracker.service.json.JsonOpinionParser;
 import com.personal.tracker.service.wxpusher.ocr.WxPusherImageOcrService;
+import com.personal.tracker.service.wxpusher.ocr.WxPusherOcrOpinionSyncService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -190,8 +191,32 @@ class WxPusherIngestionServiceTest {
     assertEquals(0, result.failed());
     verify(fx.sessions).updateRawText("session-history", ocrText);
     verify(fx.messages).updateDetailText("msg-history", ocrText);
+    verify(fx.writer).updateSessionSourceQuote("session-history", ocrText);
     verify(fx.writer, never()).write(
         anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyList());
+  }
+
+  @Test
+  void backfillsFailedOcrAsMessageOpinion() {
+    var fx = fixture();
+    String ocrText = "💎｜顺哥vip小群\n[图片转文字 1]\nQQQ 看空 620\n[/图片转文字]";
+    WxPusherMessage message = new WxPusherMessage(
+        "msg-ocr", "key-ocr", "kol-shun", "顺哥", "", "顺哥vip小群",
+        "", "", "2026-07-31T15:40:00Z", "{}", ocrText, "", "FAILED",
+        "模型没有提取到观点", "session-ocr", "", "");
+    when(fx.messages.listOcrMessages(1000)).thenReturn(List.of(message));
+    when(fx.imageOcr.containsOcrText(ocrText)).thenReturn(true);
+    when(fx.sessions.findById("session-ocr"))
+        .thenReturn(java.util.Optional.of(session("session-ocr", "kol-shun", ocrText)));
+
+    var result = fx.service.backfillOcrOpinions(1000);
+
+    assertEquals(1, result.messages());
+    assertEquals(1, result.messageOpinions());
+    assertEquals(0, result.missingSymbols());
+    verify(fx.writer).writeMessageFallback(
+        eq("session-ocr"), eq("msg-ocr"), eq("kol-shun"), contains("顺哥"),
+        eq("2026-07-31"), eq(ocrText), eq("2026-07-31T15:40:00Z"), anyList());
   }
 
   private Fixture fixture() {
@@ -207,8 +232,13 @@ class WxPusherIngestionServiceTest {
     var writer = mock(OpinionImportWriter.class);
     var instruments = mock(InstrumentRepository.class);
     when(imageOcr.convert(anyString(), anyString())).thenAnswer(call -> call.getArgument(1));
+    when(writer.writeMessageFallback(
+        anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyList()))
+        .thenReturn(new WriteResult("session-ocr", 1));
     var service = new WxPusherIngestionService(
-        sessions, settings, bloggers, messages, shared, articles, imageOcr, ai, parser, writer, instruments);
+        sessions, settings, bloggers, messages, shared, articles, imageOcr,
+        new WxPusherOcrOpinionSyncService(messages, imageOcr, writer),
+        ai, parser, writer, instruments);
     return new Fixture(
         service, sessions, settings, bloggers, messages, shared, articles, imageOcr, ai, parser, writer, instruments);
   }

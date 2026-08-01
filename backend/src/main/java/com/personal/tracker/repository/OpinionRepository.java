@@ -61,6 +61,53 @@ public class OpinionRepository {
     return item;
   }
 
+  public Opinion upsertMessage(String id, Opinion input) {
+    Opinion item = new Opinion(
+        id, input.sessionId(), input.instrumentId(), input.symbol(),
+        input.direction(), input.horizon(), input.thesis(), input.triggerCondition(),
+        input.invalidation(), input.confidence(), input.sourceQuote(),
+        input.referencePrice(), input.rawDirection(), input.risksText(),
+        input.catalystsText(), input.priceNotesText(), input.rawItemJson(),
+        input.opinionTime(), "MESSAGE", JdbcSupport.now());
+    jdbc.update("""
+        INSERT INTO opinions(
+          id, session_id, instrument_id, direction, horizon, thesis,
+          trigger_condition, invalidation, confidence, source_quote,
+          reference_price, raw_direction, risks_text, catalysts_text,
+          price_notes_text, raw_item_json, opinion_time, status, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          session_id = VALUES(session_id),
+          instrument_id = VALUES(instrument_id),
+          direction = VALUES(direction),
+          horizon = VALUES(horizon),
+          thesis = VALUES(thesis),
+          source_quote = VALUES(source_quote),
+          raw_direction = VALUES(raw_direction),
+          raw_item_json = VALUES(raw_item_json),
+          opinion_time = VALUES(opinion_time),
+          status = 'MESSAGE'
+        """, item.id(), item.sessionId(), item.instrumentId(), item.direction(),
+        item.horizon(), item.thesis(), item.triggerCondition(), item.invalidation(),
+        item.confidence(), item.sourceQuote(), item.referencePrice(), item.rawDirection(),
+        item.risksText(), item.catalystsText(), item.priceNotesText(), item.rawItemJson(),
+        item.opinionTime(), item.status(), item.createdAt());
+    return item;
+  }
+
+  public void deleteMessageFallbacks(String sessionId) {
+    jdbc.update(
+        "DELETE FROM opinions WHERE session_id = ? AND status = 'MESSAGE'",
+        sessionId);
+  }
+
+  public void updateSourceQuoteBySession(String sessionId, String sourceQuote) {
+    jdbc.update(
+        "UPDATE opinions SET source_quote = ? WHERE session_id = ?",
+        sourceQuote,
+        sessionId);
+  }
+
   public List<Opinion> find(String kolId, String symbol, String status, int limit) {
     List<Object> args = new ArrayList<>();
     StringBuilder sql = new StringBuilder("""

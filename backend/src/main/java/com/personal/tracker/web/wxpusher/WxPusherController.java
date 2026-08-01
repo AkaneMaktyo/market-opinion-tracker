@@ -11,6 +11,7 @@ import com.personal.tracker.service.wxpusher.WxPusherAdminService.BloggerView;
 import com.personal.tracker.service.wxpusher.WxPusherAdminService.RetryBatchResult;
 import com.personal.tracker.service.wxpusher.WxPusherAdminService.StatusView;
 import com.personal.tracker.service.wxpusher.WxPusherIngestionService.OcrBackfillResult;
+import com.personal.tracker.service.wxpusher.WxPusherIngestionService.OcrOpinionBackfillResult;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -125,6 +126,12 @@ public class WxPusherController {
   OcrBackfillResult backfillOcrHistory(
       @RequestParam(defaultValue = "1000") int limit) {
     return admin.backfillOcrHistory(limit);
+  }
+
+  @PostMapping("/messages/ocr-opinion-backfill")
+  OcrOpinionBackfillResult backfillOcrOpinions(
+      @RequestParam(defaultValue = "1000") int limit) {
+    return admin.backfillOcrOpinions(limit);
   }
 
   public record SettingsRequest(

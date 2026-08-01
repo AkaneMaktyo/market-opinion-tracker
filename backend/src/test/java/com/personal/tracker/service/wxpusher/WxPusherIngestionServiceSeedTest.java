@@ -17,6 +17,7 @@ import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository.WxPus
 import com.personal.tracker.service.imports.OpinionImportWriter;
 import com.personal.tracker.service.json.JsonOpinionParser;
 import com.personal.tracker.service.wxpusher.ocr.WxPusherImageOcrService;
+import com.personal.tracker.service.wxpusher.ocr.WxPusherOcrOpinionSyncService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -42,6 +43,7 @@ class WxPusherIngestionServiceSeedTest {
         sharedRepository,
         articleExtractor,
         imageOcrService,
+        mock(WxPusherOcrOpinionSyncService.class),
         aiExtractor,
         parser,
         writer,

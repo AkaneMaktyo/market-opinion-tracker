@@ -26,6 +26,7 @@ import com.personal.tracker.service.imports.OpinionImportWriter;
 import com.personal.tracker.service.imports.OpinionImportWriter.WriteResult;
 import com.personal.tracker.service.json.JsonOpinionParser;
 import com.personal.tracker.service.wxpusher.ocr.WxPusherImageOcrService;
+import com.personal.tracker.service.wxpusher.ocr.WxPusherOcrOpinionSyncService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -156,6 +157,11 @@ class WxPusherIngestionRetryTest {
         eq("old-session"), eq("kol-shun"), contains("顺哥vip小群"),
         eq("2026-05-31"), eq("WXPUSHER_KEYWORD_FALLBACK"),
         eq("[图片转文字 1]\nNVDA BUY NOW\n[/图片转文字]"), anyList());
+    verify(fx.writer).writeMessageFallback(
+        eq("old-session"), eq("msg-image"), eq("kol-shun"), contains("顺哥vip小群"),
+        eq("2026-05-31"), eq("[图片转文字 1]\nNVDA BUY NOW\n[/图片转文字]"),
+        eq("2026-05-31T06:00:00Z"), anyList());
+    verify(fx.writer).removeMessageFallbacks("old-session");
   }
 
   @Test
@@ -250,10 +256,15 @@ class WxPusherIngestionRetryTest {
     var ai = mock(OpenAiJsonExtractor.class);
     var parser = mock(JsonOpinionParser.class);
     var writer = mock(OpinionImportWriter.class);
+    when(writer.writeMessageFallback(
+        anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyString(), anyList()))
+        .thenReturn(new WriteResult("session-ocr", 1));
     var instruments = mock(InstrumentRepository.class);
     when(imageOcr.convert(anyString(), anyString())).thenAnswer(call -> call.getArgument(1));
     var service = new WxPusherIngestionService(
-        sessions, settings, bloggers, messages, shared, articles, imageOcr, ai, parser, writer, instruments);
+        sessions, settings, bloggers, messages, shared, articles, imageOcr,
+        new WxPusherOcrOpinionSyncService(messages, imageOcr, writer),
+        ai, parser, writer, instruments);
     return new Fixture(service, sessions, settings, bloggers, messages, articles, imageOcr, ai, writer);
   }
 

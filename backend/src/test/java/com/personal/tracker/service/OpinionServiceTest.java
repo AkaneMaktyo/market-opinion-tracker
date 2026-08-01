@@ -158,6 +158,29 @@ class OpinionServiceTest {
     assertEquals(0, result.size());
   }
 
+  @Test
+  void returnsStoredMessageOpinionsWhenFilteringMessages() {
+    var instruments = mock(InstrumentRepository.class);
+    var opinions = mock(OpinionRepository.class);
+    var sessions = mock(SessionRepository.class);
+    var bloggers = mock(WxPusherBloggerRepository.class);
+    var messages = mock(WxPusherMessageRepository.class);
+    var service = new OpinionService(instruments, opinions, sessions, bloggers, messages,
+        mock(KolPositionService.class), mock(ResonanceService.class));
+    var messageOpinion = new Opinion(
+        "wxmsg-1", "session-ocr", "inst-qqq", "QQQ", "WATCH", "消息",
+        "QQQ 看空 620", "", "", null, "QQQ 看空 620", null, "OCR文字",
+        "", "", "", "{\"fallback\":\"message\"}", "2026-07-31T15:40:00Z", "MESSAGE", "now");
+    when(opinions.find("kol-shun", "QQQ", "MESSAGE", 100)).thenReturn(List.of(messageOpinion));
+    when(opinions.findLevelsByOpinionIds(List.of("wxmsg-1"))).thenReturn(Map.of());
+    when(opinions.findReviewsByOpinionIds(List.of("wxmsg-1"))).thenReturn(Map.of());
+
+    var result = service.find("kol-shun", "QQQ", "MESSAGE", 100);
+
+    assertEquals(1, result.size());
+    assertEquals("MESSAGE", result.get(0).opinion().status());
+  }
+
   private WxPusherBlogger blogger(String kolId, String name, List<String> aliases) {
     return new WxPusherBlogger("blogger-" + kolId, kolId, name, aliases, true, "LAST_30", null, "", "");
   }
