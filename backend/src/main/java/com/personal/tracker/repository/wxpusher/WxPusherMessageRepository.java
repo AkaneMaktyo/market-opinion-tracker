@@ -151,6 +151,15 @@ public class WxPusherMessageRepository {
     return jdbc.query(sql.toString(), mapper, args.toArray());
   }
 
+  public List<WxPusherMessage> listOcrMessages(int limit) {
+    return jdbc.query("""
+        SELECT * FROM wxpusher_messages
+        WHERE detail_text LIKE '%[图片转文字 %'
+        ORDER BY message_time DESC, updated_at DESC
+        LIMIT ?
+        """, mapper, Math.max(1, Math.min(limit, 100)));
+  }
+
   public List<WxPusherMessage> listMissingSessions(int limit) {
     return jdbc.query("""
         SELECT * FROM wxpusher_messages

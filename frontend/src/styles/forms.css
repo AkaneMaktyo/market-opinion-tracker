@@ -208,6 +208,35 @@ textarea {
   padding: 10px;
 }
 
+.message-row {
+  align-items: flex-start;
+}
+
+.message-row-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.ocr-text {
+  background: #f8fafc;
+  border-left: 3px solid #14b8a6;
+  margin-top: 10px;
+  padding: 8px 10px;
+}
+
+.ocr-text span {
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.ocr-text pre {
+  font-family: inherit;
+  margin: 6px 0 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .blogger-row p,
 .message-row p {
   margin: 4px 0 0;

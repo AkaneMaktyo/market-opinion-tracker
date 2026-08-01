@@ -48,6 +48,8 @@ export const wxpusherApi = {
     params.set('limit', String(limit));
     return json<WxPusherMessage[]>(`/api/wxpusher/messages?${params.toString()}`);
   },
+  wxpusherOcrMessages: (limit = 50) =>
+    json<WxPusherMessage[]>(`/api/wxpusher/messages/ocr?limit=${limit}`),
   retryWxPusherMessage: (id: string) =>
     json<WxPusherMessage>(`/api/wxpusher/messages/${encodeURIComponent(id)}/retry`, {
       method: 'POST',

@@ -51,7 +51,7 @@ export function SourceManagerButton({ onChanged }: { onChanged: () => void }) {
         api.wxpusherNotifySettings(),
         api.wxpusherStatus(),
         api.wxpusherBloggers(),
-        api.wxpusherMessages('FAILED', '', 30),
+        api.wxpusherOcrMessages(50),
       ]);
       const positionEntries = await Promise.all(
         nextBloggers.map(async (blogger) => [blogger.kolId, await api.positions(blogger.kolId)] as const),

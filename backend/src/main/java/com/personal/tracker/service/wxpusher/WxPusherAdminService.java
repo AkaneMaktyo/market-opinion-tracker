@@ -123,6 +123,10 @@ public class WxPusherAdminService {
     return messageRepository.list(status, kolId, limit);
   }
 
+  public List<WxPusherMessage> ocrMessages(int limit) {
+    return messageRepository.listOcrMessages(limit);
+  }
+
   public WxPusherMessage retry(String id) {
     ingestion.retry(id);
     return messageRepository.findById(id)

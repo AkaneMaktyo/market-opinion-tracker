@@ -102,6 +102,12 @@ public class WxPusherController {
     return admin.messages(status, kolId, limit);
   }
 
+  @GetMapping("/messages/ocr")
+  List<WxPusherMessage> ocrMessages(
+      @RequestParam(defaultValue = "50") int limit) {
+    return admin.ocrMessages(limit);
+  }
+
   @PostMapping("/messages/{id}/retry")
   WxPusherMessage retry(@PathVariable String id) {
     return admin.retry(id);
