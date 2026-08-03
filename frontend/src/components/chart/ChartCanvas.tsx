@@ -1,6 +1,6 @@
 import { Expand, LocateFixed, Shrink } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { createChart, CrosshairMode, LineStyle } from 'lightweight-charts';
+import { createChart, CrosshairMode, LineStyle, TrackingModeExitMode } from 'lightweight-charts';
 import type {
   CandlestickData,
   HistogramData,
@@ -183,6 +183,7 @@ function volumePoint(bar: MarketBar, timeframe: Timeframe): HistogramData<Time> 
 }
 
 function chartOptions(host: HTMLDivElement) {
+  const nativeAndroid = document.body.classList.contains('native-android');
   return {
     width: host.clientWidth || 800, height: host.clientHeight || 560,
     layout: { background: { color: '#0b1220' }, textColor: '#94a3b8' },
@@ -192,6 +193,9 @@ function chartOptions(host: HTMLDivElement) {
     crosshair: { mode: CrosshairMode.Normal },
     handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
     handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
+    trackingMode: {
+      exitMode: nativeAndroid ? TrackingModeExitMode.OnTouchEnd : TrackingModeExitMode.OnNextTap,
+    },
   };
 }
 

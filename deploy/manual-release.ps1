@@ -5,6 +5,7 @@ param(
     [string]$SshPassword = "",
     [string]$JarPath = "",
     [string]$FrontendArchivePath = "",
+    [string]$PublicBaseUrl = "http://103.236.98.149:8888/market",
     [switch]$SkipBuild
 )
 
@@ -77,6 +78,18 @@ if (-not $SkipBuild) {
         & cmd /c "set VITE_BASE_PATH=/market/&& npm.cmd run build"
         if ($LASTEXITCODE -ne 0) {
             throw "Frontend build failed."
+        }
+        & cmd /c "npm.cmd run build:update"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Android live update build failed."
+        }
+        & node ..\deploy\mobile\create-live-update.mjs `
+            --source dist-update `
+            --publish dist `
+            --base-url $PublicBaseUrl `
+            --native-version "1"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Android live update package failed."
         }
         & node ..\deploy\validate-frontend-dist.mjs dist
         if ($LASTEXITCODE -ne 0) {

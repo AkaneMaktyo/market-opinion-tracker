@@ -29,6 +29,16 @@ validate_frontend_archive() {
     echo "Frontend archive missing main JS bundle: $archive" >&2
     exit 1
   fi
+
+  if ! grep -qx 'live-update.json' <<<"$entries"; then
+    echo "Frontend archive missing Android update manifest: $archive" >&2
+    exit 1
+  fi
+
+  if ! grep -Eq '^updates/web-[a-f0-9]+\.zip$' <<<"$entries"; then
+    echo "Frontend archive missing signed Android update bundle: $archive" >&2
+    exit 1
+  fi
 }
 
 validate_frontend_archive "$DIST_ARCHIVE"

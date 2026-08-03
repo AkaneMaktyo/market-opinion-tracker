@@ -6,19 +6,29 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc && vite build",
+    "build:android": "tsc && vite build --mode android",
+    "build:update": "tsc && vite build --mode android --outDir dist-update",
+    "android:sync": "npm run build:android && cap sync android",
+    "android:open": "npm run android:sync && cap open android",
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.0",
+    "@capawesome/capacitor-live-update": "^8.3.0",
     "lightweight-charts": "4.2.3",
     "lucide-react": "latest",
     "react": "latest",
     "react-dom": "latest"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.4.2",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@vitejs/plugin-react": "latest",
+    "postcss": "^8.5.25",
     "typescript": "latest",
-    "vite": "latest"
+    "vite": "^8.2.0"
   }
 }

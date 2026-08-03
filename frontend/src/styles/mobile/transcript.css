@@ -1,0 +1,25 @@
+.mobile-transcript-screen { align-content: start; padding-bottom: 78px; }
+.mobile-now-playing { display: grid; gap: 11px; grid-template-columns: 104px minmax(0, 1fr) auto; padding: 11px; }
+.mobile-video-cover { align-items: center; background: linear-gradient(145deg, #1f5b4d, #ef9362); border-radius: 15px; color: #fff; display: flex; justify-content: center; min-height: 90px; position: relative; }
+.mobile-video-cover button { align-items: center; background: rgba(0, 0, 0, 0.35); border: 0; border-radius: 50%; color: #fff; display: flex; height: 45px; justify-content: center; padding-left: 5px; width: 45px; }
+.mobile-video-cover span { background: rgba(0, 0, 0, 0.48); border-radius: 5px; bottom: 6px; font-size: 11px; padding: 2px 5px; position: absolute; right: 6px; }
+.mobile-video-meta { display: grid; gap: 4px; min-width: 0; }
+.mobile-video-meta h2 { display: -webkit-box; font-size: 15px; line-height: 1.4; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.mobile-video-meta > span { color: #39776a; font-size: 12px; }
+.mobile-refresh-button { background: transparent; border: 0; color: #39776a; height: 40px; padding: 0; width: 34px; }
+.mobile-video-picker { background: #fff; border: 1px solid #deebe6; border-radius: 15px; display: grid; gap: 6px; margin: 0; padding: 9px 11px; }
+.mobile-video-picker select { background: #f2f6f4; border: 0; border-radius: 10px; min-height: 43px; width: 100%; }
+.mobile-audio-card { padding: 12px; }
+.mobile-audio-card > div { align-items: baseline; display: flex; justify-content: space-between; }
+.mobile-audio-card input { accent-color: #267a67; min-height: 32px; padding: 0; width: 100%; }
+.mobile-audio-card audio { display: none; }
+.mobile-transcript-list { display: grid; gap: 8px; }
+.mobile-transcript-item { background: #fff; border: 1px solid #deebe6; border-radius: 15px; color: #14231f; contain-intrinsic-size: 100px; content-visibility: auto; display: grid; gap: 8px; grid-template-columns: auto minmax(0, 1fr); min-height: 66px; padding: 12px; position: relative; text-align: left; width: 100%; }
+.mobile-transcript-item time { color: #39776a; font-size: 12px; }
+.mobile-transcript-item p { line-height: 1.55; margin: 0; }
+.mobile-transcript-item.active { background: #e7f5ef; border-color: #7ebfae; }
+.mobile-transcript-item > span { background: #173f37; border-radius: 999px; color: #fff; font-size: 11px; padding: 3px 7px; position: absolute; right: 9px; top: -8px; }
+
+@media (max-width: 360px) {
+  .mobile-now-playing { grid-template-columns: 88px minmax(0, 1fr) auto; }
+}

@@ -1,0 +1,206 @@
+.native-android {
+  background: #e7eeeb;
+  color: #14231f;
+  overflow: hidden;
+}
+
+.native-android #root {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.mobile-app-shell {
+  background: #f2f6f4;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100dvh;
+  margin: 0 auto;
+  max-width: 480px;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.mobile-app-header {
+  align-items: center;
+  background: #173f37;
+  color: #f5fff9;
+  display: grid;
+  gap: 9px;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  padding: max(12px, env(safe-area-inset-top)) 14px 15px;
+  position: relative;
+  z-index: 3;
+}
+
+.mobile-brand-mark {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 13px;
+  display: flex;
+  height: 42px;
+  justify-content: center;
+  width: 42px;
+}
+
+.mobile-brand-mark::before,
+.mobile-brand-mark::after,
+.mobile-brand-mark span {
+  background: #fff;
+  border-radius: 999px;
+  content: "";
+  display: block;
+  height: 3px;
+  position: absolute;
+  transform-origin: left center;
+}
+
+.mobile-brand-mark { position: relative; }
+.mobile-brand-mark::before { transform: translate(-10px, 6px) rotate(-41deg); width: 15px; }
+.mobile-brand-mark span { transform: translate(0, 0) rotate(29deg); width: 12px; }
+.mobile-brand-mark::after { transform: translate(8px, 5px) rotate(-54deg); width: 17px; }
+
+.mobile-page-title {
+  display: grid;
+  gap: 2px;
+}
+
+.mobile-page-title small {
+  color: rgba(245, 255, 249, 0.65);
+  font-size: 12px;
+}
+
+.mobile-page-title strong {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.mobile-header-button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  color: inherit;
+  display: inline-flex;
+  height: 42px;
+  justify-content: center;
+  padding: 0;
+  position: relative;
+  width: 42px;
+}
+
+.mobile-header-button:active { background: rgba(255, 255, 255, 0.12); }
+.mobile-notice-dot { background: #ff7a5c; border: 2px solid #173f37; border-radius: 50%; height: 9px; position: absolute; right: 7px; top: 6px; width: 9px; }
+.mobile-visually-hidden { clip: rect(0 0 0 0); clip-path: inset(50%); height: 1px; overflow: hidden; position: absolute; white-space: nowrap; width: 1px; }
+.mobile-app-shell button:focus:not(:focus-visible),
+.mobile-app-shell select:focus:not(:focus-visible),
+.mobile-app-shell input:focus:not(:focus-visible) { outline: none; }
+.mobile-app-shell button:focus-visible,
+.mobile-app-shell select:focus-visible,
+.mobile-app-shell input:focus-visible { outline: 2px solid #4e9f89; outline-offset: 2px; }
+
+.mobile-app-viewport {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-app-viewport::-webkit-scrollbar { display: none; }
+
+.mobile-screen-content {
+  display: grid;
+  gap: 13px;
+  min-height: 100%;
+  padding: 13px 13px calc(18px + env(safe-area-inset-bottom));
+}
+
+.mobile-bottom-nav {
+  align-items: end;
+  background: #fff;
+  border-top: 1px solid #dbe7e2;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  padding: 7px 7px max(8px, env(safe-area-inset-bottom));
+  position: relative;
+  z-index: 4;
+}
+
+.mobile-bottom-nav > button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: #74867f;
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  gap: 3px;
+  justify-content: center;
+  min-height: 48px;
+  padding: 4px;
+}
+
+.mobile-bottom-nav > button.active { color: #173f37; font-weight: 700; }
+.mobile-bottom-nav > .mobile-add-button { align-self: center; background: #173f37; border: 5px solid #f2f6f4; border-radius: 50%; color: #fff; height: 58px; justify-self: center; margin-top: -27px; min-height: 58px; width: 58px; }
+.mobile-bottom-nav > .mobile-add-button:active { transform: scale(0.96); }
+
+.mobile-quick-backdrop,
+.mobile-composer-backdrop {
+  align-items: flex-end;
+  padding: max(12px, env(safe-area-inset-top)) 0 0;
+  z-index: 40;
+}
+
+.mobile-quick-sheet,
+.mobile-composer {
+  background: #f7faf9;
+  border-radius: 24px 24px 0 0;
+  display: grid;
+  gap: 8px;
+  max-height: calc(100dvh - max(12px, env(safe-area-inset-top)));
+  overflow-y: auto;
+  padding: 9px 14px max(20px, env(safe-area-inset-bottom));
+  width: 100%;
+}
+
+.mobile-sheet-handle { background: #c5d4cf; border-radius: 999px; height: 4px; justify-self: center; width: 42px; }
+.mobile-sheet-title { align-items: center; display: flex; justify-content: space-between; padding: 3px 0 5px; }
+.mobile-sheet-title h2 { font-size: 19px; margin: 0; }
+.mobile-sheet-title small { color: #6e817a; display: block; margin-top: 2px; }
+.mobile-sheet-title > button { align-items: center; background: #e8efec; border: 0; border-radius: 50%; display: flex; height: 40px; justify-content: center; width: 40px; }
+
+.mobile-action-row {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #e0eae6;
+  border-radius: 15px;
+  color: #14231f;
+  display: grid;
+  gap: 11px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  min-height: 66px;
+  padding: 11px 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.mobile-action-row > span:nth-child(2) { display: grid; gap: 3px; }
+.mobile-action-row small { color: #71847d; }
+.mobile-action-icon { align-items: center; background: #e4f2ed; border-radius: 12px; color: #236f5d; display: flex; height: 42px; justify-content: center; width: 42px; }
+
+.mobile-composer label { color: #40564f; font-weight: 700; margin: 0; }
+.mobile-composer input,
+.mobile-composer select,
+.mobile-composer textarea { background: #fff; border: 1px solid #ccdad5; border-radius: 12px; color: #14231f; min-height: 46px; }
+.mobile-composer textarea { min-height: 112px; resize: none; }
+.mobile-form-grid { display: grid; gap: 10px; }
+.mobile-form-grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mobile-save-button { align-items: center; background: #173f37; border: 0; border-radius: 14px; color: #fff; display: flex; gap: 8px; justify-content: center; min-height: 50px; }
+
+@media (min-width: 481px) {
+  .mobile-app-shell { box-shadow: 0 0 46px rgba(23, 63, 55, 0.18); }
+}

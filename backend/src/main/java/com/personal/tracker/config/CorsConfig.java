@@ -26,6 +26,8 @@ public class CorsConfig {
       "https://*.devtunnels.ms");
   private static final List<String> DEFAULT_ORIGIN_PATTERNS = Stream.of(
       Stream.of(
+          "http://localhost",
+          "https://localhost",
           "http://localhost:*",
           "https://localhost:*",
           "http://127.0.0.1:*",

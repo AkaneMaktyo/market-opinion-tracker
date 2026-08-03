@@ -1,0 +1,127 @@
+.native-android {
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.native-android .chart {
+  touch-action: pan-y;
+}
+
+.native-android .timeline,
+.native-android .youtube-transcript {
+  overscroll-behavior-y: auto;
+}
+
+.native-android .app {
+  padding-top: max(12px, env(safe-area-inset-top));
+  padding-right: max(8px, env(safe-area-inset-right));
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  padding-left: max(8px, env(safe-area-inset-left));
+}
+
+.native-android .youtube-page-shell {
+  padding-top: max(12px, env(safe-area-inset-top));
+  padding-right: max(12px, env(safe-area-inset-right));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  padding-left: max(12px, env(safe-area-inset-left));
+}
+
+@media (max-width: 640px) {
+  .native-android .topbar {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin-bottom: 10px;
+  }
+
+  .native-android .app-brand,
+  .native-android .kol-picker,
+  .native-android .manual-position,
+  .native-android .stats {
+    grid-column: 1 / -1;
+  }
+
+  .native-android .app-brand h1 {
+    font-size: 20px;
+  }
+
+  .native-android .brand-mark {
+    height: 38px;
+    width: 38px;
+  }
+
+  .native-android .topbar > .primary {
+    justify-content: center;
+    min-height: 44px;
+    padding: 8px;
+    width: 100%;
+  }
+
+  .native-android .kol-picker select,
+  .native-android .manual-position input {
+    flex: 1;
+    max-width: none;
+    min-width: 0;
+  }
+
+  .native-android .stats {
+    flex-wrap: nowrap;
+    margin-left: 0;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .native-android .stats span {
+    flex: 0 0 auto;
+  }
+
+  .native-android .workspace,
+  .native-android .center,
+  .native-android .right-column {
+    gap: 10px;
+  }
+
+  .native-android .rail,
+  .native-android .entry,
+  .native-android .opinions {
+    padding: 10px;
+  }
+
+  .native-android .chart-frame,
+  .native-android .chart-stage,
+  .native-android .chart {
+    height: 440px;
+    min-height: 440px;
+  }
+
+  .native-android .modal-backdrop {
+    align-items: flex-end;
+    padding: max(12px, env(safe-area-inset-top)) 0 0;
+  }
+
+  .native-android .import-modal,
+  .native-android .source-modal,
+  .native-android .manager-modal,
+  .native-android .directory-modal {
+    border-radius: 18px 18px 0 0;
+    max-height: calc(100dvh - max(12px, env(safe-area-inset-top)));
+    max-width: none;
+    padding-bottom: max(14px, env(safe-area-inset-bottom));
+    width: 100%;
+  }
+
+  .native-android .form-grid.two,
+  .native-android .form-grid.three {
+    grid-template-columns: 1fr;
+  }
+
+  .native-android .manager-tabs {
+    overflow-x: auto;
+  }
+
+  .native-android button,
+  .native-android select,
+  .native-android input {
+    min-height: 44px;
+  }
+}

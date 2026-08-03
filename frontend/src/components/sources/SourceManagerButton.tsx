@@ -1,4 +1,5 @@
 import { RadioTower } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import type { WxPusherBlogger, WxPusherMessage, WxPusherNotifySettings, WxPusherSettings, WxPusherStatus } from '../../types';
@@ -25,7 +26,13 @@ const defaultNotifySettings: WxPusherNotifySettings = {
 
 const emptyDraft: BloggerDraft = { id: '', bloggerName: '', aliasesText: '', enabled: true };
 
-export function SourceManagerButton({ onChanged }: { onChanged: () => void }) {
+interface Props {
+  onChanged: () => void;
+  trigger?: ReactNode;
+  triggerClassName?: string;
+}
+
+export function SourceManagerButton({ onChanged, trigger, triggerClassName }: Props) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -158,9 +165,8 @@ export function SourceManagerButton({ onChanged }: { onChanged: () => void }) {
 
   return (
     <>
-      <button className="primary secondary" onClick={() => setOpen(true)} type="button">
-        <RadioTower size={16} />
-        来源管理
+      <button className={triggerClassName || 'primary secondary'} onClick={() => setOpen(true)} type="button">
+        {trigger || <><RadioTower size={16} />来源管理</>}
       </button>
       {open ? (
         <SourceManagerModal
