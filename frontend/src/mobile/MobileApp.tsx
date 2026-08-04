@@ -13,7 +13,7 @@ import type { MobileTab } from './screens/mobileTypes';
 
 const tabTitles: Record<MobileTab, string> = {
   overview: '今日概览',
-  opinions: '观点时间线',
+  opinions: '最新消息',
   transcript: '视频转写',
   profile: '我的',
 };

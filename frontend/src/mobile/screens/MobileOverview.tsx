@@ -1,6 +1,9 @@
 import { ArrowRight, MessageSquareText, PenLine } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { api } from '../../api/client';
 import { InstrumentLogo } from '../../components/instruments/InstrumentLogo';
 import type { Instrument, MarketBar, OpinionView } from '../../types';
+import type { PriceAlert } from '../../types/alerts';
 import type { DashboardModel } from './mobileTypes';
 
 interface Props {
@@ -9,18 +12,53 @@ interface Props {
   onQuickAdd: () => void;
 }
 
+const ALERT_REFRESH_MS = 30000;
+
 export function MobileOverview({ dashboard, onOpenOpinions, onQuickAdd }: Props) {
+  const [alerts, setAlerts] = useState<PriceAlert[]>([]);
+  const [alertsLoaded, setAlertsLoaded] = useState(false);
+  const defaultReminderSelected = useRef(false);
+  const reminders = useMemo(() => uniqueAlerts(alerts), [alerts]);
   const selected = dashboard.instruments.find((item) => item.symbol === dashboard.selected);
+  const selectedAlert = reminders.find((item) => item.symbol === dashboard.selected);
   const chartBars = dashboard.bars.filter((bar) => bar.timeframe?.toUpperCase() === dashboard.timeframe);
   const latestOpinion = latestOpinionOf(dashboard.opinions);
-  const watchlist = dashboard.instruments.filter((item) => item.symbol !== dashboard.selected).slice(0, 4);
-  const quote = selected?.dayClose ?? chartBars[chartBars.length - 1]?.close;
+  const quote = selectedAlert?.lastPrice ?? selected?.dayClose ?? chartBars[chartBars.length - 1]?.close;
   const change = quoteChange(selected, chartBars);
+
+  useEffect(() => {
+    let disposed = false;
+    async function load() {
+      try {
+        const next = await api.priceAlerts();
+        if (!disposed) setAlerts(next);
+      } catch {
+        // 价格提醒入口仍可单独重试，概览加载失败时保留当前页面内容。
+      } finally {
+        if (!disposed) setAlertsLoaded(true);
+      }
+    }
+    void load();
+    const timer = window.setInterval(() => {
+      if (!document.hidden) void load();
+    }, ALERT_REFRESH_MS);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!alertsLoaded || defaultReminderSelected.current) return;
+    defaultReminderSelected.current = true;
+    const symbol = reminders[0]?.symbol;
+    if (symbol && symbol !== dashboard.selected) dashboard.selectSymbol(symbol);
+  }, [alertsLoaded, dashboard.selected, dashboard.selectSymbol, reminders]);
 
   return (
     <div className="mobile-screen-content mobile-overview">
       <section className="mobile-stat-strip" aria-label="数据概览">
-        <Stat label="自选标的" value={dashboard.instruments.length} />
+        <Stat label="提醒标的" value={reminders.length} />
         <Stat label="当前观点" value={dashboard.opinions.length} />
         <Stat label="直播记录" value={dashboard.sessions.length} />
       </section>
@@ -29,7 +67,7 @@ export function MobileOverview({ dashboard, onOpenOpinions, onQuickAdd }: Props)
         <div className="mobile-section-head">
           <div>
             <small>正在关注</small>
-            <h2>{dashboard.selected || '请选择标的'} <span>{selected?.name || ''}</span></h2>
+            <h2>{dashboard.selected || '请选择标的'} <span>{selected?.name || selectedAlert?.name || ''}</span></h2>
           </div>
           <select
             aria-label="切换关注标的"
@@ -37,6 +75,7 @@ export function MobileOverview({ dashboard, onOpenOpinions, onQuickAdd }: Props)
             onChange={(event) => dashboard.selectSymbol(event.target.value)}
             value={dashboard.selected}
           >
+            {!dashboard.instruments.some((item) => item.symbol === dashboard.selected) && dashboard.selected ? <option value={dashboard.selected}>{dashboard.selected}</option> : null}
             {dashboard.instruments.map((item) => <option key={item.id} value={item.symbol}>{item.symbol}</option>)}
           </select>
         </div>
@@ -46,28 +85,41 @@ export function MobileOverview({ dashboard, onOpenOpinions, onQuickAdd }: Props)
         </div>
         <Sparkline bars={chartBars} />
         <div className="mobile-dual-actions">
-          <button onClick={onOpenOpinions} type="button"><MessageSquareText size={18} />查看观点</button>
+          <button onClick={onOpenOpinions} type="button"><MessageSquareText size={18} />查看消息</button>
           <button className="mobile-primary-action" onClick={onQuickAdd} type="button"><PenLine size={18} />记一条</button>
         </div>
       </section>
 
-      <section className="mobile-card mobile-watchlist-card">
-        <div className="mobile-section-head"><h3>自选动态</h3><span>{dashboard.instruments.length} 个</span></div>
-        {watchlist.length === 0 ? <p className="mobile-empty">暂无其他自选标的</p> : watchlist.map((item) => (
-          <button className="mobile-stock-row" key={item.id} onClick={() => dashboard.selectSymbol(item.symbol)} type="button">
-            <InstrumentLogo logoUrl={item.logoUrl} size={38} symbol={item.symbol} />
-            <span className="mobile-stock-name"><strong>{item.symbol}</strong><small>{item.name || item.market || '自选标的'}</small></span>
-            <span className="mobile-stock-price"><strong>{formatPrice(item.dayClose)}</strong><small className={(item.dayChangePct || 0) >= 0 ? 'mobile-up' : 'mobile-down'}>{formatPct(item.dayChangePct)}</small></span>
-            <ArrowRight aria-hidden="true" size={17} />
-          </button>
+      <section className="mobile-card mobile-watchlist-card mobile-reminder-card">
+        <div className="mobile-section-head"><h3>价格提醒标的</h3><span>{reminders.length} 个</span></div>
+        {!alertsLoaded ? <p className="mobile-empty">正在读取价格提醒…</p> : null}
+        {alertsLoaded && reminders.length === 0 ? <p className="mobile-empty">还没有设置价格提醒</p> : null}
+        {reminders.map((alert) => (
+          <ReminderRow
+            alert={alert}
+            instrument={dashboard.instruments.find((item) => item.symbol === alert.symbol)}
+            key={alert.symbol}
+            onSelect={() => dashboard.selectSymbol(alert.symbol)}
+          />
         ))}
       </section>
 
       <section className="mobile-card mobile-latest-card">
-        <div className="mobile-section-head"><h3>最新观点</h3><button onClick={onOpenOpinions} type="button">全部</button></div>
+        <div className="mobile-section-head"><h3>最新观点</h3><button onClick={onOpenOpinions} type="button">最新消息</button></div>
         {latestOpinion ? <LatestOpinion item={latestOpinion} /> : <p className="mobile-empty">当前标的还没有观点</p>}
       </section>
     </div>
+  );
+}
+
+function ReminderRow({ alert, instrument, onSelect }: { alert: PriceAlert; instrument?: Instrument; onSelect: () => void }) {
+  return (
+    <button className="mobile-stock-row mobile-reminder-row" onClick={onSelect} type="button">
+      <InstrumentLogo logoUrl={instrument?.logoUrl} size={38} symbol={alert.symbol} />
+      <span className="mobile-stock-name"><strong>{alert.symbol}</strong><small>{alertCondition(alert)}</small></span>
+      <span className="mobile-stock-price"><strong>{formatAlertPrice(alert.lastPrice)}</strong><small className={`mobile-reminder-status status-${alert.status.toLowerCase()}`}>{alertStatus(alert.status)}</small></span>
+      <ArrowRight aria-hidden="true" size={17} />
+    </button>
   );
 }
 
@@ -108,6 +160,10 @@ function LatestOpinion({ item }: { item: OpinionView }) {
   );
 }
 
+function uniqueAlerts(items: PriceAlert[]) {
+  return [...new Map(items.map((item) => [item.symbol, item])).values()];
+}
+
 function latestOpinionOf(items: OpinionView[]) {
   return [...items].sort((left, right) => right.opinion.opinionTime.localeCompare(left.opinion.opinionTime))[0];
 }
@@ -119,12 +175,26 @@ function quoteChange(instrument: Instrument | undefined, bars: MarketBar[]) {
   return last && previous ? ((last - previous) / previous) * 100 : 0;
 }
 
+function alertCondition(alert: PriceAlert) {
+  return alert.alertType === 'POINT'
+    ? `点位 ${formatAlertPrice(alert.targetPrice ?? alert.lowerPrice)}`
+    : `${formatAlertPrice(alert.lowerPrice)} ～ ${formatAlertPrice(alert.upperPrice)}`;
+}
+
+function alertStatus(status: PriceAlert['status']) {
+  return ({ ACTIVE: '监控中', DELIVERING: '发送中', TRIGGERED: '已触发', PAUSED: '已暂停', ERROR: '待恢复' })[status];
+}
+
 export function directionLabel(value: string) {
-  return ({ BULLISH: '看多', BEARISH: '看空', RANGE: '震荡', WATCH: '观察' } as Record<string, string>)[value] || value;
+  return ({ BULLISH: '看多', BEARISH: '看空', RANGE: '震荡', WATCH: '观望' } as Record<string, string>)[value] || value;
 }
 
 export function formatPrice(value?: number) {
   return Number.isFinite(value) ? `$${value!.toLocaleString('en-US', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}` : '--';
+}
+
+function formatAlertPrice(value?: number) {
+  return Number.isFinite(value) ? value!.toLocaleString('zh-CN', { maximumFractionDigits: 8 }) : '--';
 }
 
 export function formatPct(value?: number) {

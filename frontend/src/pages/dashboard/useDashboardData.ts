@@ -32,6 +32,7 @@ export function useDashboardData() {
   const timeframeRef = useRef(timeframe);
   const shellSeq = useRef(0);
   const quoteRefreshInFlight = useRef(false);
+  const selectionPinned = useRef(false);
   const instrumentCache = useRef(new Map<string, Instrument[]>());
 
   const setSelectedValue = useCallback((value: string) => {
@@ -54,7 +55,9 @@ export function useDashboardData() {
     const cached = instrumentCache.current.get(kolId) || readInstrumentCache(kolId);
     if (cached) {
       instrumentCache.current.set(kolId, cached);
-      const nextSelected = pickSelectedSymbol(cached, requested);
+      const nextSelected = selectionPinned.current && selectedRef.current
+        ? selectedRef.current
+        : pickSelectedSymbol(cached, requested);
       setInstruments(cached);
       setSelectedValue(nextSelected);
       void loadChart(kolId, nextSelected, timeframeRef.current);
@@ -68,7 +71,9 @@ export function useDashboardData() {
     ]);
     const nextInstruments = await instrumentsRequest;
     if (seq !== shellSeq.current) return;
-    const nextSelected = pickSelectedSymbol(nextInstruments, requested);
+    const nextSelected = selectionPinned.current && selectedRef.current
+      ? selectedRef.current
+      : pickSelectedSymbol(nextInstruments, requested);
     instrumentCache.current.set(kolId, nextInstruments);
     writeInstrumentCache(kolId, nextInstruments);
     setInstruments(nextInstruments);
@@ -100,7 +105,9 @@ export function useDashboardData() {
       instrumentCache.current.set(kolRef.current, nextInstruments);
       writeInstrumentCache(kolRef.current, nextInstruments);
       setInstruments(nextInstruments);
-      const nextSelected = pickSelectedSymbol(nextInstruments, selectedRef.current);
+      const nextSelected = selectionPinned.current && selectedRef.current
+        ? selectedRef.current
+        : pickSelectedSymbol(nextInstruments, selectedRef.current);
       if (nextSelected && nextSelected !== selectedRef.current) {
         setSelectedValue(nextSelected);
       }
@@ -134,11 +141,14 @@ export function useDashboardData() {
   }, [backfill?.state, loadChart]);
 
   const selectKol = useCallback((kolId: string) => {
+    selectionPinned.current = false;
+    setSelectedValue('');
     setKolValue(kolId);
     void loadShell(kolId, '');
-  }, [loadShell, setKolValue]);
+  }, [loadShell, setKolValue, setSelectedValue]);
 
   const selectSymbol = useCallback((symbol: string) => {
+    selectionPinned.current = true;
     setSelectedValue(symbol);
     void loadChart(kolRef.current, symbol, timeframeRef.current);
   }, [loadChart, setSelectedValue]);

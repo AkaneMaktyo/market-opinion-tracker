@@ -111,6 +111,9 @@ public class PriceAlertMonitor {
 
   private void refresh() {
     repository.recoverStaleDeliveries();
+    if (pushClient.isConfigured("PRICE_ALERT", "POSITION_NOTIFY")) {
+      repository.recoverMissingPushTargets();
+    }
     Map<String, List<ActiveAlert>> next = repository.active().stream()
         .collect(Collectors.groupingBy(
             alert -> topicKey(alert.bitgetCategory(), alert.bitgetSymbol()),

@@ -88,6 +88,16 @@ public class PriceAlertRepository {
         """, JdbcSupport.now(), Instant.now().minusSeconds(120).toString());
   }
 
+  public void recoverMissingPushTargets() {
+    ensureSchema();
+    jdbc.update("""
+        UPDATE price_signal_alerts
+        SET status = 'ACTIVE', notify_status = 'WAITING',
+            error_message = NULL, updated_at = ?
+        WHERE status = 'ERROR' AND error_message = 'WxPusher 推送目标未配置'
+        """, JdbcSupport.now());
+  }
+
   public PriceAlertView create(
       String instrumentId,
       String alertType,

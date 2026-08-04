@@ -130,7 +130,7 @@ public class WxPusherMessageRepository {
       sql.append(" AND kol_id = ?");
       args.add(kolId.trim());
     }
-    sql.append(" ORDER BY updated_at DESC, created_at DESC LIMIT ?");
+    sql.append(" ORDER BY message_time DESC, created_at DESC LIMIT ?");
     args.add(Math.max(1, Math.min(limit, 100)));
     return jdbc.query(sql.toString(), mapper, args.toArray());
   }
@@ -172,8 +172,9 @@ public class WxPusherMessageRepository {
   public List<WxPusherMessage> listLegacyImageMessages(int limit) {
     return jdbc.query("""
         SELECT * FROM wxpusher_messages
-        WHERE detail_text LIKE '%[图片]%'
-        ORDER BY message_time ASC, updated_at ASC
+        WHERE (detail_text LIKE '%[图片]%' OR detail_text LIKE '%[图片转文字 %')
+          AND detail_text NOT LIKE '%WXPUSHER_IMAGE_URL=%'
+        ORDER BY message_time DESC, updated_at DESC
         LIMIT ?
         """, mapper, Math.max(1, Math.min(limit, 5000)));
   }

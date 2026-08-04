@@ -35,7 +35,7 @@ public class WxPusherImageOcrService {
       return text;
     }
     if (!isTargetGroup(bloggerName, text)) {
-      return IMAGE.matcher(text).replaceAll(Matcher.quoteReplacement("[图片]"));
+      return text;
     }
     if (!properties.enabled()) {
       throw new IllegalStateException("顺哥vip小群图片 OCR 已禁用");
@@ -48,8 +48,10 @@ public class WxPusherImageOcrService {
     StringBuffer converted = new StringBuffer();
     int index = 0;
     while (replacer.find()) {
+      String source = replacer.group();
       String ocrText = normalize(client.recognize(replacer.group(1)));
-      String block = "[图片转文字 " + (++index) + "]\n" + ocrText + "\n[/图片转文字]";
+      String block = source + "\n[图片转文字 " + (++index) + "]\n"
+          + ocrText + "\n[/图片转文字]";
       replacer.appendReplacement(converted, Matcher.quoteReplacement(block));
     }
     replacer.appendTail(converted);
@@ -59,7 +61,7 @@ public class WxPusherImageOcrService {
   public boolean requiresSourceRefresh(String bloggerName, String detailText) {
     String text = detailText == null ? "" : detailText;
     return isTargetGroup(bloggerName, text)
-        && text.contains("[图片]")
+        && (text.contains("[图片]") || text.contains("[图片转文字 "))
         && !IMAGE.matcher(text).find();
   }
 

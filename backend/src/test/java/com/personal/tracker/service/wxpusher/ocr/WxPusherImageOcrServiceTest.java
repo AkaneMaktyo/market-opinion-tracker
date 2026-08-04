@@ -23,7 +23,8 @@ class WxPusherImageOcrServiceTest {
         "顺哥 VIP 小群",
         "正文\nWXPUSHER_IMAGE_URL=https://img.example/signal.png");
 
-    assertEquals("正文\n[图片转文字 1]\nBTC 看多\n回踩 115000 做多\n[/图片转文字]", result);
+    assertEquals("正文\nWXPUSHER_IMAGE_URL=https://img.example/signal.png\n"
+        + "[图片转文字 1]\nBTC 看多\n回踩 115000 做多\n[/图片转文字]", result);
   }
 
   @Test
@@ -37,7 +38,8 @@ class WxPusherImageOcrServiceTest {
         "💎｜顺哥vip小群\nWXPUSHER_IMAGE_URL=https://img.example/signal.png");
 
     assertEquals(
-        "💎｜顺哥vip小群\n[图片转文字 1]\nNVDA 看多\n[/图片转文字]",
+        "💎｜顺哥vip小群\nWXPUSHER_IMAGE_URL=https://img.example/signal.png\n"
+            + "[图片转文字 1]\nNVDA 看多\n[/图片转文字]",
         result);
   }
 
@@ -50,7 +52,7 @@ class WxPusherImageOcrServiceTest {
         "其他群",
         "正文\nWXPUSHER_IMAGE_URL=https://img.example/signal.png");
 
-    assertEquals("正文\n[图片]", result);
+    assertEquals("正文\nWXPUSHER_IMAGE_URL=https://img.example/signal.png", result);
     verify(client, never()).recognize("https://img.example/signal.png");
   }
 
@@ -75,6 +77,9 @@ class WxPusherImageOcrServiceTest {
 
     assertEquals(true, service.requiresSourceRefresh("顺哥vip小群", "正文\n[图片]"));
     assertEquals(true, service.requiresSourceRefresh("顺哥", "💎｜顺哥vip小群\n[图片]"));
+    assertEquals(true, service.requiresSourceRefresh(
+        "顺哥vip小群",
+        "[图片转文字 1]\nBTC\n[/图片转文字]"));
     assertEquals(false, service.requiresSourceRefresh("其他群", "正文\n[图片]"));
     assertEquals(false, service.requiresSourceRefresh(
         "顺哥vip小群",
