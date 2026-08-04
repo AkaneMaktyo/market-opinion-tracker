@@ -47,7 +47,7 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
 
       <section className="mobile-app-viewport" aria-live="polite" ref={viewportRef}>
         {tab === 'overview' ? <MobileOverview dashboard={dashboard} onOpenOpinions={() => setTab('opinions')} onQuickAdd={() => setQuickOpen(true)} /> : null}
-        {tab === 'opinions' ? <MobileOpinions dashboard={dashboard} onQuickAdd={() => setQuickOpen(true)} /> : null}
+        {tab === 'opinions' ? <MobileOpinions /> : null}
         {tab === 'transcript' ? <MobileTranscript onCreateOpinion={openComposer} /> : null}
         {tab === 'profile' ? <MobileProfile dashboard={dashboard} liveUpdate={liveUpdate} onOpenTranscript={() => setTab('transcript')} /> : null}
       </section>

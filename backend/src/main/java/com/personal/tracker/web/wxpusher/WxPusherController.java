@@ -12,6 +12,8 @@ import com.personal.tracker.service.wxpusher.WxPusherAdminService.RetryBatchResu
 import com.personal.tracker.service.wxpusher.WxPusherAdminService.StatusView;
 import com.personal.tracker.service.wxpusher.WxPusherIngestionService.OcrBackfillResult;
 import com.personal.tracker.service.wxpusher.WxPusherIngestionService.OcrOpinionBackfillResult;
+import com.personal.tracker.service.wxpusher.feed.WxPusherFeedService;
+import com.personal.tracker.service.wxpusher.feed.WxPusherFeedService.FeedMessage;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,12 +29,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class WxPusherController {
   private final WxPusherAdminService admin;
   private final WxPusherNotifySettingsRepository notifySettingsRepository;
+  private final WxPusherFeedService feed;
 
   public WxPusherController(
       WxPusherAdminService admin,
-      WxPusherNotifySettingsRepository notifySettingsRepository) {
+      WxPusherNotifySettingsRepository notifySettingsRepository,
+      WxPusherFeedService feed) {
     this.admin = admin;
     this.notifySettingsRepository = notifySettingsRepository;
+    this.feed = feed;
   }
 
   @GetMapping("/settings")
@@ -101,6 +106,16 @@ public class WxPusherController {
       @RequestParam(required = false) String kolId,
       @RequestParam(defaultValue = "30") int limit) {
     return admin.messages(status, kolId, limit);
+  }
+
+  @GetMapping("/messages/recent")
+  List<FeedMessage> recentMessages(@RequestParam(defaultValue = "50") int limit) {
+    return feed.recent(limit);
+  }
+
+  @GetMapping("/messages/recent/{id}")
+  FeedMessage recentMessageDetail(@PathVariable String id) {
+    return feed.detail(id);
   }
 
   @GetMapping("/messages/ocr")

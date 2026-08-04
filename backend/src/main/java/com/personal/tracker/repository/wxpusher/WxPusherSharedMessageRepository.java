@@ -4,12 +4,22 @@ import com.personal.tracker.repository.JdbcSupport;
 import com.personal.tracker.service.wxpusher.WxPusherClient.IncomingMessage;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class WxPusherSharedMessageRepository {
+  private static final String RECENT_FEED_SELECT = """
+      SELECT r.id, r.message_key, r.source_name, r.title, r.summary,
+             r.detail_url, r.source_url, r.message_time,
+             COALESCE(p.blogger_name, '') processed_blogger_name,
+             COALESCE(p.detail_text, '') detail_text,
+             COALESCE(p.status, 'RECEIVED') status
+      FROM wxpusher_raw_messages r
+      LEFT JOIN wxpusher_messages p ON p.message_key = r.message_key
+      """;
   private final JdbcTemplate jdbc;
   private final RowMapper<IncomingMessage> mapper = (rs, rowNum) -> new IncomingMessage(
       rs.getString("channel"),
@@ -23,6 +33,18 @@ public class WxPusherSharedMessageRepository {
       rs.getString("message_key"),
       rs.getString("raw_payload_json"),
       sortValue(rs.getString("message_time")));
+  private final RowMapper<RecentMessage> recentMapper = (rs, rowNum) -> new RecentMessage(
+      rs.getString("id"),
+      rs.getString("message_key"),
+      rs.getString("source_name"),
+      rs.getString("processed_blogger_name"),
+      rs.getString("title"),
+      rs.getString("summary"),
+      rs.getString("detail_url"),
+      rs.getString("source_url"),
+      rs.getString("message_time"),
+      rs.getString("detail_text"),
+      rs.getString("status"));
 
   public WxPusherSharedMessageRepository(JdbcTemplate jdbc) {
     this.jdbc = jdbc;
@@ -45,6 +67,20 @@ public class WxPusherSharedMessageRepository {
         ORDER BY message_time DESC, updated_at DESC
         LIMIT ?
         """, mapper, bounded(limit));
+  }
+
+  public List<RecentMessage> listRecentFeed(int limit) {
+    return jdbc.query(RECENT_FEED_SELECT + """
+        WHERE r.source_name <> 'WxPusher官方-极简推送'
+        ORDER BY r.message_time DESC, r.updated_at DESC
+        LIMIT ?
+        """, recentMapper, bounded(limit));
+  }
+
+  public Optional<RecentMessage> findRecentFeedById(String id) {
+    return jdbc.query(RECENT_FEED_SELECT + " WHERE r.id = ?", recentMapper, id)
+        .stream()
+        .findFirst();
   }
 
   public void saveState(
@@ -98,5 +134,19 @@ public class WxPusherSharedMessageRepository {
 
   private static String blank(String value) {
     return value == null ? "" : value.trim();
+  }
+
+  public record RecentMessage(
+      String id,
+      String messageKey,
+      String sourceName,
+      String processedBloggerName,
+      String title,
+      String summary,
+      String detailUrl,
+      String sourceUrl,
+      String messageTime,
+      String detailText,
+      String status) {
   }
 }

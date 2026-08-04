@@ -187,3 +187,15 @@ export interface WxPusherMessage {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface WxPusherRecentMessage {
+  id: string;
+  messageKey: string;
+  bloggerName: string;
+  title: string;
+  summary?: string;
+  detailText?: string;
+  sourceUrl?: string;
+  messageTime: string;
+  status: string;
+}

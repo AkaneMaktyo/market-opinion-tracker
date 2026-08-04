@@ -96,6 +96,30 @@ class WxPusherImageOcrServiceTest {
     assertEquals(false, service.containsOcrText("[图片]"));
   }
 
+  @Test
+  void repeatedConversionKeepsOneOcrBlockWithoutCallingOcrAgain() {
+    var client = mock(ImageOcrClient.class);
+    var service = new WxPusherImageOcrService(properties(), client);
+    String detail = """
+        WXPUSHER_IMAGE_URL=https://img.example/signal.png
+        [图片转文字 1]
+        NVDA 看多
+        [/图片转文字]
+        [图片转文字 1]
+        NVDA 看多
+        [/图片转文字]
+        """;
+
+    String result = service.convert("顺哥vip小群", detail);
+
+    assertEquals("""
+        WXPUSHER_IMAGE_URL=https://img.example/signal.png
+        [图片转文字 1]
+        NVDA 看多
+        [/图片转文字]""", result);
+    verify(client, never()).recognize("https://img.example/signal.png");
+  }
+
   private WxPusherOcrProperties properties() {
     var properties = new WxPusherOcrProperties();
     properties.setEnabled(true);

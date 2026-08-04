@@ -3,6 +3,7 @@ package com.personal.tracker.service.wxpusher.ocr;
 import com.personal.tracker.config.WxPusherOcrProperties;
 import com.personal.tracker.service.wxpusher.article.WxPusherArticleParser;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.regex.Matcher;
@@ -14,6 +15,8 @@ public class WxPusherImageOcrService {
   private static final Pattern IMAGE = Pattern.compile(
       "(?m)^" + WxPusherArticleParser.IMAGE_PREFIX
           + "((?:https?://|data:image/)[^\\r\\n]+)$");
+  private static final Pattern OCR_BLOCK = Pattern.compile(
+      "(?ms)^\\[图片转文字 \\d+]\\s*.*?^\\[/图片转文字]\\s*");
   private final WxPusherOcrProperties properties;
   private final ImageOcrClient client;
 
@@ -25,7 +28,10 @@ public class WxPusherImageOcrService {
   }
 
   public String convert(String bloggerName, String detailText) {
-    String text = detailText == null ? "" : detailText;
+    String text = deduplicateOcrBlocks(detailText == null ? "" : detailText);
+    if (containsOcrText(text)) {
+      return text;
+    }
     Matcher matcher = IMAGE.matcher(text);
     List<String> imageUrls = new ArrayList<>();
     while (matcher.find()) {
@@ -67,6 +73,18 @@ public class WxPusherImageOcrService {
 
   public boolean containsOcrText(String detailText) {
     return detailText != null && detailText.contains("[图片转文字 ");
+  }
+
+  String deduplicateOcrBlocks(String detailText) {
+    Matcher matcher = OCR_BLOCK.matcher(detailText == null ? "" : detailText);
+    var seen = new LinkedHashSet<String>();
+    StringBuffer result = new StringBuffer();
+    while (matcher.find()) {
+      String block = matcher.group().trim();
+      matcher.appendReplacement(result, Matcher.quoteReplacement(seen.add(block) ? block + "\n" : ""));
+    }
+    matcher.appendTail(result);
+    return result.toString().replaceAll("\\n{3,}", "\n\n").trim();
   }
 
   private boolean isTargetGroup(String bloggerName, String detailText) {
