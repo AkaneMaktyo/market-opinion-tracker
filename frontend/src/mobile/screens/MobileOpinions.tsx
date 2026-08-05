@@ -8,6 +8,16 @@ const REFRESH_MS = 30000;
 const IMAGE_LINE = /^WXPUSHER_IMAGE_URL=((?:https?:\/\/|data:image\/)[^\r\n]+)$/gm;
 const OCR_BLOCK = /\[图片转文字 \d+]\s*([\s\S]*?)\s*\[\/图片转文字]/g;
 const IMAGE_HINT = /\.(?:jpe?g|png|gif|webp)(?:\s|$|[?#])/i;
+const KOL_PREFIX = /^\[([^\]]+)\]/;
+
+/** 从 bloggerName 中提取简洁的显示名称。如 "[🟢｜颜驰] 颜驰Bit..." -> "[🟢｜颜驰]" */
+function displayKolName(name: string): string {
+  const match = name.match(KOL_PREFIX);
+  if (match) return `[${match[1]}]`;
+  // 如果名称超过30字符，截断
+  if (name.length > 30) return name.slice(0, 30) + '\u2026';
+  return name;
+}
 
 export function MobileOpinions() {
   const [query, setQuery] = useState('');
@@ -74,7 +84,7 @@ export function MobileOpinions() {
         </label>
         <select aria-label="选择 KOL" onChange={(event) => setKolName(event.target.value)} value={kolName}>
           <option value="">全部 KOL</option>
-          {kolNames.map((name) => <option key={name} value={name}>{name}</option>)}
+          {kolNames.map((name) => <option key={name} value={name}>{displayKolName(name)}</option>)}
         </select>
       </div>
 
@@ -98,8 +108,8 @@ function MessageCard({ item, onPreview }: { item: WxPusherRecentMessage; onPrevi
   return (
     <article className="mobile-card mobile-feed-card mobile-message-card">
       <div className="mobile-feed-top">
-        <span className="mobile-avatar">{item.bloggerName.slice(0, 1) || '讯'}</span>
-        <div><strong>{item.bloggerName || '未知 KOL'}</strong><small>{formatDate(item.messageTime)}</small></div>
+        <span className="mobile-avatar">{displayKolName(item.bloggerName).slice(0, 1) || '讯'}</span>
+        <div><strong>{displayKolName(item.bloggerName) || '未知 KOL'}</strong><small>{formatDate(item.messageTime)}</small></div>
         <b className={`mobile-message-status mobile-message-status-${statusTone(item.status)}`}>{statusLabel(item.status)}</b>
       </div>
       <p className="mobile-feed-thesis">{parsed.body}</p>
@@ -119,10 +129,17 @@ function MessageCard({ item, onPreview }: { item: WxPusherRecentMessage; onPrevi
 }
 
 function ImagePreview({ source, onClose }: { source: string; onClose: () => void }) {
+  const [zoomed, setZoomed] = useState(false);
   return (
-    <div className="modal-backdrop mobile-image-backdrop" data-mobile-overlay onMouseDown={onClose}>
+    <div className={'modal-backdrop mobile-image-backdrop' + (zoomed ? ' mobile-image-zoomed-container' : '')} data-mobile-overlay onMouseDown={onClose}>
       <button aria-label="关闭图片" className="mobile-image-close" onClick={onClose} type="button"><X size={22} /></button>
-      <img alt="放大的消息图片" onMouseDown={(event) => event.stopPropagation()} src={source} />
+      <img
+        alt="放大的消息图片"
+        className={zoomed ? 'mobile-image-zoomed' : ''}
+        onClick={() => setZoomed(prev => !prev)}
+        onMouseDown={(event) => event.stopPropagation()}
+        src={source}
+      />
     </div>
   );
 }
@@ -141,7 +158,7 @@ function parseMessage(item: WxPusherRecentMessage) {
     .replace(/\n{3,}/g, '\n\n')
     .trim();
   return {
-    body: body || item.summary || item.title || '这条消息没有文字内容',
+    body: body || ocrText || item.summary || item.title || '这条消息没有文字内容',
     images: [...new Set(images)],
     ocrText,
   };

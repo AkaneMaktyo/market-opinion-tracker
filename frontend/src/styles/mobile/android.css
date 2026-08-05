@@ -94,7 +94,7 @@
     min-height: 440px;
   }
 
-  .native-android .modal-backdrop {
+  .native-android .modal-backdrop:not(.mobile-image-backdrop) {
     align-items: flex-end;
     padding: max(12px, env(safe-area-inset-top)) 0 0;
   }

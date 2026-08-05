@@ -102,7 +102,9 @@
 .mobile-message-images.count-1 img { height: min(52vw, 230px); object-fit: contain; }
 .mobile-message-images span { align-items: center; background: rgba(18, 33, 28, 0.72); border-radius: 999px; bottom: 7px; color: #fff; display: flex; font-size: 11px; gap: 4px; padding: 5px 8px; position: absolute; right: 7px; }
 .mobile-image-backdrop { align-items: center; justify-content: center; padding: max(64px, env(safe-area-inset-top)) 12px max(28px, env(safe-area-inset-bottom)); z-index: 70; }
-.mobile-image-backdrop > img { max-height: 86dvh; max-width: 100%; object-fit: contain; touch-action: pinch-zoom; }
+.mobile-image-backdrop > img { max-height: 86dvh; max-width: 100%; object-fit: contain; touch-action: pinch-zoom; cursor: pointer; transition: transform 0.25s ease; }
+.mobile-image-zoomed-container { overflow: auto !important; }
+.mobile-image-zoomed { cursor: move !important; max-height: none !important; max-width: none !important; transform: scale(2.5); transform-origin: center center; }
 .mobile-image-close { align-items: center; background: rgba(255, 255, 255, 0.16); border: 0; border-radius: 50%; color: #fff; display: flex; height: 44px; justify-content: center; position: absolute; right: 14px; top: max(12px, env(safe-area-inset-top)); width: 44px; z-index: 1; }
 .mobile-floating-action { align-items: center; align-self: end; background: #173f37; border: 0; border-radius: 14px; bottom: calc(78px + env(safe-area-inset-bottom)); box-shadow: 0 10px 24px rgba(23, 63, 55, 0.28); color: #fff; display: flex; gap: 7px; justify-content: center; min-height: 48px; padding: 10px 16px; position: fixed; right: max(17px, calc((100vw - 480px) / 2 + 17px)); z-index: 5; }
 .mobile-floating-action:disabled { opacity: 0.45; }
