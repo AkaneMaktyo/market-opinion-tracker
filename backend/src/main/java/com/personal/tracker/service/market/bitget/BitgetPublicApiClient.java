@@ -39,11 +39,11 @@ public class BitgetPublicApiClient {
       if (body != null) {
         return body;
       }
-      log.debug("Bitget Java client status error, trying PowerShell fallback: {}", error.getMessage());
-      return getWithPowerShell(BASE_URL + uri);
+      log.debug("Bitget Java client status error, trying curl fallback: {}", error.getMessage());
+      return getWithCurl(BASE_URL + uri);
     } catch (RuntimeException error) {
-      log.debug("Bitget Java client failed, trying PowerShell fallback: {}", error.getMessage());
-      return getWithPowerShell(BASE_URL + uri);
+      log.debug("Bitget Java client failed, trying curl fallback: {}", error.getMessage());
+      return getWithCurl(BASE_URL + uri);
     }
   }
 
@@ -54,34 +54,12 @@ public class BitgetPublicApiClient {
     return factory;
   }
 
-  private JsonNode getWithPowerShell(String url) {
+  JsonNode getWithCurl(String url) {
     Path output = null;
     try {
       output = Files.createTempFile("bitget-public-", ".json");
-      String command = """
-          $ProgressPreference = 'SilentlyContinue';
-          [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new();
-          try {
-            $response = Invoke-WebRequest -Uri '%s' -TimeoutSec 15 -UseBasicParsing;
-            $response.Content;
-          } catch {
-            if ($_.ErrorDetails -ne $null -and -not [string]::IsNullOrWhiteSpace($_.ErrorDetails.Message)) {
-              $_.ErrorDetails.Message;
-              exit 0;
-            }
-            if ($_.Exception.Response -ne $null) {
-              $stream = $_.Exception.Response.GetResponseStream();
-              if ($stream -ne $null) {
-                $reader = [System.IO.StreamReader]::new($stream);
-                $reader.ReadToEnd();
-                exit 0;
-              }
-            }
-            throw;
-          }
-          """.formatted(url.replace("'", "''"));
       Process process = new ProcessBuilder(
-          "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command)
+          "curl", "--silent", "--show-error", "--location", "--max-time", "15", url)
           .redirectErrorStream(true)
           .redirectOutput(output.toFile())
           .start();
@@ -97,13 +75,13 @@ public class BitgetPublicApiClient {
         }
       }
     } catch (TimeoutException error) {
-      log.debug("Bitget PowerShell fallback timed out: {}", url);
+      log.debug("Bitget curl fallback timed out: {}", url);
       return null;
     } catch (InterruptedException error) {
       Thread.currentThread().interrupt();
       return null;
     } catch (Exception error) {
-      log.debug("Bitget PowerShell fallback failed: {}", error.getMessage());
+      log.debug("Bitget curl fallback failed: {}", error.getMessage());
       return null;
     } finally {
       delete(output);

@@ -10,6 +10,10 @@ import com.personal.tracker.service.wxpusher.WxPusherAdminService.BloggerCommand
 import com.personal.tracker.service.wxpusher.WxPusherAdminService.BloggerView;
 import com.personal.tracker.service.wxpusher.WxPusherAdminService.RetryBatchResult;
 import com.personal.tracker.service.wxpusher.WxPusherAdminService.StatusView;
+import com.personal.tracker.service.wxpusher.WxPusherIngestionService.OcrBackfillResult;
+import com.personal.tracker.service.wxpusher.WxPusherIngestionService.OcrOpinionBackfillResult;
+import com.personal.tracker.service.wxpusher.feed.WxPusherFeedService;
+import com.personal.tracker.service.wxpusher.feed.WxPusherFeedService.FeedMessage;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,12 +29,15 @@ import org.springframework.web.bind.annotation.RestController;
 public class WxPusherController {
   private final WxPusherAdminService admin;
   private final WxPusherNotifySettingsRepository notifySettingsRepository;
+  private final WxPusherFeedService feed;
 
   public WxPusherController(
       WxPusherAdminService admin,
-      WxPusherNotifySettingsRepository notifySettingsRepository) {
+      WxPusherNotifySettingsRepository notifySettingsRepository,
+      WxPusherFeedService feed) {
     this.admin = admin;
     this.notifySettingsRepository = notifySettingsRepository;
+    this.feed = feed;
   }
 
   @GetMapping("/settings")
@@ -101,6 +108,22 @@ public class WxPusherController {
     return admin.messages(status, kolId, limit);
   }
 
+  @GetMapping("/messages/recent")
+  List<FeedMessage> recentMessages(@RequestParam(defaultValue = "50") int limit) {
+    return feed.recent(limit);
+  }
+
+  @GetMapping("/messages/recent/{id}")
+  FeedMessage recentMessageDetail(@PathVariable String id) {
+    return feed.detail(id);
+  }
+
+  @GetMapping("/messages/ocr")
+  List<WxPusherMessage> ocrMessages(
+      @RequestParam(defaultValue = "50") int limit) {
+    return admin.ocrMessages(limit);
+  }
+
   @PostMapping("/messages/{id}/retry")
   WxPusherMessage retry(@PathVariable String id) {
     return admin.retry(id);
@@ -112,6 +135,18 @@ public class WxPusherController {
       @RequestParam(required = false) String kolId,
       @RequestParam(defaultValue = "30") int limit) {
     return admin.retryBatch(status, kolId, limit);
+  }
+
+  @PostMapping("/messages/ocr-backfill")
+  OcrBackfillResult backfillOcrHistory(
+      @RequestParam(defaultValue = "1000") int limit) {
+    return admin.backfillOcrHistory(limit);
+  }
+
+  @PostMapping("/messages/ocr-opinion-backfill")
+  OcrOpinionBackfillResult backfillOcrOpinions(
+      @RequestParam(defaultValue = "1000") int limit) {
+    return admin.backfillOcrOpinions(limit);
   }
 
   public record SettingsRequest(

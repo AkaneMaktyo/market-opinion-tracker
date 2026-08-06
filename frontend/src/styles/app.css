@@ -1,10 +1,15 @@
 @import './base.css';
 @import './shell.css';
 @import './chart.css';
-@import './forms.css';
+@import './forms/base.css';
+@import './forms/panels.css';
 @import './imports/import.css';
 @import './instruments.css';
 @import './market-summary.css';
 @import './opinions.css';
 @import './positions/positions.css';
 @import './alerts/price-alerts.css';
+@import './mobile/android.css';
+@import './mobile/shell.css';
+@import './mobile/screens.css';
+@import './mobile/transcript.css';

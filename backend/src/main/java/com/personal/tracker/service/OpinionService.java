@@ -21,7 +21,6 @@ import com.personal.tracker.service.wxpusher.WxPusherClient;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -99,22 +98,18 @@ public class OpinionService {
 
   public List<OpinionView> find(String kolId, String symbol, String status, int limit) {
     String safeKol = kolId == null || kolId.isBlank() ? KolRepository.DEFAULT_ID : kolId;
-    boolean onlyMessages = "MESSAGE".equalsIgnoreCase(status);
     List<OpinionView> result = new ArrayList<>();
-    Set<String> opinionSessionIds = Set.of();
-    if (!onlyMessages) {
-      List<Opinion> stored = opinions.find(safeKol, symbol, status, limit);
-      List<String> opinionIds = stored.stream().map(Opinion::id).toList();
-      Map<String, List<PriceLevel>> levels = opinionIds.isEmpty()
-          ? Map.of() : opinions.findLevelsByOpinionIds(opinionIds);
-      Map<String, Review> reviews = opinionIds.isEmpty()
-          ? Map.of() : opinions.findReviewsByOpinionIds(opinionIds);
-      opinionSessionIds = stored.stream()
-          .map(Opinion::sessionId)
-          .filter(value -> value != null && !value.isBlank())
-          .collect(Collectors.toSet());
-      result.addAll(stored.stream().map(item -> view(item, levels, reviews)).toList());
-    }
+    List<Opinion> stored = opinions.find(safeKol, symbol, status, limit);
+    List<String> opinionIds = stored.stream().map(Opinion::id).toList();
+    Map<String, List<PriceLevel>> levels = opinionIds.isEmpty()
+        ? Map.of() : opinions.findLevelsByOpinionIds(opinionIds);
+    Map<String, Review> reviews = opinionIds.isEmpty()
+        ? Map.of() : opinions.findReviewsByOpinionIds(opinionIds);
+    Set<String> opinionSessionIds = stored.stream()
+        .map(Opinion::sessionId)
+        .filter(value -> value != null && !value.isBlank())
+        .collect(Collectors.toSet());
+    result.addAll(stored.stream().map(item -> view(item, levels, reviews)).toList());
     if (includeMessages(symbol, status)) {
       result.addAll(messageViews(safeKol, JdbcSupport.symbol(symbol), opinionSessionIds));
     }
@@ -161,7 +156,7 @@ public class OpinionService {
     String instrumentId = instrument == null ? "" : instrument.id();
     WxPusherBlogger blogger = configuredBlogger(kolId);
     return wxpusherMessages.findByKolSinceContaining(
-            kolId, monthStart(), symbol, name, MESSAGE_LOOKBACK_LIMIT).stream()
+            kolId, messageLookbackStart(), symbol, name, MESSAGE_LOOKBACK_LIMIT).stream()
         .filter(message -> !opinionSessionIds.contains(message.sessionId()))
         .filter(message -> matchesConfiguredBlogger(blogger, message))
         .filter(message -> mentions(messageText(message), symbol, name))
@@ -285,8 +280,8 @@ public class OpinionService {
     return compact.length() <= maxLength ? compact : compact.substring(0, maxLength) + "...";
   }
 
-  private static String monthStart() {
-    return YearMonth.now(APP_ZONE).atDay(1).toString();
+  private static String messageLookbackStart() {
+    return LocalDate.now(APP_ZONE).minusDays(90).toString();
   }
 
   private void refreshResonance(String symbol) {

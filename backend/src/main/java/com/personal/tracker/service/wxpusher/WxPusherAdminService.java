@@ -10,6 +10,8 @@ import com.personal.tracker.repository.wxpusher.WxPusherMessageRepository.WxPush
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository.UpdateCommand;
 import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository.WxPusherSettings;
+import com.personal.tracker.service.wxpusher.WxPusherIngestionService.OcrBackfillResult;
+import com.personal.tracker.service.wxpusher.WxPusherIngestionService.OcrOpinionBackfillResult;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -122,6 +124,10 @@ public class WxPusherAdminService {
     return messageRepository.list(status, kolId, limit);
   }
 
+  public List<WxPusherMessage> ocrMessages(int limit) {
+    return messageRepository.listOcrMessages(limit);
+  }
+
   public WxPusherMessage retry(String id) {
     ingestion.retry(id);
     return messageRepository.findById(id)
@@ -152,6 +158,14 @@ public class WxPusherAdminService {
       }
     }
     return new RetryBatchResult(processed, imported, skipped, failed);
+  }
+
+  public OcrBackfillResult backfillOcrHistory(int limit) {
+    return ingestion.backfillOcrHistory(limit);
+  }
+
+  public OcrOpinionBackfillResult backfillOcrOpinions(int limit) {
+    return ingestion.backfillOcrOpinions(limit);
   }
 
   private String retryStatus(String status) {

@@ -3,8 +3,12 @@ backend/data/*.db-*
 backend/target/
 frontend/node_modules/
 frontend/dist/
+frontend/dist-update/
 frontend-dist.tar.gz
+artifacts/
 logs/
+*.log
+__pycache__/
 .codex-logs/
 .claude/
 .codex/
@@ -14,11 +18,14 @@ logs/
 .codex/environments/
 .codex-remote-attachments/
 .codegraph/
+.workbuddy/
+*.apk
 .idea/
 .vscode/
 *.iml
 .env
 .env.*
+!frontend/.env.android
 backend/.env
 backend/.env.*
 backend/application-local.yml

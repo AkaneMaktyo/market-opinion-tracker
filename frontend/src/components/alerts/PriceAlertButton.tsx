@@ -1,4 +1,5 @@
 import { BellRing } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import type { PriceAlert, PriceAlertMonitorStatus } from '../../types/alerts';
@@ -7,9 +8,12 @@ import { PriceAlertModal } from './PriceAlertModal';
 interface Props {
   selectedSymbol: string;
   onJumpToChart: (symbol: string) => void;
+  onOpen?: () => void;
+  trigger?: ReactNode;
+  triggerClassName?: string;
 }
 
-export function PriceAlertButton({ selectedSymbol, onJumpToChart }: Props) {
+export function PriceAlertButton({ selectedSymbol, onJumpToChart, onOpen, trigger, triggerClassName }: Props) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [alerts, setAlerts] = useState<PriceAlert[]>([]);
@@ -144,8 +148,8 @@ export function PriceAlertButton({ selectedSymbol, onJumpToChart }: Props) {
 
   return (
     <>
-      <button className="primary secondary" onClick={() => setOpen(true)} type="button">
-        <BellRing size={16} />价格提醒
+      <button className={triggerClassName || 'primary secondary'} onClick={() => { setOpen(true); onOpen?.(); }} type="button">
+        {trigger || <><BellRing size={16} />价格提醒</>}
       </button>
       {open ? (
         <PriceAlertModal

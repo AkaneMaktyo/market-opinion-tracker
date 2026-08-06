@@ -10,6 +10,8 @@ class CorsConfigTest {
   @Test
   void includesLocalAndLanPatternsByDefault() {
     List<String> patterns = List.of(CorsConfig.allowedOriginPatterns(""));
+    assertTrue(patterns.contains("http://localhost"));
+    assertTrue(patterns.contains("https://localhost"));
     assertTrue(patterns.contains("http://localhost:*"));
     assertTrue(patterns.contains("http://127.0.0.1:*"));
     assertTrue(patterns.contains("http://192.168.*.*:*"));

@@ -150,6 +150,18 @@ powershell -ExecutionPolicy Bypass -File deploy/manual-release.ps1 -SshPassword 
 - 后端：`8080`
 - MySQL：不开放公网；本机通过 SSH 隧道访问线上库时使用本地端口 `13306`
 
+## 安卓应用
+
+安卓原生工程位于 `frontend/android`，复用现有 React 界面并连接云端后端。
+应用支持签名校验、失败回退的在线更新；普通页面和业务功能随现有云端发布流程自动更新，无需再次传 APK。
+
+```powershell
+cd D:\_code\personal\market-opinion-tracker\frontend
+npm run android:open
+```
+
+首次安装环境、APK 构建和发布签名说明见 [docs/android.md](docs/android.md)。
+
 ## 当前状态备注
 
 - 前后端本地构建已通过

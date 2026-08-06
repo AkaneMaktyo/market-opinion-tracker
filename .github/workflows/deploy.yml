@@ -97,6 +97,7 @@ jobs:
       - name: Build and deploy
         env:
           PRICE_ALERT_WXPUSHER_SPT: ${{ secrets.DEPLOY_WXPUSHER_SPT }}
+          LIVE_UPDATE_PRIVATE_KEY_B64: ${{ secrets.LIVE_UPDATE_PRIVATE_KEY_B64 }}
         run: |
           & .\deploy\manual-release.ps1 `
             -SshHost $env:SSH_HOST `
@@ -108,7 +109,8 @@ jobs:
         run: |
           $urls = @(
             "http://103.236.98.149:8888/market/api/health",
-            "http://103.236.98.149:8888/market/"
+            "http://103.236.98.149:8888/market/",
+            "http://103.236.98.149:8888/market/live-update.json"
           )
           foreach ($url in $urls) {
             $ok = $false
@@ -123,6 +125,10 @@ jobs:
             if (-not $ok) {
               throw "Endpoint verification failed: $url"
             }
+          }
+          $manifest = Invoke-RestMethod -Uri "http://103.236.98.149:8888/market/live-update.json" -TimeoutSec 20
+          if (-not $manifest.bundleId -or -not $manifest.signature -or -not $manifest.url) {
+            throw "Android live update manifest verification failed."
           }
 
       - name: Write summary

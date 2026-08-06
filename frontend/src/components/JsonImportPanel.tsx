@@ -1,4 +1,5 @@
 import { FileJson, Save, X } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { api } from '../api/client';
 import type { PositionAction } from '../positionTypes';
@@ -6,6 +7,9 @@ import type { Direction, ImportCandidate, ImportPreview } from '../types';
 interface Props {
   kolId: string;
   onImported: (symbol: string) => void;
+  onOpen?: () => void;
+  trigger?: ReactNode;
+  triggerClassName?: string;
 }
 const directions: { value: Direction; label: string }[] = [
   { value: 'BULLISH', label: '看多' },
@@ -19,7 +23,7 @@ const positionActions: { value: PositionAction; label: string }[] = [
   { value: 'CLOSE', label: '移出持仓' },
 ];
 
-export function JsonImportPanel({ kolId, onImported }: Props) {
+export function JsonImportPanel({ kolId, onImported, onOpen, trigger, triggerClassName }: Props) {
   const [open, setOpen] = useState(false);
   const [sessionDate, setSessionDate] = useState('');
   const [title, setTitle] = useState('观点录入');
@@ -87,9 +91,8 @@ export function JsonImportPanel({ kolId, onImported }: Props) {
 
   return (
     <>
-      <button className="primary" onClick={() => setOpen(true)} type="button">
-        <FileJson size={16} />
-        观点录入
+      <button className={triggerClassName || 'primary'} onClick={() => { setOpen(true); onOpen?.(); }} type="button">
+        {trigger || <><FileJson size={16} />观点录入</>}
       </button>
       {open && (
         <div className="modal-backdrop" onMouseDown={() => setOpen(false)}>

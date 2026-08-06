@@ -3,6 +3,7 @@ import type {
   WxPusherBlogger,
   WxPusherMessage,
   WxPusherNotifySettings,
+  WxPusherRecentMessage,
   WxPusherSettings,
   WxPusherStatus,
 } from '../types';
@@ -48,6 +49,12 @@ export const wxpusherApi = {
     params.set('limit', String(limit));
     return json<WxPusherMessage[]>(`/api/wxpusher/messages?${params.toString()}`);
   },
+  wxpusherRecentMessages: (limit = 50) =>
+    json<WxPusherRecentMessage[]>(`/api/wxpusher/messages/recent?limit=${limit}`),
+  wxpusherRecentMessageDetail: (id: string) =>
+    json<WxPusherRecentMessage>(`/api/wxpusher/messages/recent/${encodeURIComponent(id)}`),
+  wxpusherOcrMessages: (limit = 50) =>
+    json<WxPusherMessage[]>(`/api/wxpusher/messages/ocr?limit=${limit}`),
   retryWxPusherMessage: (id: string) =>
     json<WxPusherMessage>(`/api/wxpusher/messages/${encodeURIComponent(id)}/retry`, {
       method: 'POST',

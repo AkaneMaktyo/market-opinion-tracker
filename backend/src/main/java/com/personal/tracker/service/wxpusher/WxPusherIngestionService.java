@@ -16,7 +16,10 @@ import com.personal.tracker.service.imports.OpinionImportWriter;
 import com.personal.tracker.service.json.JsonOpinionParser;
 import com.personal.tracker.service.wxpusher.fallback.WxPusherFallbackOpinionExtractor;
 import com.personal.tracker.service.wxpusher.instruments.MessageInstrumentExtractor;
+import com.personal.tracker.service.wxpusher.ocr.WxPusherImageOcrService;
+import com.personal.tracker.service.wxpusher.ocr.WxPusherOcrOpinionSyncService;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -32,6 +35,8 @@ public class WxPusherIngestionService {
   private final WxPusherMessageRepository messageRepository;
   private final WxPusherSharedMessageRepository sharedRepository;
   private final WxPusherArticleExtractor articleExtractor;
+  private final WxPusherImageOcrService imageOcrService;
+  private final WxPusherOcrOpinionSyncService ocrOpinions;
   private final OpenAiJsonExtractor aiExtractor;
   private final JsonOpinionParser parser;
   private final OpinionImportWriter writer;
@@ -44,6 +49,8 @@ public class WxPusherIngestionService {
       WxPusherMessageRepository messageRepository,
       WxPusherSharedMessageRepository sharedRepository,
       WxPusherArticleExtractor articleExtractor,
+      WxPusherImageOcrService imageOcrService,
+      WxPusherOcrOpinionSyncService ocrOpinions,
       OpenAiJsonExtractor aiExtractor,
       JsonOpinionParser parser,
       OpinionImportWriter writer,
@@ -54,6 +61,8 @@ public class WxPusherIngestionService {
     this.messageRepository = messageRepository;
     this.sharedRepository = sharedRepository;
     this.articleExtractor = articleExtractor;
+    this.imageOcrService = imageOcrService;
+    this.ocrOpinions = ocrOpinions;
     this.aiExtractor = aiExtractor;
     this.parser = parser;
     this.writer = writer;
@@ -107,6 +116,70 @@ public class WxPusherIngestionService {
     process(message, null);
   }
 
+  public OcrBackfillResult backfillOcrHistory(int limit) {
+    int eligible = 0;
+    int converted = 0;
+    int imported = 0;
+    List<String> failedIds = new ArrayList<>();
+    for (WxPusherMessage message : messageRepository.listLegacyImageMessages(limit)) {
+      if (!imageOcrService.requiresSourceRefresh(message.bloggerName(), message.detailText())) {
+        continue;
+      }
+      eligible++;
+      try {
+        if ("IMPORTED".equalsIgnoreCase(message.status())) {
+          refreshImportedOcrText(message);
+        } else {
+          process(message, null);
+        }
+        WxPusherMessage updated = messageRepository.findById(message.id()).orElse(message);
+        if (imageOcrService.containsOcrText(updated.detailText())) {
+          converted++;
+          if ("IMPORTED".equalsIgnoreCase(updated.status())) {
+            imported++;
+          }
+        } else {
+          failedIds.add(message.id());
+        }
+      } catch (RuntimeException error) {
+        failedIds.add(message.id());
+      }
+    }
+    return new OcrBackfillResult(
+        eligible,
+        converted,
+        imported,
+        failedIds.size(),
+        failedIds.stream().limit(50).toList());
+  }
+
+  public OcrOpinionBackfillResult backfillOcrOpinions(int limit) {
+    int messages = 0;
+    int messageOpinions = 0;
+    int importedSources = 0;
+    int missingSymbols = 0;
+    for (WxPusherMessage message : messageRepository.listOcrMessages(limit)) {
+      messages++;
+      String detailText = storedText(message);
+      String sessionId = ensureSession(message, detailText);
+      if ("IMPORTED".equalsIgnoreCase(message.status())) {
+        ocrOpinions.updateImportedSource(sessionId, detailText);
+        importedSources++;
+        continue;
+      }
+      int saved = ocrOpinions.saveFallback(message, detailText, sessionId);
+      messageOpinions += saved;
+      if (saved == 0) {
+        missingSymbols++;
+      }
+    }
+    return new OcrOpinionBackfillResult(
+        messages,
+        messageOpinions,
+        importedSources,
+        missingSymbols);
+  }
+
   private boolean importFromShared(WxPusherClient.IncomingMessage incoming) {
     var matched = matchBlogger(incoming);
     if (matched.isEmpty()) {
@@ -114,6 +187,17 @@ public class WxPusherIngestionService {
       return false;
     }
     return processMatched(incoming, matched.get(), incoming.messageKey());
+  }
+
+  private void refreshImportedOcrText(WxPusherMessage message) {
+    String detailText = fetchDetail(message);
+    detailText = imageOcrService.convert(message.bloggerName(), detailText);
+    if (!imageOcrService.containsOcrText(detailText)) {
+      throw new IllegalStateException("历史消息没有取得可入库的图片文字");
+    }
+    String sessionId = ensureSession(message, detailText);
+    messageRepository.updateDetailText(message.id(), detailText);
+    ocrOpinions.updateImportedSource(sessionId, detailText);
   }
 
   private boolean processMatched(
@@ -156,7 +240,9 @@ public class WxPusherIngestionService {
         return;
       }
       message = reassignFromDetail(message, detailText);
+      detailText = imageOcrService.convert(message.bloggerName(), detailText);
       sessionId = ensureSession(message, detailText);
+      ocrOpinions.saveFallback(message, detailText, sessionId);
       saveMentionedInstruments(message, detailText);
       if (!aiExtractor.extractionEnabled()) {
         importKeywordFallback(message, sharedMessageKey, detailText, sessionId);
@@ -180,6 +266,8 @@ public class WxPusherIngestionService {
           "WXPUSHER_AUTO",
           detailText,
           preview.candidates());
+      writer.removeMessageFallbacks(result.sessionId());
+      ocrOpinions.updateImportedSource(result.sessionId(), detailText);
       messageRepository.markImported(message.id(), detailText, llmJson, result.sessionId());
       saveSharedState(sharedMessageKey, "IMPORTED", "", message.id());
     } catch (Exception error) {
@@ -192,6 +280,9 @@ public class WxPusherIngestionService {
     if (message.sessionId() != null && !message.sessionId().isBlank()) {
       var current = sessionRepository.findById(message.sessionId());
       if (current.isPresent() && current.get().kolId().equals(message.kolId())) {
+        if (imageOcrService.containsOcrText(detailText)) {
+          sessionRepository.updateRawText(message.sessionId(), detailText);
+        }
         return message.sessionId();
       }
     }
@@ -277,10 +368,13 @@ public class WxPusherIngestionService {
   }
 
   private String fetchDetail(WxPusherMessage message) {
-    if (message.detailText() != null && !message.detailText().isBlank()) {
+    boolean refreshLegacyImage = imageOcrService.requiresSourceRefresh(
+        message.bloggerName(),
+        message.detailText());
+    if (message.detailText() != null && !message.detailText().isBlank() && !refreshLegacyImage) {
       return unusableDetail(message.detailText()) ? fallbackText(message) : message.detailText();
     }
-    if (isRetryState(message.status())) {
+    if (isRetryState(message.status()) && !refreshLegacyImage) {
       return fallbackText(message);
     }
     if (message.detailUrl() == null || message.detailUrl().isBlank()) {
@@ -348,6 +442,8 @@ public class WxPusherIngestionService {
         "WXPUSHER_KEYWORD_FALLBACK",
         detailText,
         candidates);
+    writer.removeMessageFallbacks(result.sessionId());
+    ocrOpinions.updateImportedSource(result.sessionId(), detailText);
     String output = "{\"fallback\":\"keyword\",\"savedOpinions\":%d}".formatted(result.savedOpinions());
     messageRepository.markImported(message.id(), detailText, output, result.sessionId());
     saveSharedState(sharedMessageKey, "IMPORTED", "", message.id());
@@ -365,5 +461,20 @@ public class WxPusherIngestionService {
       return messageTime.substring(0, 10);
     }
     return LocalDate.now().toString();
+  }
+
+  public record OcrBackfillResult(
+      int eligible,
+      int converted,
+      int imported,
+      int failed,
+      List<String> failedMessageIds) {
+  }
+
+  public record OcrOpinionBackfillResult(
+      int messages,
+      int messageOpinions,
+      int importedSources,
+      int missingSymbols) {
   }
 }

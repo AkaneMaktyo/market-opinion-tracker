@@ -8,7 +8,7 @@ import time
 import paramiko
 
 SFTP_STALL_TIMEOUT_SECONDS = 120
-UPLOAD_ATTEMPTS = 3
+UPLOAD_ATTEMPTS = 12
 UPLOAD_CHUNK_SIZE = 128 * 1024
 UPLOAD_PROGRESS_STEP = 10
 
@@ -59,12 +59,16 @@ def run(client, command, timeout=300):
         raise RuntimeError(f"Remote command failed ({code}): {command}")
 
 
-def file_key(path):
+def file_digest(path):
     digest = hashlib.sha256()
     with open(path, "rb") as source:
         for chunk in iter(lambda: source.read(1024 * 1024), b""):
             digest.update(chunk)
-    return digest.hexdigest()[:10]
+    return digest.hexdigest()
+
+
+def file_key(path):
+    return file_digest(path)[:10]
 
 
 def upload(sftp, local_path, remote_path, resume=True):
@@ -72,7 +76,12 @@ def upload(sftp, local_path, remote_path, resume=True):
     transferred = 0
     if resume:
         try:
-            transferred = min(sftp.stat(remote_path).st_size, total_size)
+            remote_size = sftp.stat(remote_path).st_size
+            if remote_size > total_size:
+                with sftp.file(remote_path, "r+") as target:
+                    target.truncate(total_size)
+                remote_size = total_size
+            transferred = remote_size
         except OSError:
             transferred = 0
     print(
@@ -90,9 +99,12 @@ def upload(sftp, local_path, remote_path, resume=True):
             print(f"upload {os.path.basename(local_path)}: {percent}%", flush=True)
 
     report_progress(transferred)
-    mode = "ab" if transferred else "wb"
+    if transferred == total_size:
+        return
+    mode = "r+b" if transferred else "wb"
     with open(local_path, "rb") as source, sftp.file(remote_path, mode) as target:
         source.seek(transferred)
+        target.seek(transferred)
         while chunk := source.read(UPLOAD_CHUNK_SIZE):
             target.write(chunk)
             transferred += len(chunk)
@@ -149,6 +161,12 @@ def main():
 
     client = stage_files(args, remote_dir, files)
     try:
+        for local_path, remote_path, _ in files:
+            run(
+                client,
+                f"echo '{file_digest(local_path)}  {remote_path}' | sha256sum -c -",
+                timeout=120,
+            )
         runtime_arg = f" {remote_runtime_env}" if args.runtime_env else ""
         if args.runtime_env:
             run(client, f"chmod 600 {remote_runtime_env}", timeout=30)
