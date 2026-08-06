@@ -38,7 +38,7 @@ public class WxPusherFeedService {
     RecentMessage message = messages.findRecentFeedById(id)
         .orElseThrow(() -> new IllegalArgumentException("消息不存在"));
     String detailText = content(message);
-    if (needsImageDetail(message, detailText)) {
+    if (needsFetch(message, detailText)) {
       try {
         detailText = articles.fetchText(message.detailUrl(), settings.get());
       } catch (RuntimeException ignored) {
@@ -65,10 +65,19 @@ public class WxPusherFeedService {
         value(message.status()));
   }
 
-  private boolean needsImageDetail(RecentMessage message, String detailText) {
-    return !detailText.contains(WxPusherArticleParser.IMAGE_PREFIX)
-        && IMAGE_HINT.matcher(value(message.summary())).find()
-        && !value(message.detailUrl()).isBlank();
+  private boolean needsFetch(RecentMessage message, String detailText) {
+    if (value(message.detailUrl()).isBlank()) return false;
+    // 包含图片但 detailText 中没有图片标记 → 需要抓取原文获取图片 URL
+    if (!detailText.contains(WxPusherArticleParser.IMAGE_PREFIX)
+        && IMAGE_HINT.matcher(value(message.summary())).find()) {
+      return true;
+    }
+    // detailText 为空或等于截断的 summary → 需要抓取原文获取完整内容
+    String summary = value(message.summary()).trim();
+    if (detailText.isBlank() || detailText.equals(summary)) {
+      return true;
+    }
+    return false;
   }
 
   private String bloggerName(RecentMessage message) {

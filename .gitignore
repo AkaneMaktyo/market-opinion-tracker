@@ -18,6 +18,8 @@ __pycache__/
 .codex/environments/
 .codex-remote-attachments/
 .codegraph/
+.workbuddy/
+*.apk
 .idea/
 .vscode/
 *.iml

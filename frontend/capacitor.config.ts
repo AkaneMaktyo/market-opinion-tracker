@@ -20,6 +20,9 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   backgroundColor: '#e5e7eb',
   loggingBehavior: 'debug',
+  server: {
+    androidScheme: 'http',
+  },
   android: {
     backgroundColor: '#e5e7eb',
   },
