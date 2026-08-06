@@ -69,6 +69,7 @@ class WxPusherIngestionServiceSeedTest {
         "Alpha",
         List.of("Alpha VIP"),
         true,
+        true,
         "LAST_30",
         null,
         "",

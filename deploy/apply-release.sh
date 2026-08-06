@@ -48,7 +48,13 @@ id -u markettracker >/dev/null 2>&1 || \
 
 mkdir -p "$APP_BASE" "$ENV_DIR" "$WWW_ROOT/market"
 cp -f "$JAR_PATH" "$APP_BASE/market-opinion-tracker.jar"
+if [ -d "$WWW_ROOT/market/apk" ]; then
+  mv "$WWW_ROOT/market/apk" "$MUX_BASE/web-apk-backup"
+fi
 rm -rf "$WWW_ROOT/market"/*
+if [ -d "$MUX_BASE/web-apk-backup" ]; then
+  mv "$MUX_BASE/web-apk-backup" "$WWW_ROOT/market/apk"
+fi
 tar -xzf "$DIST_ARCHIVE" -C "$WWW_ROOT/market"
 mkdir -p "$MUX_BASE"
 cp -f "$(dirname "$0")/ssh_http_mux.py" "$MUX_BASE/ssh_http_mux.py"

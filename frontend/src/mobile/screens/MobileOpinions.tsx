@@ -32,7 +32,11 @@ function fmtDeployTime(iso: string): string {
   } catch { return iso; }
 }
 
-export function MobileOpinions() {
+interface Props {
+  focusMessageId?: string;
+}
+
+export function MobileOpinions({ focusMessageId = '' }: Props) {
   const [query, setQuery] = useState('');
   const [kolName, setKolName] = useState('');
   const [messages, setMessages] = useState<WxPusherRecentMessage[]>([]);
@@ -41,6 +45,7 @@ export function MobileOpinions() {
   const [preview, setPreview] = useState('');
   const requestId = useRef(0);
   const detailCache = useRef(new Map<string, WxPusherRecentMessage>());
+  const handledFocus = useRef('');
   const [hydratingIds, setHydratingIds] = useState<Set<string>>(new Set());
   const [deployInfo, setDeployInfo] = useState<{ bundleId: string; createdAt: string } | null>(null);
   const kolNames = useMemo(() => [...new Set(messages.map((item) => item.bloggerName).filter(Boolean))]
@@ -116,6 +121,16 @@ export function MobileOpinions() {
     };
   }, [fetchDeployInfo]);
 
+  useEffect(() => {
+    if (!focusMessageId || handledFocus.current === focusMessageId) return;
+    const target = document.getElementById(`mobile-msg-${focusMessageId}`);
+    if (!target) return;
+    handledFocus.current = focusMessageId;
+    target.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    target.classList.add('mobile-msg-highlight');
+    window.setTimeout(() => target.classList.remove('mobile-msg-highlight'), 2500);
+  }, [focusMessageId, items]);
+
   return (
     <div className="mobile-screen-content mobile-opinions-screen">
       <div className="mobile-opinion-toolbar">
@@ -154,7 +169,7 @@ export function MobileOpinions() {
 function MessageCard({ item, onPreview, hydrating }: { item: WxPusherRecentMessage; onPreview: (source: string) => void; hydrating: boolean }) {
   const parsed = parseMessage(item);
   return (
-    <article className="mobile-card mobile-feed-card mobile-message-card">
+    <article className="mobile-card mobile-feed-card mobile-message-card" id={`mobile-msg-${item.id}`}>
       <div className="mobile-feed-top">
         <span className="mobile-avatar">{displayKolName(item.bloggerName).slice(0, 1) || '讯'}</span>
         <div><strong>{displayKolName(item.bloggerName) || '未知 KOL'}</strong><small>{formatDate(item.messageTime)}</small></div>
@@ -186,7 +201,8 @@ function ImagePreview({ source, onClose }: { source: string; onClose: () => void
   });
 
   const handleBackdrop = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) onClose();
+    if ((e.target as HTMLElement).closest('.mobile-image-pinched')) return;
+    onClose();
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -238,7 +254,7 @@ function ImagePreview({ source, onClose }: { source: string; onClose: () => void
 
   return (
     <div className="modal-backdrop mobile-image-backdrop" onClick={handleBackdrop}>
-      <button aria-label="关闭图片" className="mobile-image-close" onClick={onClose} type="button"><X size={22} /></button>
+      <button aria-label="关闭图片" className="mobile-image-close" onClick={(e) => { e.stopPropagation(); onClose(); }} type="button"><X size={22} /></button>
       <div className="mobile-image-stage">
         <img
           alt="放大的消息图片"

@@ -15,6 +15,7 @@ public class WxPusherSharedMessageRepository {
       SELECT r.id, r.message_key, r.source_name, r.title, r.summary,
              r.detail_url, r.source_url, r.message_time,
              COALESCE(p.blogger_name, '') processed_blogger_name,
+             COALESCE(p.kol_id, '') kol_id,
              COALESCE(p.detail_text, '') detail_text,
              COALESCE(p.status, 'RECEIVED') status
       FROM wxpusher_raw_messages r
@@ -38,6 +39,7 @@ public class WxPusherSharedMessageRepository {
       rs.getString("message_key"),
       rs.getString("source_name"),
       rs.getString("processed_blogger_name"),
+      rs.getString("kol_id"),
       rs.getString("title"),
       rs.getString("summary"),
       rs.getString("detail_url"),
@@ -141,6 +143,7 @@ public class WxPusherSharedMessageRepository {
       String messageKey,
       String sourceName,
       String processedBloggerName,
+      String kolId,
       String title,
       String summary,
       String detailUrl,

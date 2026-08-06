@@ -139,3 +139,10 @@
   .mobile-stat-strip small { font-size: 11px; }
   .mobile-form-grid.two { grid-template-columns: 1fr; }
 }
+
+.mobile-msg-highlight { animation: mobile-msg-flash 2.4s ease; }
+@keyframes mobile-msg-flash {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(35, 111, 93, 0); }
+  25% { box-shadow: 0 0 0 4px rgba(35, 111, 93, 0.35); }
+  70% { box-shadow: 0 0 0 4px rgba(35, 111, 93, 0.12); }
+}

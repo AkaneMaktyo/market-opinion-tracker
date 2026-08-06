@@ -10,6 +10,7 @@ import { MobileOverview } from './screens/MobileOverview';
 import { MobileProfile } from './screens/MobileProfile';
 import { MobileTranscript } from './screens/MobileTranscript';
 import type { MobileTab } from './screens/mobileTypes';
+import { OPEN_OPINIONS_EVENT, useMessageNotifications } from './useMessageNotifications';
 
 const tabTitles: Record<MobileTab, string> = {
   overview: '今日概览',
@@ -24,11 +25,24 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
   const [quickOpen, setQuickOpen] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerSeed, setComposerSeed] = useState('');
+  const [focusMessageId, setFocusMessageId] = useState('');
   const viewportRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     viewportRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   }, [tab]);
+
+  useMessageNotifications();
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ messageId?: string }>).detail;
+      setTab('opinions');
+      setFocusMessageId(detail?.messageId || '');
+    };
+    window.addEventListener(OPEN_OPINIONS_EVENT, handler);
+    return () => window.removeEventListener(OPEN_OPINIONS_EVENT, handler);
+  }, []);
 
   function openComposer(seed = '') {
     setQuickOpen(false);
@@ -47,7 +61,7 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
 
       <section className="mobile-app-viewport" aria-live="polite" ref={viewportRef}>
         {tab === 'overview' ? <MobileOverview dashboard={dashboard} onOpenOpinions={() => setTab('opinions')} onQuickAdd={() => setQuickOpen(true)} /> : null}
-        {tab === 'opinions' ? <MobileOpinions /> : null}
+        {tab === 'opinions' ? <MobileOpinions focusMessageId={focusMessageId} /> : null}
         {tab === 'transcript' ? <MobileTranscript onCreateOpinion={openComposer} /> : null}
         {tab === 'profile' ? <MobileProfile dashboard={dashboard} liveUpdate={liveUpdate} onOpenTranscript={() => setTab('transcript')} /> : null}
       </section>

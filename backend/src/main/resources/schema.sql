@@ -170,6 +170,7 @@ CREATE TABLE IF NOT EXISTS wxpusher_bloggers (
   blogger_name VARCHAR(255) NOT NULL,
   aliases_json TEXT NOT NULL,
   enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  notify_enabled BOOLEAN NOT NULL DEFAULT TRUE,
   history_seed_mode VARCHAR(32) NOT NULL,
   seed_completed_at VARCHAR(64),
   created_at VARCHAR(64) NOT NULL,
@@ -177,6 +178,8 @@ CREATE TABLE IF NOT EXISTS wxpusher_bloggers (
   UNIQUE KEY uq_wxpusher_blogger_name(blogger_name),
   INDEX idx_wxpusher_blogger_enabled(enabled, updated_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE wxpusher_bloggers ADD COLUMN notify_enabled BOOLEAN NOT NULL DEFAULT TRUE;
 
 CREATE TABLE IF NOT EXISTS wxpusher_messages (
   id VARCHAR(64) PRIMARY KEY,

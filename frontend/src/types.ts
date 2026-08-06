@@ -158,6 +158,7 @@ export interface WxPusherBlogger {
   bloggerName: string;
   aliases: string[];
   enabled: boolean;
+  notifyEnabled: boolean;
   historySeedMode: string;
   seedCompletedAt?: string;
   createdAt: string;
@@ -192,6 +193,7 @@ export interface WxPusherRecentMessage {
   id: string;
   messageKey: string;
   bloggerName: string;
+  kolId: string;
   title: string;
   summary?: string;
   detailText?: string;

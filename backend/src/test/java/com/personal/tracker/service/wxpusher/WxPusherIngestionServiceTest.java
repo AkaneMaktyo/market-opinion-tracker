@@ -259,7 +259,7 @@ class WxPusherIngestionServiceTest {
   }
 
   private WxPusherBlogger blogger(String name) {
-    return new WxPusherBlogger("blogger-" + name, "kol-1", name, List.of("Alpha VIP"), true, "LAST_30", null, "", "");
+    return new WxPusherBlogger("blogger-" + name, "kol-1", name, List.of("Alpha VIP"), true, true, "LAST_30", null, "", "");
   }
 
   private WxPusherClient.IncomingMessage incoming(String bloggerName) {

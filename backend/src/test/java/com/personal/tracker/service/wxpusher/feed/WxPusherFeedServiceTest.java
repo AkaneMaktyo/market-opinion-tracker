@@ -64,6 +64,7 @@ class WxPusherFeedServiceTest {
         "key-" + id,
         "CIA-信息推送",
         processedBlogger,
+        "",
         "title",
         summary,
         "https://wxpusher.zjiecode.com/api/message/v2/" + id,

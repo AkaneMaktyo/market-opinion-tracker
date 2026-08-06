@@ -98,6 +98,7 @@ public class WxPusherAdminService {
         command.bloggerName(),
         command.aliases(),
         command.enabled(),
+        command.notifyEnabled() == null || command.notifyEnabled(),
         "LAST_30",
         command.enabled() ? null : ""));
     lifecycle.refresh();
@@ -114,6 +115,7 @@ public class WxPusherAdminService {
         command.bloggerName(),
         command.aliases(),
         command.enabled(),
+        command.notifyEnabled() == null ? current.notifyEnabled() : command.notifyEnabled(),
         current.historySeedMode(),
         seedCompletedAt));
     lifecycle.refresh();
@@ -194,6 +196,7 @@ public class WxPusherAdminService {
         blogger.bloggerName(),
         blogger.aliases(),
         blogger.enabled(),
+        blogger.notifyEnabled(),
         blogger.historySeedMode(),
         blogger.seedCompletedAt(),
         blogger.createdAt(),
@@ -240,6 +243,7 @@ public class WxPusherAdminService {
         blogger.name(),
         blogger.aliases(),
         true,
+        true,
         "LAST_30",
         null));
   }
@@ -263,7 +267,8 @@ public class WxPusherAdminService {
       String id,
       String bloggerName,
       List<String> aliases,
-      boolean enabled) {
+      boolean enabled,
+      Boolean notifyEnabled) {
   }
 
   public record BloggerView(
@@ -272,6 +277,7 @@ public class WxPusherAdminService {
       String bloggerName,
       List<String> aliases,
       boolean enabled,
+      boolean notifyEnabled,
       String historySeedMode,
       String seedCompletedAt,
       String createdAt,

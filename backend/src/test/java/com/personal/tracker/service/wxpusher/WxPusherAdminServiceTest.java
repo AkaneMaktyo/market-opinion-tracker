@@ -83,13 +83,13 @@ class WxPusherAdminServiceTest {
         .thenReturn(new Kol("kol-1", "Alpha", "WxPusher 博主", "now"));
     when(bloggerRepository.create(any(SaveCommand.class)))
         .thenReturn(new WxPusherBlogger(
-            "b1", "kol-1", "Alpha", List.of("Alpha VIP"), true, "LAST_30", null, "now", "now"));
+            "b1", "kol-1", "Alpha", List.of("Alpha VIP"), true, true, "LAST_30", null, "now", "now"));
     when(messageRepository.summaryByKolIds(List.of("kol-1"))).thenReturn(Map.of(
         "kol-1",
         new MessageSummary("kol-1", 2, 1, 1, "2026-05-31T06:00:00Z")));
 
     var created = service.createBlogger(
-        new WxPusherAdminService.BloggerCommand(null, "Alpha", List.of("Alpha VIP"), true));
+        new WxPusherAdminService.BloggerCommand(null, "Alpha", List.of("Alpha VIP"), true, true));
 
     var captor = ArgumentCaptor.forClass(SaveCommand.class);
     verify(bloggerRepository).create(captor.capture());
@@ -118,17 +118,17 @@ class WxPusherAdminServiceTest {
         ingestion,
         lifecycle);
     WxPusherBlogger current = new WxPusherBlogger(
-        "b1", "kol-1", "Alpha", List.of("Alpha"), true, "LAST_30", "2026-05-31T00:00:00Z", "now", "now");
+        "b1", "kol-1", "Alpha", List.of("Alpha"), true, true, "LAST_30", "2026-05-31T00:00:00Z", "now", "now");
     when(bloggerRepository.findById("b1")).thenReturn(current);
     when(kols.save("Alpha Pro", "WxPusher 博主"))
         .thenReturn(new Kol("kol-2", "Alpha Pro", "WxPusher 博主", "now"));
     when(bloggerRepository.update(any(SaveCommand.class)))
         .thenReturn(new WxPusherBlogger(
-            "b1", "kol-2", "Alpha Pro", List.of("Alpha", "AP"), true, "LAST_30", null, "now", "later"));
+            "b1", "kol-2", "Alpha Pro", List.of("Alpha", "AP"), true, true, "LAST_30", null, "now", "later"));
     when(messageRepository.summaryByKolIds(List.of("kol-2"))).thenReturn(Map.of());
 
     service.updateBlogger(
-        new WxPusherAdminService.BloggerCommand("b1", "Alpha Pro", List.of("Alpha", "AP"), true));
+        new WxPusherAdminService.BloggerCommand("b1", "Alpha Pro", List.of("Alpha", "AP"), true, true));
 
     var captor = ArgumentCaptor.forClass(SaveCommand.class);
     verify(bloggerRepository).update(captor.capture());
@@ -223,7 +223,7 @@ class WxPusherAdminServiceTest {
   }
 
   private WxPusherBlogger blogger(String name) {
-    return new WxPusherBlogger("id-" + name, "kol-" + name, name, List.of(), true, "LAST_30", null, "now", "now");
+    return new WxPusherBlogger("id-" + name, "kol-" + name, name, List.of(), true, true, "LAST_30", null, "now", "now");
   }
 
   private WxPusherMessage message(String id, String status) {

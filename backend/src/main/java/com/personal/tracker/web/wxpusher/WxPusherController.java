@@ -88,7 +88,8 @@ public class WxPusherController {
         null,
         request.bloggerName(),
         request.aliases(),
-        request.enabled()));
+        request.enabled(),
+        request.notifyEnabled()));
   }
 
   @PutMapping("/bloggers")
@@ -97,7 +98,8 @@ public class WxPusherController {
         request.id(),
         request.bloggerName(),
         request.aliases(),
-        request.enabled()));
+        request.enabled(),
+        request.notifyEnabled()));
   }
 
   @GetMapping("/messages")
@@ -171,6 +173,7 @@ public class WxPusherController {
       String id,
       String bloggerName,
       List<String> aliases,
-      boolean enabled) {
+      boolean enabled,
+      Boolean notifyEnabled) {
   }
 }

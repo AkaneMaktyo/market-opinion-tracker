@@ -274,7 +274,7 @@ class WxPusherIngestionRetryTest {
   }
 
   private WxPusherBlogger blogger(String name, String kolId, List<String> aliases) {
-    return new WxPusherBlogger("blogger-" + name, kolId, name, aliases, true, "LAST_30", null, "", "");
+    return new WxPusherBlogger("blogger-" + name, kolId, name, aliases, true, true, "LAST_30", null, "", "");
   }
 
   private LiveSession session(String id, String kolId) {

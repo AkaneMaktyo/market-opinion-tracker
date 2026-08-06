@@ -21,6 +21,7 @@ public class WxPusherBloggerRepository {
       rs.getString("blogger_name"),
       readAliases(rs.getString("aliases_json")),
       rs.getBoolean("enabled"),
+      rs.getBoolean("notify_enabled"),
       rs.getString("history_seed_mode"),
       rs.getString("seed_completed_at"),
       rs.getString("created_at"),
@@ -56,15 +57,16 @@ public class WxPusherBloggerRepository {
     String id = JdbcSupport.id();
     jdbc.update("""
         INSERT INTO wxpusher_bloggers(
-          id, kol_id, blogger_name, aliases_json, enabled, history_seed_mode,
-          seed_completed_at, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          id, kol_id, blogger_name, aliases_json, enabled, notify_enabled,
+          history_seed_mode, seed_completed_at, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         id,
         command.kolId(),
         command.bloggerName().trim(),
         writeAliases(command.aliases()),
         command.enabled(),
+        command.notifyEnabled(),
         value(command.historySeedMode(), "LAST_30"),
         command.seedCompletedAt(),
         now,
@@ -77,13 +79,14 @@ public class WxPusherBloggerRepository {
     jdbc.update("""
         UPDATE wxpusher_bloggers
         SET kol_id = ?, blogger_name = ?, aliases_json = ?, enabled = ?,
-            history_seed_mode = ?, seed_completed_at = ?, updated_at = ?
+            notify_enabled = ?, history_seed_mode = ?, seed_completed_at = ?, updated_at = ?
         WHERE id = ?
         """,
         command.kolId(),
         command.bloggerName().trim(),
         writeAliases(command.aliases()),
         command.enabled(),
+        command.notifyEnabled(),
         value(command.historySeedMode(), "LAST_30"),
         command.seedCompletedAt(),
         now,
@@ -139,6 +142,7 @@ public class WxPusherBloggerRepository {
       String bloggerName,
       List<String> aliases,
       boolean enabled,
+      boolean notifyEnabled,
       String historySeedMode,
       String seedCompletedAt) {
   }
@@ -149,6 +153,7 @@ public class WxPusherBloggerRepository {
       String bloggerName,
       List<String> aliases,
       boolean enabled,
+      boolean notifyEnabled,
       String historySeedMode,
       String seedCompletedAt,
       String createdAt,

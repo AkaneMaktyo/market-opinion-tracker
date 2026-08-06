@@ -182,6 +182,6 @@ class OpinionServiceTest {
   }
 
   private WxPusherBlogger blogger(String kolId, String name, List<String> aliases) {
-    return new WxPusherBlogger("blogger-" + kolId, kolId, name, aliases, true, "LAST_30", null, "", "");
+    return new WxPusherBlogger("blogger-" + kolId, kolId, name, aliases, true, true, "LAST_30", null, "", "");
   }
 }

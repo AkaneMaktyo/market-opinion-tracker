@@ -27,6 +27,7 @@ export const wxpusherApi = {
     bloggerName: string;
     aliases: string[];
     enabled: boolean;
+    notifyEnabled?: boolean;
   }) =>
     json<WxPusherBlogger>('/api/wxpusher/bloggers', {
       method: 'POST',
@@ -37,6 +38,7 @@ export const wxpusherApi = {
     bloggerName: string;
     aliases: string[];
     enabled: boolean;
+    notifyEnabled?: boolean;
   }) =>
     json<WxPusherBlogger>('/api/wxpusher/bloggers', {
       method: 'PUT',
