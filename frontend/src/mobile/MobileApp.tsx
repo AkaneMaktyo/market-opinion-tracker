@@ -10,7 +10,7 @@ import { MobileOverview } from './screens/MobileOverview';
 import { MobileProfile } from './screens/MobileProfile';
 import { MobileTranscript } from './screens/MobileTranscript';
 import type { MobileTab } from './screens/mobileTypes';
-import { OPEN_OPINIONS_EVENT, useMessageNotifications } from './useMessageNotifications';
+import { OPEN_OPINIONS_EVENT, useJpushOpen } from './useJpushOpen';
 
 const tabTitles: Record<MobileTab, string> = {
   overview: '今日概览',
@@ -32,7 +32,7 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
     viewportRef.current?.scrollTo({ top: 0, behavior: 'auto' });
   }, [tab]);
 
-  useMessageNotifications();
+  useJpushOpen();
 
   useEffect(() => {
     const handler = (event: Event) => {

@@ -238,7 +238,7 @@ class WxPusherIngestionServiceTest {
     var service = new WxPusherIngestionService(
         sessions, settings, bloggers, messages, shared, articles, imageOcr,
         new WxPusherOcrOpinionSyncService(messages, imageOcr, writer),
-        ai, parser, writer, instruments);
+        ai, parser, writer, instruments, mock(com.personal.tracker.service.notify.JpushPushClient.class));
     return new Fixture(
         service, sessions, settings, bloggers, messages, shared, articles, imageOcr, ai, parser, writer, instruments);
   }

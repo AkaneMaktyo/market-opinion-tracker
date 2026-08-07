@@ -3,8 +3,9 @@ param(
     [int]$SshPort = 29453,
     [string]$SshUser = "root",
     [string]$SshPassword = "",
-    [string]$VersionName = "1.1",
-    [int]$VersionCode = 2,
+    [string]$VersionName = "1.2",
+    [int]$VersionCode = 3,
+    [string]$JpushAppKey = "REPLACE_WITH_APPKEY",
     [string]$PublicBaseUrl = "http://103.236.98.149:8888/market",
     [switch]$SkipBuild
 )
@@ -45,9 +46,10 @@ if (-not $SkipBuild) {
     $env:ANDROID_HOME = Join-Path $env:LOCALAPPDATA 'Android\Sdk'
     $versionCodeArg = "-PversionCode=$VersionCode"
     $versionNameArg = "-PversionName=$VersionName"
+    $jpushKeyArg = "-PjpushAppKey=$JpushAppKey"
     Push-Location $androidDir
     try {
-        & .\gradlew.bat ':app:assembleRelease' $versionCodeArg $versionNameArg '--console=plain'
+        & .\gradlew.bat ':app:assembleRelease' $versionCodeArg $versionNameArg $jpushKeyArg '--console=plain'
         if ($LASTEXITCODE -ne 0) {
             throw "APK release build failed."
         }

@@ -14,6 +14,7 @@ import com.personal.tracker.repository.wxpusher.WxPusherSettingsRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherSharedMessageRepository;
 import com.personal.tracker.service.imports.OpinionImportWriter;
 import com.personal.tracker.service.json.JsonOpinionParser;
+import com.personal.tracker.service.notify.JpushPushClient;
 import com.personal.tracker.service.wxpusher.fallback.WxPusherFallbackOpinionExtractor;
 import com.personal.tracker.service.wxpusher.instruments.MessageInstrumentExtractor;
 import com.personal.tracker.service.wxpusher.ocr.WxPusherImageOcrService;
@@ -41,6 +42,7 @@ public class WxPusherIngestionService {
   private final JsonOpinionParser parser;
   private final OpinionImportWriter writer;
   private final InstrumentRepository instruments;
+  private final JpushPushClient pushClient;
 
   public WxPusherIngestionService(
       SessionRepository sessionRepository,
@@ -54,7 +56,8 @@ public class WxPusherIngestionService {
       OpenAiJsonExtractor aiExtractor,
       JsonOpinionParser parser,
       OpinionImportWriter writer,
-      InstrumentRepository instruments) {
+      InstrumentRepository instruments,
+      JpushPushClient pushClient) {
     this.sessionRepository = sessionRepository;
     this.settingsRepository = settingsRepository;
     this.bloggerRepository = bloggerRepository;
@@ -67,6 +70,7 @@ public class WxPusherIngestionService {
     this.parser = parser;
     this.writer = writer;
     this.instruments = instruments;
+    this.pushClient = pushClient;
   }
 
   public int importPending() {
@@ -219,7 +223,31 @@ public class WxPusherIngestionService {
       return false;
     }
     process(saved.message(), sharedMessageKey);
+    if (saved.created()) {
+      notifyNewMessage(saved.message());
+    }
     return saved.created();
+  }
+
+  private void notifyNewMessage(WxPusherMessage message) {
+    try {
+      if (bloggerRepository.findByKolId(message.kolId())
+          .filter(blogger -> !blogger.notifyEnabled())
+          .isPresent()) {
+        return;
+      }
+      String title = message.bloggerName();
+      String content = List.of(message.title(), message.summary()).stream()
+          .filter(item -> item != null && !item.isBlank())
+          .reduce((left, right) -> left + "\n" + right)
+          .orElse("收到一条新消息");
+      if (content.length() > 100) {
+        content = content.substring(0, 100);
+      }
+      pushClient.push(title, content, message.id());
+    } catch (RuntimeException ignored) {
+      // 推送失败不影响消息入库
+    }
   }
 
   private java.util.Optional<WxPusherBlogger> matchBlogger(WxPusherClient.IncomingMessage incoming) {

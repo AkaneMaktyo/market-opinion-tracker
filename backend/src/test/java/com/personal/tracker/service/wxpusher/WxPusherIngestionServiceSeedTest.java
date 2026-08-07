@@ -47,7 +47,8 @@ class WxPusherIngestionServiceSeedTest {
         aiExtractor,
         parser,
         writer,
-        instruments);
+        instruments,
+        mock(com.personal.tracker.service.notify.JpushPushClient.class));
     WxPusherSettings settings = new WxPusherSettings(
         "default",
         "device-token",

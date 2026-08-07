@@ -109,6 +109,12 @@ public class WxPusherBloggerRepository {
         .orElseThrow(() -> new IllegalArgumentException("博主配置不存在"));
   }
 
+  public java.util.Optional<WxPusherBlogger> findByKolId(String kolId) {
+    return jdbc.query("SELECT * FROM wxpusher_bloggers WHERE kol_id = ? LIMIT 1", rowMapper, kolId)
+        .stream()
+        .findFirst();
+  }
+
   private List<String> readAliases(String value) {
     if (value == null || value.isBlank()) {
       return List.of();

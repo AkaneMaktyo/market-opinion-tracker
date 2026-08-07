@@ -87,7 +87,7 @@ if (-not $SkipBuild) {
             --source dist-update `
             --publish dist `
             --base-url $PublicBaseUrl `
-            --native-version "2"
+            --native-version "3"
         if ($LASTEXITCODE -ne 0) {
             throw "Android live update package failed."
         }
