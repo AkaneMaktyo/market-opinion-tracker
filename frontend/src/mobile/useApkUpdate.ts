@@ -1,13 +1,14 @@
 import { App } from '@capacitor/app';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { apiBase } from '../api/http';
 
 interface InstallApkPlugin {
   install(options: { url: string; fileName?: string }): Promise<{ installed: boolean }>;
 }
 
 const InstallApk = registerPlugin<InstallApkPlugin>('InstallApk');
-const MANIFEST_PATH = 'apk/apk.json';
+const MANIFEST_URL = `${apiBase.replace(/\/api$/, '')}/apk/apk.json`;
 
 export interface ApkManifest {
   versionName: string;
@@ -39,7 +40,7 @@ export function useApkUpdate(): ApkUpdateState {
   const check = useCallback(async () => {
     if (Capacitor.getPlatform() !== 'android') return;
     try {
-      const response = await fetch(`${MANIFEST_PATH}?t=${Date.now()}`, { cache: 'no-store' });
+      const response = await fetch(`${MANIFEST_URL}?t=${Date.now()}`, { cache: 'no-store' });
       if (!response.ok) return;
       setManifest((await response.json()) as ApkManifest);
     } catch {
