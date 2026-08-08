@@ -12,6 +12,8 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Service;
 /** 极光推送客户端：服务端触发，经极光/厂商通道送达手机通知栏。 */
 @Service
 public class JpushPushClient {
+  private static final Logger log = LoggerFactory.getLogger(JpushPushClient.class);
   private static final String PUSH_URL = "https://api.jpush.cn/v3/push";
   private final Environment environment;
   private final ObjectMapper mapper;
@@ -63,11 +66,15 @@ public class JpushPushClient {
           .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(payload)))
           .build();
       HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-      return parse(response.body());
+      PushResult result = parse(response.body());
+      log.info("极光推送 [{}] msg={} status={} error={}", title, messageId, result.status(), result.error());
+      return result;
     } catch (IOException | RuntimeException error) {
+      log.warn("极光推送失败 [{}] msg={}: {}", title, messageId, error.getMessage());
       return new PushResult(false, "FAILED", error.getMessage());
     } catch (InterruptedException error) {
       Thread.currentThread().interrupt();
+      log.warn("极光推送被中断 [{}] msg={}", title, messageId);
       return new PushResult(false, "FAILED", "推送被中断");
     }
   }

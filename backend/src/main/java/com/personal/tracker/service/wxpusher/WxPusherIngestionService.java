@@ -23,11 +23,13 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
 public class WxPusherIngestionService {
-  private static final String CONSUMER_NAME = "market_opinion_tracker";
+  private static final Logger log = LoggerFactory.getLogger(WxPusherIngestionService.class);  private static final String CONSUMER_NAME = "market_opinion_tracker";
   private static final String WXPUSHER_LLM_DISABLED = "WxPusher LLM 提取已禁用";
   private static final String WXPUSHER_SOURCE_UNCONFIGURED = "WxPusher 消息来源未配置为 KOL";
   private final SessionRepository sessionRepository;
@@ -234,6 +236,7 @@ public class WxPusherIngestionService {
       if (bloggerRepository.findByKolId(message.kolId())
           .filter(blogger -> !blogger.notifyEnabled())
           .isPresent()) {
+        log.info("新消息跳过推送（KOL 通知已关闭）msg={} kol={}", message.id(), message.kolId());
         return;
       }
       String title = message.bloggerName();
@@ -244,9 +247,10 @@ public class WxPusherIngestionService {
       if (content.length() > 100) {
         content = content.substring(0, 100);
       }
-      pushClient.push(title, content, message.id());
-    } catch (RuntimeException ignored) {
-      // 推送失败不影响消息入库
+      var result = pushClient.push(title, content, message.id());
+      log.info("新消息推送触发 msg={} kol={} result={}", message.id(), message.kolId(), result.status());
+    } catch (RuntimeException error) {
+      log.warn("新消息推送异常 msg={}: {}", message.id(), error.getMessage());
     }
   }
 

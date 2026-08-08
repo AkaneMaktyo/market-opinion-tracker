@@ -57,7 +57,7 @@ public class WxPusherSharedMessageRepository {
         SELECT m.* FROM wxpusher_raw_messages m
         LEFT JOIN wxpusher_consumer_state s
           ON s.consumer_name = ? AND s.message_key = m.message_key
-        WHERE s.message_key IS NULL OR s.status NOT IN ('IMPORTED', 'IGNORED', 'SKIPPED')
+        WHERE s.message_key IS NULL OR s.status = 'PROCESSING'
         ORDER BY m.message_time ASC, m.updated_at ASC
         LIMIT ?
         """, mapper, consumerName, bounded(limit));
