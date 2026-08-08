@@ -24,7 +24,7 @@ class BitgetPublicApiClientTest {
     });
     server.start();
     try {
-      var client = new BitgetPublicApiClient(new ObjectMapper());
+      var client = new BitgetPublicApiClient(new ObjectMapper(), "");
 
       var result = client.getWithCurl(
           "http://127.0.0.1:" + server.getAddress().getPort() + "/ticker");

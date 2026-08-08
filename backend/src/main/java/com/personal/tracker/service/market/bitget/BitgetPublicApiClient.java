@@ -3,6 +3,9 @@ package com.personal.tracker.service.market.bitget;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
+import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -11,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -23,11 +27,11 @@ public class BitgetPublicApiClient {
   private final ObjectMapper mapper;
   private final RestClient client;
 
-  public BitgetPublicApiClient(ObjectMapper mapper) {
+  public BitgetPublicApiClient(ObjectMapper mapper, @Value("${HTTP_PROXY_URL:}") String proxyUrl) {
     this.mapper = mapper;
     this.client = RestClient.builder()
         .baseUrl(BASE_URL)
-        .requestFactory(requestFactory())
+        .requestFactory(requestFactory(proxyUrl))
         .build();
   }
 
@@ -47,11 +51,28 @@ public class BitgetPublicApiClient {
     }
   }
 
-  private SimpleClientHttpRequestFactory requestFactory() {
+  private SimpleClientHttpRequestFactory requestFactory(String proxyUrl) {
     SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
     factory.setConnectTimeout(Duration.ofSeconds(8));
     factory.setReadTimeout(Duration.ofSeconds(15));
+    Proxy proxy = proxy(proxyUrl);
+    if (proxy != null) {
+      factory.setProxy(proxy);
+    }
     return factory;
+  }
+
+  private static Proxy proxy(String raw) {
+    if (raw == null || raw.isBlank()) {
+      return null;
+    }
+    try {
+      URI uri = URI.create(raw.contains("://") ? raw : "http://" + raw);
+      int port = uri.getPort() == -1 ? 7897 : uri.getPort();
+      return new Proxy(Proxy.Type.HTTP, new InetSocketAddress(uri.getHost(), port));
+    } catch (IllegalArgumentException error) {
+      return null;
+    }
   }
 
   JsonNode getWithCurl(String url) {

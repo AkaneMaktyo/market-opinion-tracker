@@ -1,7 +1,9 @@
 .price-alert-modal {
   max-height: min(760px, calc(100vh - 48px));
+  max-height: min(760px, calc(100dvh - 48px));
   max-width: min(820px, calc(100vw - 48px));
   overflow-y: auto;
+  overscroll-behavior: contain;
   width: 100%;
 }
 

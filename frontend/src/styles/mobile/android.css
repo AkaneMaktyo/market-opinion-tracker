@@ -102,7 +102,8 @@
   .native-android .import-modal,
   .native-android .source-modal,
   .native-android .manager-modal,
-  .native-android .directory-modal {
+  .native-android .directory-modal,
+  .native-android .price-alert-modal {
     border-radius: 18px 18px 0 0;
     max-height: calc(100dvh - max(12px, env(safe-area-inset-top)));
     max-width: none;

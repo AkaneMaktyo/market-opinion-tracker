@@ -7,6 +7,8 @@ import com.personal.tracker.repository.alerts.PriceAlertRepository.ActiveAlert;
 import com.personal.tracker.service.notify.WxPusherPushClient;
 import jakarta.annotation.PreDestroy;
 import java.math.BigDecimal;
+import java.net.InetSocketAddress;
+import java.net.ProxySelector;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
@@ -23,6 +25,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -34,7 +37,7 @@ public class PriceAlertMonitor {
   private final PriceAlertRepository repository;
   private final WxPusherPushClient pushClient;
   private final BitgetTickerClient tickerClient;
-  private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8)).build();
+  private final HttpClient http;
   private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(task ->
       daemon(task, "price-alert-monitor"));
   private final ExecutorService notifier = Executors.newSingleThreadExecutor(task ->
@@ -56,12 +59,32 @@ public class PriceAlertMonitor {
       ObjectMapper mapper,
       PriceAlertRepository repository,
       WxPusherPushClient pushClient,
-      BitgetTickerClient tickerClient) {
+      BitgetTickerClient tickerClient,
+      @Value("${HTTP_PROXY_URL:}") String proxyUrl) {
     this.mapper = mapper;
     this.repository = repository;
     this.pushClient = pushClient;
     this.tickerClient = tickerClient;
+    HttpClient.Builder builder = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(8));
+    InetSocketAddress proxy = proxyAddress(proxyUrl);
+    if (proxy != null) {
+      builder.proxy(ProxySelector.of(proxy));
+    }
+    this.http = builder.build();
     scheduler.scheduleAtFixedRate(this::safeRefresh, 2, 5, TimeUnit.SECONDS);
+  }
+
+  private static InetSocketAddress proxyAddress(String raw) {
+    if (raw == null || raw.isBlank()) {
+      return null;
+    }
+    try {
+      URI uri = URI.create(raw.contains("://") ? raw : "http://" + raw);
+      int port = uri.getPort() == -1 ? 7897 : uri.getPort();
+      return new InetSocketAddress(uri.getHost(), port);
+    } catch (IllegalArgumentException error) {
+      return null;
+    }
   }
 
   public void refreshNow() {
