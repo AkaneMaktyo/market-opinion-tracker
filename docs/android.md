@@ -6,7 +6,7 @@
 
 - 应用名称：`美股观点追踪`
 - 应用 ID：`com.personal.marketopiniontracker`
-- 版本：`1.0`（versionCode `1`）
+- 版本以 `deploy/mobile/android-version.json` 为准，发布流水线和热更新清单共用这一处配置。
 - 最低系统：Android 7（API 24）
 - 目标系统：Android 16（API 36）
 - 生产接口：`http://103.236.98.149:8888/market/api`
