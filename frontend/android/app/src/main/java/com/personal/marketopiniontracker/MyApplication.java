@@ -3,15 +3,15 @@ package com.personal.marketopiniontracker;
 import android.app.Application;
 import cn.jpush.android.api.JPushInterface;
 
-/** 极光推送初始化，并绑定固定别名供服务端推送。 */
+/** 初始化极光推送；别名会在注册成功后由 JpushRegistration 可靠绑定。 */
 public class MyApplication extends Application {
-  private static final String PUSH_ALIAS = "market_tracker_user";
-
   @Override
   public void onCreate() {
     super.onCreate();
     JPushInterface.setDebugMode(false);
+    JPushInterface.setKeepLongConnInBackground(this, true);
+    JPushInterface.setPowerSaveMode(this, false);
     JPushInterface.init(this);
-    JPushInterface.setAlias(this, 0, PUSH_ALIAS);
+    JpushRegistration.start(this);
   }
 }

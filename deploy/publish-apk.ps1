@@ -3,8 +3,8 @@ param(
     [int]$SshPort = 29453,
     [string]$SshUser = "root",
     [string]$SshPassword = "",
-    [string]$VersionName = "1.2",
-    [int]$VersionCode = 3,
+    [string]$VersionName = "1.3",
+    [int]$VersionCode = 4,
     [string]$JpushAppKey = "REPLACE_WITH_APPKEY",
     [string]$PublicBaseUrl = "http://103.236.98.149:8888/market",
     [switch]$SkipBuild
@@ -24,6 +24,22 @@ $localJson = Join-Path $env:TEMP "mot-apk-$PID.json"
 
 if ([string]::IsNullOrWhiteSpace($SshPassword)) {
     throw "Missing -SshPassword."
+}
+if ([string]::IsNullOrWhiteSpace($JpushAppKey) -or $JpushAppKey -eq "REPLACE_WITH_APPKEY") {
+    throw "Missing production -JpushAppKey."
+}
+$signingHome = if ([string]::IsNullOrWhiteSpace($env:MOT_ANDROID_SIGNING_HOME)) {
+    Join-Path ([Environment]::GetFolderPath('UserProfile')) '.market-opinion-tracker'
+} else {
+    $env:MOT_ANDROID_SIGNING_HOME
+}
+$signingFiles = @(
+    (Join-Path $signingHome 'android-release.jks'),
+    (Join-Path $signingHome 'android-signing.properties')
+)
+$missingSigningFiles = $signingFiles | Where-Object { -not (Test-Path $_) }
+if ($missingSigningFiles) {
+    throw "Android release signing files are missing: $($missingSigningFiles -join ', ')"
 }
 
 if (-not $SkipBuild) {

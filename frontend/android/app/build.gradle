@@ -1,6 +1,49 @@
-apply plugin: 'com.android.application'
+def setting = { String name, String fallback = '' ->
+    def projectValue = project.findProperty(name)?.toString()?.trim()
+    if (projectValue) return projectValue
+    def environmentValue = System.getenv(name)?.trim()
+    return environmentValue ?: fallback
+}
+def jpushVersion = '6.2.0'
+def enabledPushVendors = setting('JPUSH_ANDROID_VENDORS')
+    .split(',')
+    .collect { it.trim().toLowerCase() }
+    .findAll { !it.isBlank() }
+    .toSet()
+def supportedPushVendors = ['xiaomi', 'huawei', 'meizu', 'vivo', 'oppo', 'fcm', 'honor'] as Set
+def unknownPushVendors = enabledPushVendors - supportedPushVendors
+if (!unknownPushVendors.isEmpty()) {
+    throw new GradleException("Unsupported JPUSH_ANDROID_VENDORS: ${unknownPushVendors.join(', ')}")
+}
+def requireVendorSettings = { String vendor, List<String> names ->
+    if (!enabledPushVendors.contains(vendor)) return
+    def missing = names.findAll { setting(it).isBlank() }
+    if (!missing.isEmpty()) {
+        throw new GradleException("${vendor} push is enabled but settings are missing: ${missing.join(', ')}")
+    }
+}
 
-def signingHome = new File(System.getProperty('user.home'), '.market-opinion-tracker')
+requireVendorSettings('xiaomi', ['XIAOMI_APPKEY', 'XIAOMI_APPID'])
+requireVendorSettings('meizu', ['MEIZU_APPKEY', 'MEIZU_APPID'])
+requireVendorSettings('vivo', ['VIVO_APPKEY', 'VIVO_APPID'])
+requireVendorSettings('oppo', ['OPPO_APPKEY', 'OPPO_APPID', 'OPPO_APPSECRET'])
+requireVendorSettings('honor', ['HONOR_APPID'])
+if (enabledPushVendors.contains('huawei') && !file('agconnect-services.json').exists()) {
+    throw new GradleException('huawei push is enabled but app/agconnect-services.json is missing')
+}
+if (enabledPushVendors.contains('fcm') && !file('google-services.json').exists()) {
+    throw new GradleException('fcm push is enabled but app/google-services.json is missing')
+}
+
+apply plugin: 'com.android.application'
+if (enabledPushVendors.contains('huawei')) {
+    apply plugin: 'com.huawei.agconnect'
+}
+
+def signingHomePath = System.getenv('MOT_ANDROID_SIGNING_HOME')?.trim()
+def signingHome = signingHomePath
+    ? new File(signingHomePath)
+    : new File(System.getProperty('user.home'), '.market-opinion-tracker')
 def signingPropertiesFile = new File(signingHome, 'android-signing.properties')
 def signingProperties = new Properties()
 def hasReleaseSigning = signingPropertiesFile.exists()
@@ -28,11 +71,31 @@ android {
         versionCode project.hasProperty('versionCode') ? project.property('versionCode').toInteger() : 1
         versionName project.hasProperty('versionName') ? project.property('versionName') : "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        manifestPlaceholders = [
+        def pushPlaceholders = [
             JPUSH_PKGNAME: applicationId,
-            JPUSH_APPKEY: project.hasProperty('jpushAppKey') ? project.property('jpushAppKey') : "REPLACE_WITH_APPKEY",
+            JPUSH_APPKEY: project.hasProperty('jpushAppKey') ? project.property('jpushAppKey') : setting('JPUSH_APP_KEY', "REPLACE_WITH_APPKEY"),
             JPUSH_CHANNEL: "developer-default"
         ]
+        if (enabledPushVendors.contains('xiaomi')) {
+            pushPlaceholders.putAll(XIAOMI_APPKEY: setting('XIAOMI_APPKEY'), XIAOMI_APPID: setting('XIAOMI_APPID'))
+        }
+        if (enabledPushVendors.contains('meizu')) {
+            pushPlaceholders.putAll(MEIZU_APPKEY: setting('MEIZU_APPKEY'), MEIZU_APPID: setting('MEIZU_APPID'))
+        }
+        if (enabledPushVendors.contains('vivo')) {
+            pushPlaceholders.putAll(VIVO_APPKEY: setting('VIVO_APPKEY'), VIVO_APPID: setting('VIVO_APPID'))
+        }
+        if (enabledPushVendors.contains('oppo')) {
+            pushPlaceholders.putAll(
+                OPPO_APPKEY: setting('OPPO_APPKEY'),
+                OPPO_APPID: setting('OPPO_APPID'),
+                OPPO_APPSECRET: setting('OPPO_APPSECRET'))
+        }
+        if (enabledPushVendors.contains('honor')) {
+            pushPlaceholders.putAll(HONOR_APPID: setting('HONOR_APPID'))
+        }
+        manifestPlaceholders = pushPlaceholders
+        resValue "string", "jpush_alias", setting('JPUSH_ALIAS', 'market_tracker_user')
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
@@ -62,7 +125,14 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
-    implementation 'cn.jiguang.sdk:jpush:5.8.0'
+    implementation "cn.jiguang.sdk:jpush:$jpushVersion"
+    if (enabledPushVendors.contains('xiaomi')) implementation "cn.jiguang.sdk.plugin:xiaomi:$jpushVersion"
+    if (enabledPushVendors.contains('huawei')) implementation "cn.jiguang.sdk.plugin:huawei:$jpushVersion"
+    if (enabledPushVendors.contains('meizu')) implementation "cn.jiguang.sdk.plugin:meizu:$jpushVersion"
+    if (enabledPushVendors.contains('vivo')) implementation "cn.jiguang.sdk.plugin:vivo:$jpushVersion"
+    if (enabledPushVendors.contains('oppo')) implementation "cn.jiguang.sdk.plugin:oppo:$jpushVersion"
+    if (enabledPushVendors.contains('fcm')) implementation "cn.jiguang.sdk.plugin:fcm:$jpushVersion"
+    if (enabledPushVendors.contains('honor')) implementation "cn.jiguang.sdk.plugin:honor:$jpushVersion"
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
@@ -73,9 +143,9 @@ apply from: 'capacitor.build.gradle'
 
 try {
     def servicesJSON = file('google-services.json')
-    if (servicesJSON.text) {
+    if (enabledPushVendors.contains('fcm') && servicesJSON.text) {
         apply plugin: 'com.google.gms.google-services'
     }
 } catch(Exception e) {
-    logger.info("google-services.json not found, google-services plugin not applied. Push Notifications won't work")
+    logger.info("google-services.json not found, FCM plugin not applied")
 }

@@ -75,7 +75,7 @@ frontend/
 可先执行：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File deploy/start-db-tunnel.ps1 -SshPassword "<你的 SSH 密码>"
+powershell -ExecutionPolicy Bypass -File deploy/db/start-db-tunnel.ps1 -SshPassword "<你的 SSH 密码>"
 ```
 
 ```powershell

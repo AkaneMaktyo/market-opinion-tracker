@@ -1,10 +1,23 @@
 .price-alert-modal {
+  display: flex;
+  flex-direction: column;
   max-height: min(760px, calc(100vh - 48px));
   max-height: min(760px, calc(100dvh - 48px));
   max-width: min(820px, calc(100vw - 48px));
+  overflow: hidden;
+  width: 100%;
+}
+
+.price-alert-sheet-handle { display: none; }
+
+.price-alert-scroll {
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  width: 100%;
+  padding-right: 2px;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 .price-alert-form {
@@ -91,6 +104,8 @@
   color: #64748b;
   display: block;
 }
+
+.price-alert-main { min-width: 0; }
 
 .alert-error {
   color: #b91c1c !important;

@@ -6,6 +6,7 @@ param(
     [string]$JarPath = "",
     [string]$FrontendArchivePath = "",
     [string]$PublicBaseUrl = "http://103.236.98.149:8888/market",
+    [string]$NativeVersionCode = "4",
     [switch]$SkipBuild
 )
 
@@ -87,7 +88,7 @@ if (-not $SkipBuild) {
             --source dist-update `
             --publish dist `
             --base-url $PublicBaseUrl `
-            --native-version "3"
+            --native-version $NativeVersionCode
         if ($LASTEXITCODE -ne 0) {
             throw "Android live update package failed."
         }

@@ -4,25 +4,31 @@ on:
   push:
     branches: [main]
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "0 * * * *"
   workflow_dispatch:
+
+concurrency:
+  group: youtube-oss-fetch
+  cancel-in-progress: false
 
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 55
     env:
       ALIYUN_AK_ID: ${{ secrets.ALIYUN_AK_ID }}
       ALIYUN_AK_SECRET: ${{ secrets.ALIYUN_AK_SECRET }}
       ALIYUN_OSS_ENDPOINT: ${{ secrets.ALIYUN_OSS_ENDPOINT }}
       ALIYUN_OSS_BUCKET: ${{ secrets.ALIYUN_OSS_BUCKET }}
       YOUTUBE_OSS_BRIDGE_PREFIX: youtube-bridge
-      YOUTUBE_FETCH_MAX_VIDEOS: "3"
+      YOUTUBE_FETCH_MAX_VIDEOS: "12"
       YOUTUBE_DOWNLOAD_TIMEOUT_SECONDS: "240"
       YOUTUBE_YT_DLP_EXTRA_ARGS: "--extractor-args youtubepot-bgutilhttp:base_url=http://127.0.0.1:4416"
       YOUTUBE_COOKIES_B64: ${{ secrets.YOUTUBE_COOKIES_B64 }}
       MIHOMO_CONFIG_GZ_B64: ${{ secrets.MIHOMO_CONFIG_GZ_B64 }}
-      YOUTUBE_PROXY_URL: ${{ secrets.MIHOMO_CONFIG_GZ_B64 != '' && 'http://127.0.0.1:7897' || '' }}
+      MIHOMO_SUBSCRIPTION_URL: ${{ secrets.MIHOMO_SUBSCRIPTION_URL }}
+      MIHOMO_PROXY_GROUP: "红杏云"
+      YOUTUBE_PROXY_URL: ${{ (secrets.MIHOMO_SUBSCRIPTION_URL != '' || secrets.MIHOMO_CONFIG_GZ_B64 != '') && 'http://127.0.0.1:7897' || '' }}
     steps:
       - name: Checkout
         if: ${{ env.YOUTUBE_COOKIES_B64 != '' }}
@@ -46,71 +52,26 @@ jobs:
         run: python -m pip install --disable-pip-version-check oss2 yt-dlp bgutil-ytdlp-pot-provider
 
       - name: Start Mihomo proxy
-        if: ${{ env.YOUTUBE_COOKIES_B64 != '' && env.MIHOMO_CONFIG_GZ_B64 != '' }}
+        if: ${{ env.YOUTUBE_COOKIES_B64 != '' && (env.MIHOMO_SUBSCRIPTION_URL != '' || env.MIHOMO_CONFIG_GZ_B64 != '') }}
         run: |
-          echo "$MIHOMO_CONFIG_GZ_B64" | base64 -d | gzip -d > /tmp/mihomo.yaml
-          sed -i 's/^mixed-port:.*/mixed-port: 7897/' /tmp/mihomo.yaml
-          sed -i 's/^external-controller:.*/external-controller: 127.0.0.1:9090/' /tmp/mihomo.yaml
+          set -euo pipefail
+          subscription_arg=""
+          if [ -n "$MIHOMO_SUBSCRIPTION_URL" ]; then
+            if curl --compressed -A 'ClashMeta/1.19.25' -fsSL --retry 3 --retry-all-errors \
+              --connect-timeout 10 --max-time 45 "$MIHOMO_SUBSCRIPTION_URL" -o /tmp/mihomo.subscription; then
+              subscription_arg="--subscription-file /tmp/mihomo.subscription"
+            else
+              echo "::warning::Mihomo subscription refresh failed; trying static fallback."
+            fi
+          fi
+          python .github/scripts/mihomo_proxy.py prepare $subscription_arg --output /tmp/mihomo.yaml
           curl -fsSL -o /tmp/mihomo.gz https://github.com/MetaCubeX/mihomo/releases/download/v1.19.25/mihomo-linux-amd64-v1.19.25.gz
           gunzip -c /tmp/mihomo.gz > /tmp/mihomo
           chmod +x /tmp/mihomo
           mkdir -p /tmp/mihomo-home
           nohup /tmp/mihomo -d /tmp/mihomo-home -f /tmp/mihomo.yaml > /tmp/mihomo.log 2>&1 &
           sleep 8
-          python - <<'PY'
-          import concurrent.futures
-          import json
-          import urllib.parse
-          import urllib.request
-
-          controller = "http://127.0.0.1:9090"
-          group = "\u7ea2\u674f\u4e91"
-          blocked = ("\u5269\u4f59\u6d41\u91cf\uff1a", "\u5957\u9910\u5230\u671f\uff1a")
-          skip_types = {"Selector", "URLTest", "Fallback", "Direct", "Reject"}
-
-          def request_json(path, timeout=5):
-              with urllib.request.urlopen(controller + path, timeout=timeout) as response:
-                  return json.loads(response.read().decode("utf-8"))
-
-          def delay(name):
-              query = urllib.parse.urlencode({
-                  "timeout": "3500",
-                  "url": "http://www.gstatic.com/generate_204",
-              })
-              path = "/proxies/" + urllib.parse.quote(name, safe="") + "/delay?" + query
-              try:
-                  body = request_json(path, timeout=6)
-                  return body.get("delay"), name
-              except Exception:
-                  return None, name
-
-          proxies = request_json("/proxies").get("proxies", {})
-          group_items = proxies.get(group, {}).get("all", [])
-          names = [
-              name for name in group_items
-              for item in [proxies.get(name, {})]
-              if item.get("type") not in skip_types
-              and not any(name.startswith(prefix) for prefix in blocked)
-          ]
-          with concurrent.futures.ThreadPoolExecutor(max_workers=24) as pool:
-              results = list(pool.map(delay, names))
-          usable = sorted((ms, name) for ms, name in results if isinstance(ms, int))
-          if not usable:
-              raise SystemExit("No usable Mihomo proxy nodes passed delay test.")
-          ms, selected = usable[0]
-          payload = json.dumps({"name": selected}).encode("utf-8")
-          path = "/proxies/" + urllib.parse.quote(group, safe="")
-          request = urllib.request.Request(
-              controller + path,
-              data=payload,
-              method="PUT",
-              headers={"Content-Type": "application/json"},
-          )
-          with urllib.request.urlopen(request, timeout=5) as response:
-              if response.status != 204:
-                  raise SystemExit(f"Failed to select proxy: {response.status}")
-          print("selected_proxy", selected.encode("unicode_escape").decode("ascii"), ms)
-          PY
+          python .github/scripts/mihomo_proxy.py select --group "$MIHOMO_PROXY_GROUP" || (tail -n 120 /tmp/mihomo.log; exit 1)
           curl -x http://127.0.0.1:7897 -fsS -o /dev/null --max-time 25 https://www.youtube.com/generate_204 || (tail -n 100 /tmp/mihomo.log; exit 1)
 
       - name: Start PO token provider

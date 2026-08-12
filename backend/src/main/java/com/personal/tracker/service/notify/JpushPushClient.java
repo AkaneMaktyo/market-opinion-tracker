@@ -23,6 +23,10 @@ import org.springframework.stereotype.Service;
 public class JpushPushClient {
   private static final Logger log = LoggerFactory.getLogger(JpushPushClient.class);
   private static final String PUSH_URL = "https://api.jpush.cn/v3/push";
+  private static final int DEFAULT_TIME_TO_LIVE_SECONDS = 259_200;
+  private static final int MAX_TIME_TO_LIVE_SECONDS = 864_000;
+  private static final String ANDROID_INTENT_PREFIX = "intent:#Intent;action=android.intent.action.MAIN;"
+      + "component=com.personal.marketopiniontracker/com.personal.marketopiniontracker.MainActivity;S.messageId=";
   private final Environment environment;
   private final ObjectMapper mapper;
   private final HttpClient http;
@@ -57,16 +61,19 @@ public class JpushPushClient {
               "android", Map.of(
                   "alert", value(content),
                   "title", value(title),
+                  "intent", Map.of("url", notificationIntent(messageId)),
                   "extras", Map.of("messageId", value(messageId)))),
-          "options", Map.of("apns_production", false));
-      HttpRequest request = HttpRequest.newBuilder(URI.create(PUSH_URL))
+          "options", Map.of(
+              "apns_production", false,
+              "time_to_live", timeToLiveSeconds()));
+      HttpRequest request = HttpRequest.newBuilder(URI.create(pushUrl()))
           .header("Content-Type", "application/json")
           .header("Authorization", "Basic " + credentials())
           .timeout(Duration.ofSeconds(10))
           .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(payload)))
           .build();
       HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
-      PushResult result = parse(response.body());
+      PushResult result = parse(response.statusCode(), response.body());
       log.info("极光推送 [{}] msg={} status={} error={}", title, messageId, result.status(), result.error());
       return result;
     } catch (IOException | RuntimeException error) {
@@ -79,9 +86,9 @@ public class JpushPushClient {
     }
   }
 
-  private PushResult parse(String body) {
+  private PushResult parse(int statusCode, String body) {
     if (body == null || body.isBlank()) {
-      return new PushResult(false, "FAILED", "极光返回为空");
+      return new PushResult(false, "FAILED", "极光返回为空（HTTP " + statusCode + "）");
     }
     try {
       JsonNode root = mapper.readTree(body);
@@ -90,6 +97,9 @@ public class JpushPushClient {
       if (root.path("error").isObject()) {
         JsonNode error = root.path("error");
         return new PushResult(false, "FAILED", error.path("message").asText(body));
+      }
+      if (statusCode < 200 || statusCode >= 300) {
+        return new PushResult(false, "FAILED", "极光请求失败（HTTP " + statusCode + "）: " + body);
       }
       return sent > 0 || msgId > 0
           ? new PushResult(true, "SENT", "")
@@ -102,6 +112,22 @@ public class JpushPushClient {
   private String credentials() {
     String raw = appKey() + ":" + masterSecret();
     return Base64.getEncoder().encodeToString(raw.getBytes(StandardCharsets.UTF_8));
+  }
+
+  private String pushUrl() {
+    return environment.getProperty("JPUSH_PUSH_URL", PUSH_URL).trim();
+  }
+
+  private int timeToLiveSeconds() {
+    String raw = environment.getProperty("JPUSH_TIME_TO_LIVE_SECONDS", "").trim();
+    if (raw.isBlank()) {
+      return DEFAULT_TIME_TO_LIVE_SECONDS;
+    }
+    try {
+      return Math.max(0, Math.min(MAX_TIME_TO_LIVE_SECONDS, Integer.parseInt(raw)));
+    } catch (NumberFormatException error) {
+      return DEFAULT_TIME_TO_LIVE_SECONDS;
+    }
   }
 
   private String alias() {
@@ -118,6 +144,11 @@ public class JpushPushClient {
 
   private static String value(String input) {
     return input == null ? "" : input.trim();
+  }
+
+  private static String notificationIntent(String messageId) {
+    String safeId = value(messageId).replaceAll("[^A-Za-z0-9._-]", "");
+    return ANDROID_INTENT_PREFIX + safeId + ";end";
   }
 
   public record PushResult(boolean ok, String status, String error) {

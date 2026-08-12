@@ -1,7 +1,13 @@
-import { X } from 'lucide-react';
+import { BellRing, CircleAlert, RadioTower, Settings, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import type { WxPusherBlogger } from '../../types';
+import {
+  enableAndroidNotifications,
+  openAndroidNotificationSettings,
+  readAndroidPushStatus,
+  type AndroidPushStatus,
+} from '../useJpushOpen';
 
 interface Props {
   onClose: () => void;
@@ -12,6 +18,8 @@ export function MobileNotifySettings({ onClose }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [savingId, setSavingId] = useState('');
+  const [pushStatus, setPushStatus] = useState<AndroidPushStatus | null>(null);
+  const [enablingSystem, setEnablingSystem] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -27,7 +35,27 @@ export function MobileNotifySettings({ onClose }: Props) {
 
   useEffect(() => {
     void load();
+    void refreshPushStatus();
   }, [load]);
+
+  async function refreshPushStatus() {
+    try {
+      setPushStatus(await readAndroidPushStatus());
+    } catch {
+      setPushStatus(null);
+    }
+  }
+
+  async function enableSystemNotifications() {
+    setEnablingSystem(true);
+    try {
+      const granted = await enableAndroidNotifications();
+      if (!granted) await openAndroidNotificationSettings();
+      await refreshPushStatus();
+    } finally {
+      setEnablingSystem(false);
+    }
+  }
 
   async function toggle(blogger: WxPusherBlogger) {
     const next = !blogger.notifyEnabled;
@@ -58,6 +86,19 @@ export function MobileNotifySettings({ onClose }: Props) {
           <div><h2>新消息通知</h2><small>每个 KOL 可单独开启或关闭手机通知</small></div>
           <button aria-label="关闭" onClick={onClose} type="button"><X size={20} /></button>
         </div>
+        {pushStatus ? (
+          <div className="mobile-push-health">
+            <div className={pushStatus.notificationsEnabled ? 'healthy' : 'warning'}>
+              {pushStatus.notificationsEnabled ? <BellRing size={18} /> : <CircleAlert size={18} />}
+              <span><strong>系统通知</strong><small>{pushStatus.notificationsEnabled ? '已允许显示通知' : '未开启，所有推送都会被系统拦截'}</small></span>
+              {!pushStatus.notificationsEnabled ? <button disabled={enablingSystem} onClick={() => void enableSystemNotifications()} type="button"><Settings size={15} />{enablingSystem ? '处理中' : '去开启'}</button> : null}
+            </div>
+            <div className={pushStatus.registered && pushStatus.aliasBound ? 'healthy' : 'warning'}>
+              <RadioTower size={18} />
+              <span><strong>推送服务</strong><small>{pushServiceText(pushStatus)}</small></span>
+            </div>
+          </div>
+        ) : null}
         {error ? <div className="mobile-card mobile-message-error">{error}</div> : null}
         {loading ? <div className="mobile-card mobile-empty">正在读取 KOL 列表…</div> : null}
         {!loading && bloggers.length === 0 ? <div className="mobile-card mobile-empty">还没有配置 KOL</div> : null}
@@ -85,8 +126,15 @@ export function MobileNotifySettings({ onClose }: Props) {
             ))}
           </div>
         ) : null}
-        <p className="mobile-notify-tip">通知在 App 运行或近期使用过时生效；长时间后台休眠的系统可能会暂停接收。</p>
+        <p className="mobile-notify-tip">应用会在后台保持推送连接。若系统仍限制接收，请允许应用自启动，并把电池策略设为“不限制”；进程被彻底清理时需依赖已配置的手机厂商通道。</p>
       </section>
     </div>
   );
+}
+
+function pushServiceText(status: AndroidPushStatus): string {
+  if (status.registered && status.aliasBound) return '设备已注册，推送目标绑定正常';
+  if (status.error) return status.error;
+  if (!status.registered) return '正在连接极光推送服务';
+  return '设备已注册，正在绑定推送目标';
 }

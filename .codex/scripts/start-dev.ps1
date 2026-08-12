@@ -4,7 +4,7 @@ $rootDir = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $backendDir = Join-Path $rootDir "backend"
 $frontendDir = Join-Path $rootDir "frontend"
 $logDir = Join-Path $rootDir ".codex-logs"
-$tunnelScript = Join-Path $rootDir "deploy\start-db-tunnel.ps1"
+$tunnelScript = Join-Path $rootDir "deploy\db\start-db-tunnel.ps1"
 
 New-Item -ItemType Directory -Force -Path $logDir | Out-Null
 
