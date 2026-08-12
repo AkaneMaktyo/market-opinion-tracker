@@ -3,6 +3,8 @@ import { Capacitor } from '@capacitor/core';
 import { useEffect } from 'react';
 import { goToDashboard } from '../hashRoute';
 
+export const MOBILE_APP_BACK_EVENT = 'market-opinion-mobile-back';
+
 export function isAndroidEnvironment() {
   return Capacitor.getPlatform() === 'android'
     || new URLSearchParams(window.location.search).get('platform') === 'android';
@@ -19,6 +21,9 @@ function closeTopLayer(): boolean {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     return true;
   }
+  const mobileBack = new CustomEvent(MOBILE_APP_BACK_EVENT, { cancelable: true });
+  window.dispatchEvent(mobileBack);
+  if (mobileBack.defaultPrevented) return true;
   return false;
 }
 

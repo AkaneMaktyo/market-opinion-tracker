@@ -144,9 +144,12 @@
   padding: 4px;
 }
 
-.mobile-bottom-nav > button.active { color: #173f37; font-weight: 700; }
-.mobile-bottom-nav > .mobile-add-button { align-self: center; background: #173f37; border: 5px solid #f2f6f4; border-radius: 50%; color: #fff; height: 58px; justify-self: center; margin-top: -27px; min-height: 58px; width: 58px; }
-.mobile-bottom-nav > .mobile-add-button:active { transform: scale(0.96); }
+.mobile-bottom-nav > button.active {
+  background: #e7f0ff;
+  border-radius: 11px;
+  color: #2962ff;
+  font-weight: 700;
+}
 
 .mobile-quick-backdrop,
 .mobile-composer-backdrop {

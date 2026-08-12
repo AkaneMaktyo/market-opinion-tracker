@@ -1,0 +1,128 @@
+.mobile-watchlist-screen {
+  background: #fff;
+  min-height: 100%;
+}
+
+.mobile-instrument-rail {
+  border: 0;
+  border-radius: 0;
+  min-height: 100%;
+  padding: 0;
+}
+
+.mobile-instrument-rail .rail-head { padding: 0 12px; }
+.mobile-instrument-rail .rail-list { overflow: visible; }
+.mobile-instrument-rail .rail-table-head,
+.mobile-instrument-rail .symbol {
+  column-gap: 5px;
+  grid-template-columns: minmax(92px, 1fr) 74px 58px 56px;
+}
+.mobile-instrument-rail .rail-table-head { padding: 8px 10px 6px; }
+.mobile-instrument-rail .symbol {
+  height: 44px;
+  min-height: 44px;
+  padding: 4px 9px 4px 8px;
+}
+.mobile-instrument-rail .symbol-manage { display: none; }
+.mobile-instrument-rail .symbol-product-text,
+.mobile-instrument-rail .symbol-value { font-size: 12px; }
+.mobile-instrument-rail .group-header { min-height: 34px; }
+.mobile-instrument-rail .sort-button { min-height: 34px; }
+
+.showing-chart-detail { background: #0b1220; }
+
+.mobile-instrument-detail {
+  min-height: 100%;
+  background: #0b1220;
+}
+
+.mobile-detail-bar {
+  align-items: center;
+  background: #fff;
+  border-bottom: 1px solid #dbe7e2;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 54px;
+  padding: 5px 10px;
+}
+
+.mobile-detail-bar > button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: #14231f;
+  display: flex;
+  height: 40px;
+  justify-content: center;
+  padding: 0;
+  width: 40px;
+}
+
+.mobile-detail-bar > div { display: grid; gap: 1px; }
+.mobile-detail-bar small { color: #71847d; font-size: 11px; }
+.mobile-detail-bar strong { color: #14231f; font-size: 16px; }
+
+.mobile-instrument-detail .chart-panel {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.mobile-instrument-detail .chart-header {
+  align-items: stretch;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  padding: 11px 12px;
+}
+
+.mobile-instrument-detail .chart-tools {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.mobile-instrument-detail .timeframe-switch {
+  flex: 1 1 190px;
+}
+
+.mobile-instrument-detail .timeframe-button,
+.mobile-instrument-detail .chart-layer-button {
+  font-size: 11px;
+  min-height: 34px;
+  padding: 5px 7px;
+}
+
+.mobile-instrument-detail .backfill-actions {
+  padding: 6px 10px;
+}
+
+.mobile-instrument-detail .chart-frame,
+.mobile-instrument-detail .chart-stage,
+.mobile-instrument-detail .chart {
+  height: max(440px, calc(100dvh - 385px));
+  min-height: 440px;
+}
+
+.mobile-instrument-detail .candle-readout {
+  left: 8px;
+  max-width: calc(100% - 16px);
+  right: 8px;
+}
+
+.mobile-instrument-detail .chart-quick-actions {
+  right: 8px;
+}
+
+@media (max-width: 360px) {
+  .mobile-instrument-rail .rail-table-head,
+  .mobile-instrument-rail .symbol {
+    column-gap: 3px;
+    grid-template-columns: minmax(80px, 1fr) 65px 52px 50px;
+  }
+
+  .mobile-instrument-rail .symbol-value { font-size: 11px; }
+  .mobile-instrument-rail .stock-icon,
+  .mobile-instrument-rail .stock-icon-fallback { height: 18px; width: 18px; }
+}

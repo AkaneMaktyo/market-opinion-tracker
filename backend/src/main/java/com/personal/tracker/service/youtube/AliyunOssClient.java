@@ -164,7 +164,14 @@ public class AliyunOssClient {
 
   private String sign(OSS client, String objectKey) {
     Date expiration = new Date(System.currentTimeMillis() + Duration.ofSeconds(expireSeconds).toMillis());
-    return client.generatePresignedUrl(bucketName, objectKey, expiration).toString();
+    return secureUrl(client.generatePresignedUrl(bucketName, objectKey, expiration).toString());
+  }
+
+  static String secureUrl(String url) {
+    if (url == null || url.isBlank()) {
+      return "";
+    }
+    return url.startsWith("http://") ? "https://" + url.substring("http://".length()) : url;
   }
 
   private static String value(Environment environment, String key) {
