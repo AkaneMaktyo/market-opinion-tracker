@@ -34,6 +34,18 @@ class YouTubeOssFetchTest(unittest.TestCase):
         ):
             self.assertEqual(fallback, MODULE.discover_videos("UC123", 3))
 
+    def test_download_rotates_proxy_until_success(self):
+        store = types.SimpleNamespace(put_object=lambda *_args: None)
+        video = {"videoId": "new", "videoUrl": "https://www.youtube.com/watch?v=new"}
+        with patch.object(MODULE, "existing_audio_key", return_value=""), patch.object(
+            MODULE, "download_audio", side_effect=[RuntimeError("bot"), (".m4a", b"audio")]
+        ) as download, patch.object(MODULE, "rotate_proxy", return_value="next"), patch.object(
+            MODULE, "duration_ms", return_value=1000
+        ), patch.dict(MODULE.os.environ, {"YOUTUBE_PROXY_URL": "http://proxy"}):
+            result = MODULE.attach_with_proxy_rotation(store, video, max_attempts=2)
+        self.assertEqual(2, download.call_count)
+        self.assertEqual(1000, result["audioDurationMs"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -4,6 +4,7 @@ import importlib.util
 import pathlib
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 SCRIPT = pathlib.Path(__file__).parents[1] / "scripts" / "mihomo_proxy.py"
@@ -46,6 +47,22 @@ class MihomoProxyTest(unittest.TestCase):
             "节点选择": {"type": "Selector", "all": ["Node", "Node2"]},
         }
         self.assertEqual("节点选择", MODULE.selectable_group(proxies, "missing"))
+
+
+    def test_rotate_skips_current_and_failed_nodes(self):
+        proxies = {
+            "main": {"type": "Selector", "all": ["current", "failed", "ready"], "now": "current"},
+            "current": {"type": "Vless"},
+            "failed": {"type": "Vless"},
+            "ready": {"type": "Hysteria2"},
+        }
+        with patch.object(MODULE, "request_json", return_value={"proxies": proxies}), patch.object(
+            MODULE, "measure_delay", return_value=(12, "ready", MODULE.TEST_URLS[0])
+        ), patch.object(MODULE.urllib.request, "urlopen") as urlopen:
+            urlopen.return_value.__enter__.return_value.status = 204
+            selected = MODULE.rotate_proxy("http://controller", "main", ["failed"])
+        self.assertEqual("ready", selected)
+        self.assertIn(b'"ready"', urlopen.call_args.args[0].data)
 
 
 if __name__ == "__main__":

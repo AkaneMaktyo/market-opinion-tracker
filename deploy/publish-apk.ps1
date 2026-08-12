@@ -22,25 +22,26 @@ $remoteJson = "$remoteApkDir/apk.json"
 $publishClient = Join-Path $PSScriptRoot "apk-upload.py"
 $localJson = Join-Path $env:TEMP "mot-apk-$PID.json"
 
-function Get-GradleProxyArguments {
+function Set-GradleProxyEnvironment {
     $proxyUrl = if (-not [string]::IsNullOrWhiteSpace($env:HTTPS_PROXY)) {
         $env:HTTPS_PROXY
     } else {
         $env:HTTP_PROXY
     }
     if ([string]::IsNullOrWhiteSpace($proxyUrl)) {
-        return @()
+        return
     }
     $uri = [Uri]$proxyUrl
     if (-not $uri.Host -or $uri.Port -le 0) {
         throw "Invalid HTTP(S) proxy URL for Gradle."
     }
-    return @(
+    $options = @(
         "-Dhttp.proxyHost=$($uri.Host)",
         "-Dhttp.proxyPort=$($uri.Port)",
         "-Dhttps.proxyHost=$($uri.Host)",
         "-Dhttps.proxyPort=$($uri.Port)"
-    )
+    ) -join ' '
+    $env:JAVA_TOOL_OPTIONS = "$($env:JAVA_TOOL_OPTIONS) $options".Trim()
 }
 
 if ([string]::IsNullOrWhiteSpace($SshPassword)) {
@@ -84,10 +85,10 @@ if (-not $SkipBuild) {
     $versionCodeArg = "-PversionCode=$VersionCode"
     $versionNameArg = "-PversionName=$VersionName"
     $jpushKeyArg = "-PjpushAppKey=$JpushAppKey"
-    $gradleProxyArgs = Get-GradleProxyArguments
+    Set-GradleProxyEnvironment
     Push-Location $androidDir
     try {
-        & .\gradlew.bat ':app:assembleRelease' $versionCodeArg $versionNameArg $jpushKeyArg @gradleProxyArgs '--console=plain'
+        & .\gradlew.bat ':app:assembleRelease' $versionCodeArg $versionNameArg $jpushKeyArg '--console=plain'
         if ($LASTEXITCODE -ne 0) {
             throw "APK release build failed."
         }
