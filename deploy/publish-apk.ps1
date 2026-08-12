@@ -22,8 +22,6 @@ $releaseApk = if ([string]::IsNullOrWhiteSpace($ApkPath)) {
     (Resolve-Path $ApkPath).Path
 }
 $remoteApkDir = "/var/www/market-opinion-tracker/market/apk"
-$remoteApk = "$remoteApkDir/market-opinion-tracker.apk"
-$remoteJson = "$remoteApkDir/apk.json"
 $publishClient = Join-Path $PSScriptRoot "apk-upload.py"
 $localJson = Join-Path $env:TEMP "mot-apk-$PID.json"
 $versionFile = Join-Path $PSScriptRoot "mobile\android-version.json"
@@ -43,6 +41,7 @@ if ([string]::IsNullOrWhiteSpace($VersionName) -or $VersionCode -le 0) {
 if ([string]::IsNullOrWhiteSpace($VersionName) -or $VersionCode -le 0) {
     throw "Invalid Android version."
 }
+$apkFileName = "market-opinion-tracker-$VersionCode.apk"
 
 function Set-GradleProxyEnvironment {
     $proxyUrl = if (-not [string]::IsNullOrWhiteSpace($env:HTTPS_PROXY)) {
@@ -148,7 +147,7 @@ $json = [ordered]@{
     versionName = $VersionName
     versionCode = $VersionCode
     size = $size
-    url = "$PublicBaseUrl/apk/market-opinion-tracker.apk"
+    url = "$PublicBaseUrl/apk/$apkFileName"
     updatedAt = $now
 } | ConvertTo-Json
 [IO.File]::WriteAllText(
@@ -165,11 +164,12 @@ try {
         --user $SshUser `
         --apk $releaseApk `
         --json $localJson `
-        --remote-dir $remoteApkDir
+        --remote-dir $remoteApkDir `
+        --apk-name $apkFileName
     if ($LASTEXITCODE -ne 0) {
         throw "APK upload failed."
     }
-    Write-Output "APK published: $PublicBaseUrl/apk/market-opinion-tracker.apk"
+    Write-Output "APK published: $PublicBaseUrl/apk/$apkFileName"
 } finally {
     Remove-Item $localJson -ErrorAction SilentlyContinue
     Remove-Item Env:MOT_SSH_PASSWORD -ErrorAction SilentlyContinue
