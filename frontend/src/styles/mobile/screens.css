@@ -111,6 +111,10 @@
 .mobile-message-status-working { background: #fff2d8; color: #9b6416; }
 .mobile-message-status-plain { background: #e9edf2; color: #566579; }
 .mobile-message-card .mobile-feed-thesis { white-space: pre-wrap; }
+.mobile-recognition-action { border-top: 1px solid #edf2f0; display: grid; gap: 6px; margin-top: 11px; padding-top: 10px; }
+.mobile-recognition-action button { align-items: center; align-self: start; background: #e7f5ef; border: 1px solid #bfe3d3; border-radius: 10px; color: #126545; display: inline-flex; font-size: 13px; font-weight: 700; gap: 6px; justify-self: start; min-height: 36px; padding: 7px 11px; }
+.mobile-recognition-action button:disabled { color: #71847d; opacity: .75; }
+.mobile-recognition-action small { color: #b94747; line-height: 1.4; }
 .mobile-message-images { display: grid; gap: 6px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .mobile-message-images.count-1 { grid-template-columns: 1fr; }
 .mobile-message-images > button { background: #e8efec; border: 0; border-radius: 13px; max-width: 100%; min-height: 112px; min-width: 0; overflow: hidden; padding: 0; position: relative; }

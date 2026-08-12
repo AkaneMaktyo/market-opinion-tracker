@@ -20,6 +20,7 @@ public class PriceAlertRepository {
       rs.getString("symbol"),
       rs.getString("name"),
       rs.getString("alert_type"),
+      rs.getString("trigger_direction"),
       rs.getBigDecimal("lower_price"),
       rs.getBigDecimal("upper_price"),
       rs.getBigDecimal("target_price"),
@@ -29,6 +30,8 @@ public class PriceAlertRepository {
       rs.getString("triggered_at"),
       rs.getString("notify_status"),
       rs.getString("error_message"),
+      rs.getString("source_recognition_id"),
+      rs.getString("source_candidate_id"),
       rs.getString("created_at"),
       rs.getString("updated_at"));
   private final RowMapper<ActiveAlert> activeMapper = (rs, rowNum) -> new ActiveAlert(
@@ -37,6 +40,7 @@ public class PriceAlertRepository {
       rs.getString("symbol"),
       rs.getString("name"),
       rs.getString("alert_type"),
+      rs.getString("trigger_direction"),
       rs.getBigDecimal("lower_price"),
       rs.getBigDecimal("upper_price"),
       rs.getBigDecimal("target_price"),
@@ -66,7 +70,7 @@ public class PriceAlertRepository {
   public List<ActiveAlert> active() {
     ensureSchema();
     return jdbc.query("""
-        SELECT a.id, a.instrument_id, i.symbol, i.name, a.alert_type,
+        SELECT a.id, a.instrument_id, i.symbol, i.name, a.alert_type, a.trigger_direction,
                a.lower_price, a.upper_price, a.target_price, a.last_price,
                i.bitget_category, i.bitget_symbol
         FROM price_signal_alerts a
@@ -101,18 +105,23 @@ public class PriceAlertRepository {
   public PriceAlertView create(
       String instrumentId,
       String alertType,
+      String triggerDirection,
       BigDecimal lower,
       BigDecimal upper,
-      BigDecimal target) {
+      BigDecimal target,
+      String sourceRecognitionId,
+      String sourceCandidateId) {
     ensureSchema();
     String id = JdbcSupport.id();
     String now = JdbcSupport.now();
     jdbc.update("""
         INSERT INTO price_signal_alerts(
-          id, instrument_id, alert_type, lower_price, upper_price, target_price,
+          id, instrument_id, alert_type, trigger_direction,
+          lower_price, upper_price, target_price, source_recognition_id, source_candidate_id,
           status, notify_status, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', 'WAITING', ?, ?)
-        """, id, instrumentId, alertType, lower, upper, target, now, now);
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', 'WAITING', ?, ?)
+        """, id, instrumentId, alertType, triggerDirection, lower, upper, target,
+        nullable(sourceRecognitionId), nullable(sourceCandidateId), now, now);
     return find(id).orElseThrow();
   }
 
@@ -120,18 +129,19 @@ public class PriceAlertRepository {
       String id,
       String instrumentId,
       String alertType,
+      String triggerDirection,
       BigDecimal lower,
       BigDecimal upper,
       BigDecimal target) {
     ensureSchema();
     jdbc.update("""
         UPDATE price_signal_alerts
-        SET instrument_id = ?, alert_type = ?, lower_price = ?, upper_price = ?,
+        SET instrument_id = ?, alert_type = ?, trigger_direction = ?, lower_price = ?, upper_price = ?,
             target_price = ?, status = 'ACTIVE', last_price = NULL,
             last_checked_at = NULL, triggered_at = NULL, notify_status = 'WAITING',
             error_message = NULL, updated_at = ?
         WHERE id = ?
-        """, instrumentId, alertType, lower, upper, target, JdbcSupport.now(), id);
+        """, instrumentId, alertType, triggerDirection, lower, upper, target, JdbcSupport.now(), id);
     return find(id);
   }
 
@@ -154,6 +164,37 @@ public class PriceAlertRepository {
   public boolean delete(String id) {
     ensureSchema();
     return jdbc.update("DELETE FROM price_signal_alerts WHERE id = ?", id) > 0;
+  }
+
+  public Optional<PriceAlertView> findBySource(String recognitionId, String candidateId) {
+    ensureSchema();
+    if (recognitionId == null || recognitionId.isBlank() || candidateId == null || candidateId.isBlank()) {
+      return Optional.empty();
+    }
+    return jdbc.query("""
+        SELECT a.*, i.symbol, i.name
+        FROM price_signal_alerts a JOIN instruments i ON i.id = a.instrument_id
+        WHERE a.source_recognition_id = ? AND a.source_candidate_id = ?
+        """, viewMapper, recognitionId.trim(), candidateId.trim()).stream().findFirst();
+  }
+
+  public Optional<PriceAlertView> findEquivalent(
+      String instrumentId,
+      String alertType,
+      String triggerDirection,
+      BigDecimal lower,
+      BigDecimal upper,
+      BigDecimal target) {
+    ensureSchema();
+    return jdbc.query("""
+        SELECT a.*, i.symbol, i.name
+        FROM price_signal_alerts a JOIN instruments i ON i.id = a.instrument_id
+        WHERE a.instrument_id = ? AND a.alert_type = ? AND a.trigger_direction = ?
+          AND a.lower_price = ? AND a.upper_price = ?
+          AND (a.target_price = ? OR (a.target_price IS NULL AND ? IS NULL))
+        LIMIT 1
+        """, viewMapper, instrumentId, alertType, triggerDirection, lower, upper, target, target)
+        .stream().findFirst();
   }
 
   public boolean claim(String id, BigDecimal price, String checkedAt) {
@@ -214,6 +255,7 @@ public class PriceAlertRepository {
             id VARCHAR(64) PRIMARY KEY,
             instrument_id VARCHAR(64) NOT NULL,
             alert_type VARCHAR(16) NOT NULL DEFAULT 'RANGE',
+            trigger_direction VARCHAR(16) NOT NULL DEFAULT 'ANY',
             lower_price DECIMAL(24, 8) NOT NULL,
             upper_price DECIMAL(24, 8) NOT NULL,
             target_price DECIMAL(24, 8),
@@ -223,6 +265,8 @@ public class PriceAlertRepository {
             triggered_at VARCHAR(64),
             notify_status VARCHAR(32) NOT NULL,
             error_message TEXT,
+            source_recognition_id VARCHAR(64),
+            source_candidate_id VARCHAR(64),
             created_at VARCHAR(64) NOT NULL,
             updated_at VARCHAR(64) NOT NULL,
             INDEX idx_price_signal_active(status, instrument_id, updated_at)
@@ -232,6 +276,13 @@ public class PriceAlertRepository {
           + "ADD COLUMN alert_type VARCHAR(16) NOT NULL DEFAULT 'RANGE' AFTER instrument_id");
       ensureColumn("target_price", "ALTER TABLE price_signal_alerts "
           + "ADD COLUMN target_price DECIMAL(24, 8) AFTER upper_price");
+      ensureColumn("trigger_direction", "ALTER TABLE price_signal_alerts "
+          + "ADD COLUMN trigger_direction VARCHAR(16) NOT NULL DEFAULT 'ANY' AFTER alert_type");
+      ensureColumn("source_recognition_id", "ALTER TABLE price_signal_alerts "
+          + "ADD COLUMN source_recognition_id VARCHAR(64) AFTER error_message");
+      ensureColumn("source_candidate_id", "ALTER TABLE price_signal_alerts "
+          + "ADD COLUMN source_candidate_id VARCHAR(64) AFTER source_recognition_id");
+      ensureUniqueIndex();
       schemaReady = true;
     }
   }
@@ -249,12 +300,29 @@ public class PriceAlertRepository {
     }
   }
 
+  private void ensureUniqueIndex() {
+    Integer count = jdbc.queryForObject("""
+        SELECT COUNT(*) FROM information_schema.statistics
+        WHERE table_schema = DATABASE() AND table_name = 'price_signal_alerts'
+          AND index_name = 'uq_price_signal_source'
+        """, Integer.class);
+    if (count == null || count == 0) {
+      jdbc.execute("CREATE UNIQUE INDEX uq_price_signal_source "
+          + "ON price_signal_alerts(source_recognition_id, source_candidate_id)");
+    }
+  }
+
+  private String nullable(String value) {
+    return value == null || value.isBlank() ? null : value.trim();
+  }
+
   public record PriceAlertView(
       String id,
       String instrumentId,
       String symbol,
       String name,
       String alertType,
+      String triggerDirection,
       BigDecimal lowerPrice,
       BigDecimal upperPrice,
       BigDecimal targetPrice,
@@ -264,6 +332,8 @@ public class PriceAlertRepository {
       String triggeredAt,
       String notifyStatus,
       String errorMessage,
+      String sourceRecognitionId,
+      String sourceCandidateId,
       String createdAt,
       String updatedAt) {
   }
@@ -274,6 +344,7 @@ public class PriceAlertRepository {
       String symbol,
       String name,
       String alertType,
+      String triggerDirection,
       BigDecimal lowerPrice,
       BigDecimal upperPrice,
       BigDecimal targetPrice,

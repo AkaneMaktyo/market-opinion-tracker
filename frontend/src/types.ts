@@ -200,4 +200,7 @@ export interface WxPusherRecentMessage {
   sourceUrl?: string;
   messageTime: string;
   status: string;
+  priceAlertRecognitionStatus?: 'PROCESSING' | 'SUCCESS' | 'EMPTY' | 'FAILED';
+  priceAlertRecognitionId?: string;
+  priceAlertCandidateCount?: number;
 }

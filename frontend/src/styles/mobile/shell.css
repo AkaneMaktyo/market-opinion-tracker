@@ -112,6 +112,8 @@
 
 .mobile-app-viewport::-webkit-scrollbar { display: none; }
 
+.mobile-persistent-tab { min-height: 100%; }
+
 .mobile-screen-content {
   display: grid;
   gap: 13px;

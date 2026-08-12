@@ -17,9 +17,14 @@ public class WxPusherSharedMessageRepository {
              COALESCE(p.blogger_name, '') processed_blogger_name,
              COALESCE(p.kol_id, '') kol_id,
              COALESCE(p.detail_text, '') detail_text,
-             COALESCE(p.status, 'RECEIVED') status
+             COALESCE(p.status, 'RECEIVED') status,
+             COALESCE(a.status, 'NOT_STARTED') recognition_status,
+             COALESCE(a.id, '') recognition_id,
+             CASE WHEN JSON_VALID(a.candidates_json)
+                  THEN JSON_LENGTH(a.candidates_json) ELSE 0 END recognition_candidate_count
       FROM wxpusher_raw_messages r
       LEFT JOIN wxpusher_messages p ON p.message_key = r.message_key
+      LEFT JOIN message_price_alert_recognitions a ON a.message_id = r.id
       """;
   private final JdbcTemplate jdbc;
   private final RowMapper<IncomingMessage> mapper = (rs, rowNum) -> new IncomingMessage(
@@ -46,7 +51,10 @@ public class WxPusherSharedMessageRepository {
       rs.getString("source_url"),
       rs.getString("message_time"),
       rs.getString("detail_text"),
-      rs.getString("status"));
+      rs.getString("status"),
+      rs.getString("recognition_status"),
+      rs.getString("recognition_id"),
+      rs.getInt("recognition_candidate_count"));
 
   public WxPusherSharedMessageRepository(JdbcTemplate jdbc) {
     this.jdbc = jdbc;
@@ -150,6 +158,9 @@ public class WxPusherSharedMessageRepository {
       String sourceUrl,
       String messageTime,
       String detailText,
-      String status) {
+      String status,
+      String recognitionStatus,
+      String recognitionId,
+      int recognitionCandidateCount) {
   }
 }

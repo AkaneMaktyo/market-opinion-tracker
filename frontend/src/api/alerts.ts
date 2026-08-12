@@ -1,5 +1,11 @@
 import { json } from './http';
-import type { PriceAlert, PriceAlertMonitorStatus } from '../types/alerts';
+import type {
+  PriceAlert,
+  PriceAlertBatchItem,
+  PriceAlertBatchResult,
+  PriceAlertMonitorStatus,
+  PriceAlertTriggerDirection,
+} from '../types/alerts';
 
 export const priceAlertApi = {
   priceAlerts: () => json<PriceAlert[]>('/api/price-alerts'),
@@ -23,6 +29,11 @@ export const priceAlertApi = {
     json<{ status: string }>(`/api/price-alerts/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     }),
+  createPriceAlertsBatch: (recognitionId: string, items: PriceAlertBatchItem[]) =>
+    json<PriceAlertBatchResult>('/api/price-alerts/batch', {
+      method: 'POST',
+      body: JSON.stringify({ recognitionId, items }),
+    }),
 };
 
 export interface PriceAlertDraft {
@@ -31,4 +42,5 @@ export interface PriceAlertDraft {
   lowerPrice?: number;
   upperPrice?: number;
   targetPrice?: number;
+  triggerDirection?: PriceAlertTriggerDirection;
 }

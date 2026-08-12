@@ -195,7 +195,7 @@ function alertStatus(status: PriceAlert['status']) {
 }
 
 function quoteStatus(status: DashboardModel['chartLiveStatus']) {
-  return ({ live: '实时行情', polling: '轮询行情', connecting: '正在连接', reconnecting: '正在重连', delayed: '延迟行情' })[status];
+  return ({ live: '实时行情', polling: '轮询行情', connecting: '正在连接', reconnecting: '自动恢复', delayed: '延迟行情' })[status];
 }
 
 function timeValue(value?: string) {

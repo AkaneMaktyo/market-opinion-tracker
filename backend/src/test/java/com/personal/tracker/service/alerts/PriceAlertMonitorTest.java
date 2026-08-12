@@ -34,4 +34,18 @@ class PriceAlertMonitorTest {
     assertFalse(PriceAlertMonitor.crossed(
         null, new BigDecimal("101"), target));
   }
+
+  @Test
+  void respectsDirectionalPointCrossing() {
+    BigDecimal target = new BigDecimal("100");
+
+    assertTrue(PriceAlertMonitor.crossed(
+        new BigDecimal("99"), new BigDecimal("100"), target, "UP"));
+    assertFalse(PriceAlertMonitor.crossed(
+        new BigDecimal("101"), new BigDecimal("99"), target, "UP"));
+    assertTrue(PriceAlertMonitor.crossed(
+        new BigDecimal("101"), new BigDecimal("100"), target, "DOWN"));
+    assertFalse(PriceAlertMonitor.crossed(
+        new BigDecimal("99"), new BigDecimal("101"), target, "DOWN"));
+  }
 }

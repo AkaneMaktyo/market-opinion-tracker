@@ -63,7 +63,10 @@ public class WxPusherFeedService {
         detailText,
         value(message.sourceUrl()),
         value(message.messageTime()),
-        value(message.status()));
+        value(message.status()),
+        value(message.recognitionStatus()),
+        value(message.recognitionId()),
+        message.recognitionCandidateCount());
   }
 
   private boolean needsFetch(RecentMessage message, String detailText) {
@@ -113,6 +116,9 @@ public class WxPusherFeedService {
       String detailText,
       String sourceUrl,
       String messageTime,
-      String status) {
+      String status,
+      String priceAlertRecognitionStatus,
+      String priceAlertRecognitionId,
+      int priceAlertCandidateCount) {
   }
 }

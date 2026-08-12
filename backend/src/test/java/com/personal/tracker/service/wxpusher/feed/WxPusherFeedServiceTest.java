@@ -71,6 +71,9 @@ class WxPusherFeedServiceTest {
         "https://discord.example/" + id,
         "2026-08-04T14:11:15Z",
         detailText,
-        processedBlogger.isBlank() ? "RECEIVED" : "IMPORTED");
+        processedBlogger.isBlank() ? "RECEIVED" : "IMPORTED",
+        "NOT_STARTED",
+        "",
+        0);
   }
 }

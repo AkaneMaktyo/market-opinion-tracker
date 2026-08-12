@@ -100,9 +100,13 @@ def upload(sftp, local_path, remote_path, resume=True):
 
     report_progress(transferred)
     if transferred == total_size:
+        print(f"upload {os.path.basename(local_path)}: already complete", flush=True)
         return
+    initial_size = transferred
+    started_at = time.monotonic()
     mode = "r+b" if transferred else "wb"
     with open(local_path, "rb") as source, sftp.file(remote_path, mode) as target:
+        target.set_pipelined(True)
         source.seek(transferred)
         target.seek(transferred)
         while chunk := source.read(UPLOAD_CHUNK_SIZE):
@@ -112,12 +116,22 @@ def upload(sftp, local_path, remote_path, resume=True):
     remote_size = sftp.stat(remote_path).st_size
     if remote_size != total_size:
         raise RuntimeError(f"Upload size mismatch: {remote_path} ({remote_size}/{total_size})")
+    elapsed = time.monotonic() - started_at
+    uploaded_size = transferred - initial_size
+    speed_mib = uploaded_size / (1024 * 1024) / max(elapsed, 0.001)
+    print(
+        f"upload {os.path.basename(local_path)} complete: "
+        f"{uploaded_size / (1024 * 1024):.2f} MiB in {elapsed:.1f}s "
+        f"({speed_mib:.2f} MiB/s)",
+        flush=True,
+    )
 
 
 def stage_files(args, remote_dir, files):
     last_error = None
     for attempt in range(1, UPLOAD_ATTEMPTS + 1):
         client = None
+        started_at = time.monotonic()
         try:
             print(f"SSH upload attempt {attempt}/{UPLOAD_ATTEMPTS}", flush=True)
             client = connect(args)
@@ -129,6 +143,10 @@ def stage_files(args, remote_dir, files):
                     upload(sftp, local_path, remote_path, resume)
             finally:
                 sftp.close()
+            print(
+                f"SSH staging complete in {time.monotonic() - started_at:.1f}s",
+                flush=True,
+            )
             return client
         except Exception as error:
             last_error = error

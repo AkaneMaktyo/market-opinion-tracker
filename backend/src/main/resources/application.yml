@@ -36,6 +36,11 @@ llm:
   wxpusher-enabled: ${LLM_WXPUSHER_ENABLED:true}
   youtube-auto-import-enabled: ${LLM_YOUTUBE_AUTO_IMPORT_ENABLED:false}
 
+price-alert:
+  deepseek:
+    base-url: ${PRICE_ALERT_DEEPSEEK_BASE_URL:https://api.deepseek.com}
+    api-key: ${PRICE_ALERT_DEEPSEEK_API_KEY:}
+
 wxpusher:
   ocr:
     enabled: ${WXPUSHER_OCR_ENABLED:true}

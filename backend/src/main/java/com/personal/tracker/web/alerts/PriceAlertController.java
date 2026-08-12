@@ -4,6 +4,8 @@ import com.personal.tracker.repository.alerts.PriceAlertRepository.PriceAlertVie
 import com.personal.tracker.service.alerts.PriceAlertMonitor.MonitorStatus;
 import com.personal.tracker.service.alerts.PriceAlertService;
 import com.personal.tracker.service.alerts.PriceAlertService.CreateCommand;
+import com.personal.tracker.service.alerts.PriceAlertService.BatchItem;
+import com.personal.tracker.service.alerts.PriceAlertService.BatchResult;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -39,14 +41,19 @@ public class PriceAlertController {
   PriceAlertView create(@RequestBody CreateRequest request) {
     return alerts.create(new CreateCommand(
         request.symbol(), request.alertType(), request.lowerPrice(),
-        request.upperPrice(), request.targetPrice()));
+        request.upperPrice(), request.targetPrice(), request.triggerDirection()));
   }
 
   @PutMapping("/{id}")
   PriceAlertView update(@PathVariable String id, @RequestBody CreateRequest request) {
     return alerts.update(id, new CreateCommand(
         request.symbol(), request.alertType(), request.lowerPrice(),
-        request.upperPrice(), request.targetPrice()));
+        request.upperPrice(), request.targetPrice(), request.triggerDirection()));
+  }
+
+  @PostMapping("/batch")
+  BatchResult createBatch(@RequestBody BatchRequest request) {
+    return alerts.createBatch(request.recognitionId(), request.items());
   }
 
   @PutMapping("/{id}/active")
@@ -65,7 +72,11 @@ public class PriceAlertController {
       String alertType,
       BigDecimal lowerPrice,
       BigDecimal upperPrice,
-      BigDecimal targetPrice) {
+      BigDecimal targetPrice,
+      String triggerDirection) {
+  }
+
+  public record BatchRequest(String recognitionId, List<BatchItem> items) {
   }
 
   public record ActiveRequest(boolean enabled) {

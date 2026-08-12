@@ -1,7 +1,9 @@
-import { ImageIcon, RefreshCw, Search, X, Info } from 'lucide-react';
+import { BellRing, ImageIcon, RefreshCw, Search, X, Info } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../api/client';
 import type { WxPusherRecentMessage } from '../../types';
+import type { PriceAlertRecognitionResult } from '../../types/alerts';
+import { PriceAlertRecognitionSheet } from '../recognition/PriceAlertRecognitionSheet';
 import { formatDate } from './MobileOverview';
 
 const REFRESH_MS = 30000;
@@ -43,6 +45,9 @@ export function MobileOpinions({ focusMessageId = '' }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [preview, setPreview] = useState('');
+  const [activeRecognition, setActiveRecognition] = useState<PriceAlertRecognitionResult | null>(null);
+  const [recognizingIds, setRecognizingIds] = useState<Set<string>>(new Set());
+  const [recognitionErrors, setRecognitionErrors] = useState<Record<string, string>>({});
   const requestId = useRef(0);
   const detailCache = useRef(new Map<string, WxPusherRecentMessage>());
   const handledFocus = useRef('');
@@ -109,6 +114,38 @@ export function MobileOpinions({ focusMessageId = '' }: Props) {
     }
   }
 
+  async function recognizePriceAlerts(item: WxPusherRecentMessage) {
+    setRecognizingIds((current) => new Set(current).add(item.id));
+    setRecognitionErrors((current) => ({ ...current, [item.id]: '' }));
+    try {
+      const result = await api.recognizeWxPusherPriceAlerts(item.id);
+      const patch: Partial<WxPusherRecentMessage> = {
+        priceAlertRecognitionStatus: result.status,
+        priceAlertRecognitionId: result.recognitionId,
+        priceAlertCandidateCount: result.candidates.length,
+      };
+      setMessages((current) => current.map((message) => message.id === item.id ? { ...message, ...patch } : message));
+      const cached = detailCache.current.get(item.id);
+      if (cached) detailCache.current.set(item.id, { ...cached, ...patch });
+      if (result.status === 'SUCCESS' && result.candidates.length > 0) setActiveRecognition(result);
+      if (result.status === 'FAILED') {
+        setRecognitionErrors((current) => ({ ...current, [item.id]: result.errorMessage || '智能识别失败，请重试' }));
+      }
+    } catch (recognitionError) {
+      const message = recognitionError instanceof Error ? recognitionError.message : '智能识别失败，请重试';
+      setMessages((current) => current.map((messageItem) => messageItem.id === item.id
+        ? { ...messageItem, priceAlertRecognitionStatus: 'FAILED' }
+        : messageItem));
+      setRecognitionErrors((current) => ({ ...current, [item.id]: message }));
+    } finally {
+      setRecognizingIds((current) => {
+        const next = new Set(current);
+        next.delete(item.id);
+        return next;
+      });
+    }
+  }
+
   useEffect(() => {
     void load();
     fetchDeployInfo();
@@ -152,9 +189,20 @@ export function MobileOpinions({ focusMessageId = '' }: Props) {
       <section className="mobile-opinion-feed" aria-busy={loading}>
         {loading && messages.length === 0 ? <div className="mobile-card mobile-empty">正在读取最新消息…</div> : null}
         {!loading && items.length === 0 ? <div className="mobile-card mobile-empty">暂时没有符合条件的消息</div> : null}
-        {items.map((item) => <MessageCard item={item} key={item.id} onPreview={setPreview} hydrating={hydratingIds.has(item.id)} />)}
+        {items.map((item) => (
+          <MessageCard
+            error={recognitionErrors[item.id]}
+            hydrating={hydratingIds.has(item.id)}
+            item={item}
+            key={item.id}
+            onPreview={setPreview}
+            onRecognize={() => void recognizePriceAlerts(item)}
+            recognizing={recognizingIds.has(item.id)}
+          />
+        ))}
       </section>
       {preview ? <ImagePreview onClose={() => setPreview('')} source={preview} /> : null}
+      {activeRecognition ? <PriceAlertRecognitionSheet onClose={() => setActiveRecognition(null)} result={activeRecognition} /> : null}
       {deployInfo ? (
         <div className="mobile-card mobile-deploy-info">
           <Info size={14} />
@@ -166,7 +214,14 @@ export function MobileOpinions({ focusMessageId = '' }: Props) {
   );
 }
 
-function MessageCard({ item, onPreview, hydrating }: { item: WxPusherRecentMessage; onPreview: (source: string) => void; hydrating: boolean }) {
+function MessageCard({ item, onPreview, onRecognize, hydrating, recognizing, error }: {
+  item: WxPusherRecentMessage;
+  onPreview: (source: string) => void;
+  onRecognize: () => void;
+  hydrating: boolean;
+  recognizing: boolean;
+  error?: string;
+}) {
   const parsed = parseMessage(item);
   return (
     <article className="mobile-card mobile-feed-card mobile-message-card" id={`mobile-msg-${item.id}`}>
@@ -188,8 +243,28 @@ function MessageCard({ item, onPreview, hydrating }: { item: WxPusherRecentMessa
         </div>
       ) : null}
       {parsed.ocrText ? <details><summary>查看图片识别文字</summary><p>{parsed.ocrText}</p></details> : null}
+      <div className="mobile-recognition-action">
+        <button
+          disabled={recognizing || item.priceAlertRecognitionStatus === 'EMPTY'}
+          onClick={onRecognize}
+          type="button"
+        >
+          {recognizing ? <RefreshCw className="spinning" size={15} /> : <BellRing size={15} />}
+          {recognitionButtonLabel(item, recognizing)}
+        </button>
+        {error ? <small>{error}</small> : null}
+      </div>
     </article>
   );
+}
+
+function recognitionButtonLabel(item: WxPusherRecentMessage, recognizing: boolean) {
+  if (recognizing) return '识别中…';
+  if (item.priceAlertRecognitionStatus === 'SUCCESS') return `添加价格提醒 ${item.priceAlertCandidateCount || ''}`.trim();
+  if (item.priceAlertRecognitionStatus === 'EMPTY') return '未发现价格提醒';
+  if (item.priceAlertRecognitionStatus === 'FAILED') return '重新识别';
+  if (item.priceAlertRecognitionStatus === 'PROCESSING') return '继续查看识别';
+  return '智能识别';
 }
 
 function ImagePreview({ source, onClose }: { source: string; onClose: () => void }) {

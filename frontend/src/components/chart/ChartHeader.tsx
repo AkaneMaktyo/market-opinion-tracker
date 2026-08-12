@@ -96,7 +96,7 @@ function statusLabel(status: ChartLiveStatus) {
     live: '实时',
     polling: '自动同步',
     connecting: '连接中',
-    reconnecting: '重连中',
+    reconnecting: '自动恢复',
     delayed: '行情延迟',
   }[status];
 }

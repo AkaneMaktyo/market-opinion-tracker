@@ -26,6 +26,7 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
   const dashboard = useDashboardData();
   const [tab, setTab] = useState<MobileTab>('opinions');
   const [detailOpen, setDetailOpen] = useState(false);
+  const [transcriptMounted, setTranscriptMounted] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerSeed, setComposerSeed] = useState('');
   const [focusMessageId, setFocusMessageId] = useState('');
@@ -66,6 +67,7 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
   }
 
   function switchTab(next: MobileTab) {
+    if (next === 'transcript') setTranscriptMounted(true);
     setDetailOpen(false);
     setTab(next);
   }
@@ -97,7 +99,11 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
         {tab === 'overview' ? <MobileOverview dashboard={dashboard} onFocusSymbol={openInstrument} onOpenOpinions={() => switchTab('opinions')} onQuickAdd={() => openComposer()} /> : null}
         {tab === 'watchlist' && !detailOpen ? <MobileWatchlist dashboard={dashboard} onOpenDetail={openInstrument} /> : null}
         {tab === 'watchlist' && detailOpen ? <MobileInstrumentDetail dashboard={dashboard} onBack={() => setDetailOpen(false)} /> : null}
-        {tab === 'transcript' ? <MobileTranscript onCreateOpinion={openComposer} /> : null}
+        {transcriptMounted ? (
+          <div className="mobile-persistent-tab" hidden={tab !== 'transcript'}>
+            <MobileTranscript onCreateOpinion={openComposer} />
+          </div>
+        ) : null}
         {tab === 'profile' ? <MobileProfile dashboard={dashboard} liveUpdate={liveUpdate} onOpenTranscript={() => switchTab('transcript')} /> : null}
       </section>
 

@@ -3,8 +3,10 @@ package com.personal.tracker.web.llm;
 import com.personal.tracker.repository.llm.LlmCallLogRepository;
 import com.personal.tracker.repository.llm.LlmCallLogRepository.LlmCallLog;
 import com.personal.tracker.repository.llm.LlmCallLogRepository.SceneSummary;
+import com.personal.tracker.repository.llm.LlmCallLogRepository.AuditDetail;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,5 +30,10 @@ public class LlmController {
   @GetMapping("/summary")
   List<SceneSummary> summary(@RequestParam(required = false) String date) {
     return logs.summarize(date);
+  }
+
+  @GetMapping("/logs/{id}")
+  AuditDetail detail(@PathVariable String id) {
+    return logs.detail(id);
   }
 }

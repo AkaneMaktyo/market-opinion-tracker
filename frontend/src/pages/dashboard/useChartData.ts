@@ -8,6 +8,7 @@ import {
   HISTORY_PAGE_SIZE,
   INITIAL_BAR_COUNT,
   MIN_USABLE_BARS,
+  STREAM_ERROR_GRACE_MS,
   liveStatus,
   mergeBars,
   requestKey,
@@ -134,12 +135,21 @@ export function useChartData() {
     if (!request) return;
     const source = new EventSource(streamUrl(apiBase, request.symbol, request.frame));
     let closed = false;
-    source.onopen = () => !closed && setChartLiveStatus('connecting');
+    let streamErrorTimer: number | null = null;
+    const clearStreamError = () => {
+      if (streamErrorTimer == null) return;
+      window.clearTimeout(streamErrorTimer);
+      streamErrorTimer = null;
+    };
+    source.onopen = clearStreamError;
     source.addEventListener('status', (event) => {
-      if (!closed) setChartLiveStatus(liveStatus((event as MessageEvent).data));
+      if (closed) return;
+      clearStreamError();
+      setChartLiveStatus(liveStatus((event as MessageEvent).data));
     });
     source.addEventListener('bar', (event) => {
       if (closed || !sameRequest(requestRef.current, request)) return;
+      clearStreamError();
       const nextBar = JSON.parse((event as MessageEvent).data) as MarketBar;
       setBars((current) => {
         const next = mergeBars(current, [nextBar]);
@@ -151,9 +161,16 @@ export function useChartData() {
       setChartLiveStatus('live');
       setChartMessage('');
     });
-    source.onerror = () => !closed && setChartLiveStatus('reconnecting');
+    source.onerror = () => {
+      if (closed || streamErrorTimer != null) return;
+      streamErrorTimer = window.setTimeout(() => {
+        streamErrorTimer = null;
+        if (!closed) setChartLiveStatus('delayed');
+      }, STREAM_ERROR_GRACE_MS);
+    };
     return () => {
       closed = true;
+      clearStreamError();
       source.close();
     };
   }, [streamKey]);

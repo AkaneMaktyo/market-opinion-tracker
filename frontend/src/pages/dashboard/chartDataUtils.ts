@@ -5,6 +5,7 @@ export const HISTORY_PAGE_SIZE = 600;
 export const BAR_RETRY_MS = 2400;
 export const BAR_RETRY_LIMIT = 15;
 export const MIN_USABLE_BARS = 20;
+export const STREAM_ERROR_GRACE_MS = 5000;
 
 export type StreamRequest = {
   kolId: string;
@@ -50,8 +51,8 @@ export function mergeBars(current: MarketBar[], incoming: MarketBar[]) {
 export function liveStatus(value: string): ChartLiveStatus {
   if (value === 'live' || value === 'subscribed') return 'live';
   if (value === 'polling') return 'polling';
-  if (value === 'error' || value === 'delayed') return 'delayed';
-  if (value === 'closed') return 'reconnecting';
+  if (value === 'error' || value === 'delayed' || value === 'parse_error') return 'delayed';
+  if (value === 'closed') return 'delayed';
   return 'connecting';
 }
 

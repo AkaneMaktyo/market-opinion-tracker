@@ -2,7 +2,7 @@ import { BellRing } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
-import type { PriceAlert, PriceAlertMonitorStatus } from '../../types/alerts';
+import type { PriceAlert, PriceAlertMonitorStatus, PriceAlertTriggerDirection } from '../../types/alerts';
 import { PriceAlertModal } from './PriceAlertModal';
 
 interface Props {
@@ -23,6 +23,7 @@ export function PriceAlertButton({ selectedSymbol, onJumpToChart, onOpen, trigge
   const [lower, setLower] = useState('');
   const [upper, setUpper] = useState('');
   const [target, setTarget] = useState('');
+  const [triggerDirection, setTriggerDirection] = useState<PriceAlertTriggerDirection>('ANY');
   const [editingId, setEditingId] = useState('');
   const [message, setMessage] = useState('');
 
@@ -87,6 +88,7 @@ export function PriceAlertButton({ selectedSymbol, onJumpToChart, onOpen, trigge
         lowerPrice: alertType === 'RANGE' ? lowerPrice : undefined,
         upperPrice: alertType === 'RANGE' ? upperPrice : undefined,
         targetPrice: alertType === 'POINT' ? targetPrice : undefined,
+        triggerDirection: alertType === 'POINT' ? triggerDirection : 'ANY',
       };
       if (editingId) {
         await api.updatePriceAlert(editingId, body);
@@ -109,6 +111,7 @@ export function PriceAlertButton({ selectedSymbol, onJumpToChart, onOpen, trigge
     setLower(String(alert.lowerPrice));
     setUpper(String(alert.upperPrice));
     setTarget(alert.targetPrice == null ? '' : String(alert.targetPrice));
+    setTriggerDirection(alert.triggerDirection || 'ANY');
     setMessage('');
   }
 
@@ -118,6 +121,7 @@ export function PriceAlertButton({ selectedSymbol, onJumpToChart, onOpen, trigge
     setLower('');
     setUpper('');
     setTarget('');
+    setTriggerDirection('ANY');
   }
 
   async function setEnabled(id: string, enabled: boolean) {
@@ -174,10 +178,12 @@ export function PriceAlertButton({ selectedSymbol, onJumpToChart, onOpen, trigge
           setLower={setLower}
           setSymbol={setSymbol}
           setTarget={setTarget}
+          setTriggerDirection={setTriggerDirection}
           setUpper={setUpper}
           status={status}
           symbol={symbol}
           target={target}
+          triggerDirection={triggerDirection}
           upper={upper}
         />
       ) : null}

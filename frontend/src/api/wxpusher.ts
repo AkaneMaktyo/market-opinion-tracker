@@ -7,6 +7,7 @@ import type {
   WxPusherSettings,
   WxPusherStatus,
 } from '../types';
+import type { PriceAlertRecognitionResult } from '../types/alerts';
 
 export const wxpusherApi = {
   wxpusherSettings: () => json<WxPusherSettings>('/api/wxpusher/settings'),
@@ -55,6 +56,11 @@ export const wxpusherApi = {
     json<WxPusherRecentMessage[]>(`/api/wxpusher/messages/recent?limit=${limit}`),
   wxpusherRecentMessageDetail: (id: string) =>
     json<WxPusherRecentMessage>(`/api/wxpusher/messages/recent/${encodeURIComponent(id)}`),
+  recognizeWxPusherPriceAlerts: (id: string) =>
+    json<PriceAlertRecognitionResult>(
+      `/api/wxpusher/messages/recent/${encodeURIComponent(id)}/price-alert-recognition`,
+      { method: 'POST' },
+    ),
   wxpusherOcrMessages: (limit = 50) =>
     json<WxPusherMessage[]>(`/api/wxpusher/messages/ocr?limit=${limit}`),
   retryWxPusherMessage: (id: string) =>

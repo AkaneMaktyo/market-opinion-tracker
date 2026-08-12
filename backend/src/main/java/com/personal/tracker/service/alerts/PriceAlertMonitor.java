@@ -112,15 +112,29 @@ public class PriceAlertMonitor {
   }
 
   static boolean crossed(BigDecimal previous, BigDecimal current, BigDecimal target) {
+    return crossed(previous, current, target, "ANY");
+  }
+
+  static boolean crossed(
+      BigDecimal previous, BigDecimal current, BigDecimal target, String direction) {
     if (current == null || target == null) {
       return false;
     }
-    if (current.compareTo(target) == 0) {
+    if (previous == null) {
+      return false;
+    }
+    int before = previous.compareTo(target);
+    int now = current.compareTo(target);
+    if ("UP".equalsIgnoreCase(direction)) {
+      return before < 0 && now >= 0;
+    }
+    if ("DOWN".equalsIgnoreCase(direction)) {
+      return before > 0 && now <= 0;
+    }
+    if (now == 0) {
       return true;
     }
-    return previous != null
-        && (previous.compareTo(target) < 0 && current.compareTo(target) > 0
-            || previous.compareTo(target) > 0 && current.compareTo(target) < 0);
+    return before < 0 && now > 0 || before > 0 && now < 0;
   }
 
   private void safeRefresh() {
@@ -176,7 +190,9 @@ public class PriceAlertMonitor {
       return;
     }
     lastConnectAttempt = now;
-    state = "CONNECTING";
+    if (!"POLLING".equals(state) && !"ERROR".equals(state)) {
+      state = lastMessageAt <= 0 ? "CONNECTING" : "POLLING";
+    }
     if (!connecting.compareAndSet(false, true)) {
       return;
     }
@@ -203,9 +219,11 @@ public class PriceAlertMonitor {
     lastMessageAt = System.currentTimeMillis();
     lastPingAt = 0;
     socket.sendText(subscriptionPayload(), true).whenComplete((ignored, sendError) -> {
-      if (sendError != null) {
+      if (sendError != null && websocket == socket) {
         lastError = message(sendError);
+        state = "POLLING";
         close("subscribe failed");
+        pollFallback();
       }
     });
   }
@@ -230,18 +248,31 @@ public class PriceAlertMonitor {
     }
     long now = System.currentTimeMillis();
     if (now - lastMessageAt > TimeUnit.SECONDS.toMillis(75)) {
-      state = "RECONNECTING";
+      state = "POLLING";
       close("ticker timeout");
+      pollFallback();
       return;
     }
     if (now - lastPingAt >= TimeUnit.SECONDS.toMillis(30)) {
       lastPingAt = now;
-      socket.sendText("ping", true).whenComplete((ignored, error) -> {
-        if (error != null) {
+      try {
+        socket.sendText("ping", true).whenComplete((ignored, error) -> {
+          if (error == null || websocket != socket) {
+            return;
+          }
           lastError = message(error);
+          state = "POLLING";
           close("heartbeat failed");
+          pollFallback();
+        });
+      } catch (RuntimeException error) {
+        if (websocket == socket) {
+          lastError = message(error);
+          state = "POLLING";
+          close("heartbeat failed");
+          pollFallback();
         }
-      });
+      }
     }
   }
 
@@ -338,16 +369,16 @@ public class PriceAlertMonitor {
     if (previous == null) {
       repository.observe(alert.id(), price, checkedAt);
     }
-    return crossed(previous, price, alert.targetPrice());
+    return crossed(previous, price, alert.targetPrice(), alert.triggerDirection());
   }
 
   private void notify(ActiveAlert alert, BigDecimal price, String checkedAt) {
     boolean point = "POINT".equalsIgnoreCase(alert.alertType());
     String title = point
-        ? "%s 到达提醒点位".formatted(alert.symbol())
+        ? "%s %s".formatted(alert.symbol(), pointTitle(alert.triggerDirection()))
         : "%s 进入价格区间".formatted(alert.symbol());
     String condition = point
-        ? "提醒点位：" + alert.targetPrice().toPlainString()
+        ? "%s：%s".formatted(directionLabel(alert.triggerDirection()), alert.targetPrice().toPlainString())
         : "目标区间：" + alert.lowerPrice().toPlainString() + " ～ " + alert.upperPrice().toPlainString();
     String content = """
         【价格信号提醒】
@@ -376,11 +407,31 @@ public class PriceAlertMonitor {
     refreshNow();
   }
 
+  private String pointTitle(String direction) {
+    return switch (direction == null ? "ANY" : direction.toUpperCase()) {
+      case "UP" -> "向上突破提醒点位";
+      case "DOWN" -> "向下跌破提醒点位";
+      default -> "到达提醒点位";
+    };
+  }
+
+  private String directionLabel(String direction) {
+    return switch (direction == null ? "ANY" : direction.toUpperCase()) {
+      case "UP" -> "向上突破";
+      case "DOWN" -> "向下跌破";
+      default -> "提醒点位";
+    };
+  }
+
   private void close(String reason) {
     WebSocket socket = websocket;
     websocket = null;
     if (socket != null) {
-      socket.sendClose(WebSocket.NORMAL_CLOSURE, reason);
+      try {
+        socket.sendClose(WebSocket.NORMAL_CLOSURE, reason);
+      } catch (RuntimeException ignored) {
+        // The socket may already be closed; fallback monitoring remains available.
+      }
     }
   }
 
@@ -430,6 +481,9 @@ public class PriceAlertMonitor {
 
     @Override
     public CompletionStage<?> onText(WebSocket socket, CharSequence data, boolean last) {
+      if (websocket != socket) {
+        return null;
+      }
       buffer.append(data);
       if (last) {
         handleMessage(buffer.toString());
@@ -443,7 +497,9 @@ public class PriceAlertMonitor {
     public CompletionStage<?> onClose(WebSocket socket, int statusCode, String reason) {
       if (websocket == socket) {
         websocket = null;
-        state = alertsByTopic.isEmpty() ? "IDLE" : "RECONNECTING";
+        state = alertsByTopic.isEmpty() ? "IDLE" : "POLLING";
+        lastError = "";
+        pollFallback();
       }
       return WebSocket.Listener.super.onClose(socket, statusCode, reason);
     }
@@ -452,10 +508,10 @@ public class PriceAlertMonitor {
     public void onError(WebSocket socket, Throwable error) {
       if (websocket == socket) {
         websocket = null;
+        state = "POLLING";
+        lastError = "";
+        pollFallback();
       }
-      state = "POLLING";
-      lastError = "";
-      pollFallback();
     }
   }
 

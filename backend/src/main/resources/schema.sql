@@ -413,10 +413,34 @@ CREATE TABLE IF NOT EXISTS resonance_alerts (
   INDEX idx_resonance_alert_cluster(cluster_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+ALTER TABLE llm_call_logs ADD COLUMN message_id VARCHAR(64);
+ALTER TABLE llm_call_logs ADD COLUMN request_body LONGTEXT;
+ALTER TABLE llm_call_logs ADD COLUMN response_body LONGTEXT;
+ALTER TABLE llm_call_logs ADD COLUMN http_status INT;
+ALTER TABLE llm_call_logs ADD COLUMN provider_request_id VARCHAR(255);
+ALTER TABLE llm_call_logs ADD COLUMN prompt_tokens INT NOT NULL DEFAULT 0;
+ALTER TABLE llm_call_logs ADD COLUMN completion_tokens INT NOT NULL DEFAULT 0;
+ALTER TABLE llm_call_logs ADD COLUMN total_tokens INT NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS message_price_alert_recognitions (
+  id VARCHAR(64) PRIMARY KEY,
+  message_id VARCHAR(64) NOT NULL,
+  status VARCHAR(32) NOT NULL,
+  ocr_text LONGTEXT,
+  candidates_json LONGTEXT,
+  warnings_json TEXT,
+  error_message TEXT,
+  created_at VARCHAR(64) NOT NULL,
+  updated_at VARCHAR(64) NOT NULL,
+  UNIQUE KEY uq_price_alert_recognition_message(message_id),
+  INDEX idx_price_alert_recognition_status(status, updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS price_signal_alerts (
   id VARCHAR(64) PRIMARY KEY,
   instrument_id VARCHAR(64) NOT NULL,
   alert_type VARCHAR(16) NOT NULL DEFAULT 'RANGE',
+  trigger_direction VARCHAR(16) NOT NULL DEFAULT 'ANY',
   lower_price DECIMAL(24, 8) NOT NULL,
   upper_price DECIMAL(24, 8) NOT NULL,
   target_price DECIMAL(24, 8),
@@ -426,7 +450,15 @@ CREATE TABLE IF NOT EXISTS price_signal_alerts (
   triggered_at VARCHAR(64),
   notify_status VARCHAR(32) NOT NULL,
   error_message TEXT,
+  source_recognition_id VARCHAR(64),
+  source_candidate_id VARCHAR(64),
   created_at VARCHAR(64) NOT NULL,
   updated_at VARCHAR(64) NOT NULL,
   INDEX idx_price_signal_active(status, instrument_id, updated_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE price_signal_alerts ADD COLUMN trigger_direction VARCHAR(16) NOT NULL DEFAULT 'ANY';
+ALTER TABLE price_signal_alerts ADD COLUMN source_recognition_id VARCHAR(64);
+ALTER TABLE price_signal_alerts ADD COLUMN source_candidate_id VARCHAR(64);
+CREATE UNIQUE INDEX uq_price_signal_source
+  ON price_signal_alerts(source_recognition_id, source_candidate_id);

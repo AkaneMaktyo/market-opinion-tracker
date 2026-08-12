@@ -67,6 +67,10 @@ frontend/
 配置 `SPRING_DATASOURCE_URL`、`SPRING_DATASOURCE_USERNAME` 和
 `SPRING_DATASOURCE_PASSWORD`。
 
+消息价格提醒智能识别使用独立的 `PRICE_ALERT_DEEPSEEK_API_KEY`，固定调用
+`deepseek-v4-flash`，不会复用观点提取或 YouTube 的模型配置。该密钥只能在
+服务器运行环境中设置，不要写入前端、安卓包或提交到 Git。
+
 本机访问线上库时先建立 SSH 隧道，再让 `SPRING_DATASOURCE_URL` 指向
 隧道端口，例如 `127.0.0.1:13306/market_opinion_tracker`。
 
@@ -107,7 +111,7 @@ npm run dev
 ### 自动发布
 
 - 推送到 `main` 会触发 GitHub Actions 自动构建并发布。
-- 自动发布现在会先校验前端产物，再做 3 次 SSH 上传重试。
+- 自动发布现在会先校验前端产物，再通过支持断点续传和流水线传输的 SSH 客户端上传；日志会记录耗时与平均速度，网络中断时会自动重试。
 
 ### 本机直连发布
 

@@ -14,6 +14,8 @@ import com.personal.tracker.service.wxpusher.WxPusherIngestionService.OcrBackfil
 import com.personal.tracker.service.wxpusher.WxPusherIngestionService.OcrOpinionBackfillResult;
 import com.personal.tracker.service.wxpusher.feed.WxPusherFeedService;
 import com.personal.tracker.service.wxpusher.feed.WxPusherFeedService.FeedMessage;
+import com.personal.tracker.service.alerts.recognition.MessagePriceAlertRecognitionService;
+import com.personal.tracker.service.alerts.recognition.PriceAlertRecognitionModels.Result;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -30,14 +32,17 @@ public class WxPusherController {
   private final WxPusherAdminService admin;
   private final WxPusherNotifySettingsRepository notifySettingsRepository;
   private final WxPusherFeedService feed;
+  private final MessagePriceAlertRecognitionService priceAlertRecognition;
 
   public WxPusherController(
       WxPusherAdminService admin,
       WxPusherNotifySettingsRepository notifySettingsRepository,
-      WxPusherFeedService feed) {
+      WxPusherFeedService feed,
+      MessagePriceAlertRecognitionService priceAlertRecognition) {
     this.admin = admin;
     this.notifySettingsRepository = notifySettingsRepository;
     this.feed = feed;
+    this.priceAlertRecognition = priceAlertRecognition;
   }
 
   @GetMapping("/settings")
@@ -118,6 +123,11 @@ public class WxPusherController {
   @GetMapping("/messages/recent/{id}")
   FeedMessage recentMessageDetail(@PathVariable String id) {
     return feed.detail(id);
+  }
+
+  @PostMapping("/messages/recent/{id}/price-alert-recognition")
+  Result recognizePriceAlerts(@PathVariable String id) {
+    return priceAlertRecognition.recognize(id);
   }
 
   @GetMapping("/messages/ocr")

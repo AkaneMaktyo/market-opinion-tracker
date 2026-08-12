@@ -1,6 +1,6 @@
 import { ExternalLink, Pause, Pencil, Play, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import type { PriceAlert, PriceAlertMonitorStatus } from '../../types/alerts';
+import type { PriceAlert, PriceAlertMonitorStatus, PriceAlertTriggerDirection } from '../../types/alerts';
 
 interface Props {
   alerts: PriceAlert[];
@@ -12,6 +12,7 @@ interface Props {
   status: PriceAlertMonitorStatus | null;
   symbol: string;
   target: string;
+  triggerDirection: PriceAlertTriggerDirection;
   upper: string;
   onClose: () => void;
   onCancelEdit: () => void;
@@ -25,6 +26,7 @@ interface Props {
   setLower: (value: string) => void;
   setSymbol: (value: string) => void;
   setTarget: (value: string) => void;
+  setTriggerDirection: (value: PriceAlertTriggerDirection) => void;
   setUpper: (value: string) => void;
 }
 
@@ -69,9 +71,18 @@ export function PriceAlertModal(props: Props) {
               </select>
             </label>
             {props.alertType === 'POINT' ? (
-              <label>提醒点位
-                <input min="0" step="any" type="number" value={props.target} onChange={(event) => props.setTarget(event.target.value)} />
-              </label>
+              <>
+                <label>提醒点位
+                  <input min="0" step="any" type="number" value={props.target} onChange={(event) => props.setTarget(event.target.value)} />
+                </label>
+                <label>触发方向
+                  <select value={props.triggerDirection} onChange={(event) => props.setTriggerDirection(event.target.value as PriceAlertTriggerDirection)}>
+                    <option value="ANY">任意方向穿越</option>
+                    <option value="UP">向上突破</option>
+                    <option value="DOWN">向下跌破</option>
+                  </select>
+                </label>
+              </>
             ) : (
               <>
                 <label>区间下限
@@ -166,7 +177,7 @@ function monitorLabel(state: PriceAlertMonitorStatus['state']) {
     CONNECTING: '正在连接',
     LIVE: 'Bitget 实时',
     POLLING: 'Bitget 轮询',
-    RECONNECTING: '正在重连',
+    RECONNECTING: '轮询监控',
     ERROR: '监控异常',
   }[state];
 }
@@ -177,8 +188,12 @@ function formatPrice(value: number) {
 
 function conditionLabel(alert: PriceAlert) {
   return alert.alertType === 'POINT'
-    ? `点位 ${formatPrice(alert.targetPrice ?? alert.lowerPrice)}`
+    ? `${directionLabel(alert.triggerDirection)} ${formatPrice(alert.targetPrice ?? alert.lowerPrice)}`
     : `${formatPrice(alert.lowerPrice)} ～ ${formatPrice(alert.upperPrice)}`;
+}
+
+function directionLabel(direction: PriceAlertTriggerDirection) {
+  return ({ ANY: '穿越点位', UP: '向上突破', DOWN: '向下跌破' })[direction || 'ANY'];
 }
 
 function formatTime(value?: string) {
