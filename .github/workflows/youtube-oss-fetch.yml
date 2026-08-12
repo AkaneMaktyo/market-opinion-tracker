@@ -35,10 +35,10 @@ jobs:
       YOUTUBE_PROXY_URL: ${{ (secrets.MIHOMO_SUBSCRIPTION_URL != '' || secrets.MIHOMO_CONFIG_GZ_B64 != '') && 'http://127.0.0.1:7897' || '' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: "3.11"
 
