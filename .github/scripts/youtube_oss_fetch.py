@@ -6,6 +6,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
@@ -89,6 +90,56 @@ def fetch_feed(channel_id, limit):
             }
         )
     return videos
+
+
+def fetch_channel_page(channel_id, limit):
+    url = f"https://www.youtube.com/channel/{channel_id}/videos"
+    command = [
+        sys.executable,
+        "-m",
+        "yt_dlp",
+        *yt_dlp_args(),
+        "--flat-playlist",
+        "--playlist-end",
+        str(limit),
+        "--extractor-args",
+        "youtubetab:approximate_date",
+        "--dump-single-json",
+        "--no-warnings",
+        url,
+    ]
+    result = subprocess.run(command, check=True, capture_output=True, text=True, timeout=90)
+    payload = json.loads(result.stdout)
+    videos = []
+    for entry in (payload.get("entries") or [])[:limit]:
+        video_id = str(entry.get("id") or "").strip()
+        if not video_id:
+            continue
+        published_at = timestamp_iso(entry.get("timestamp") or entry.get("release_timestamp"))
+        videos.append(
+            {
+                "videoId": video_id,
+                "title": str(entry.get("title") or "").strip(),
+                "videoUrl": f"https://www.youtube.com/watch?v={video_id}",
+                "publishedAt": published_at,
+            }
+        )
+    return videos
+
+
+def discover_videos(channel_id, limit):
+    try:
+        return fetch_feed(channel_id, limit)
+    except (urllib.error.HTTPError, urllib.error.URLError, ET.ParseError) as error:
+        print(f"feed unavailable for {channel_id}; using channel page: {error}", file=sys.stderr)
+        return fetch_channel_page(channel_id, limit)
+
+
+def timestamp_iso(value):
+    try:
+        return datetime.fromtimestamp(float(value), timezone.utc).isoformat()
+    except (TypeError, ValueError, OSError):
+        return ""
 
 
 def text(node):
@@ -180,7 +231,7 @@ def main():
         if not channel_id:
             continue
         fetched = []
-        for video in fetch_feed(channel_id, max_videos):
+        for video in discover_videos(channel_id, max_videos):
             try:
                 fetched.append(attach_audio(store, video))
             except Exception as error:
