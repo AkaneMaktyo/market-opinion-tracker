@@ -1,5 +1,32 @@
 $ErrorActionPreference = 'Stop'
 
+function Test-GitHubRoute {
+    param([string]$ProxyUrl = '')
+
+    for ($attempt = 1; $attempt -le 4; $attempt++) {
+        $arguments = @(
+            '--fail', '--silent', '--show-error', '--location',
+            '--connect-timeout', '5', '--max-time', '20',
+            '--output', 'NUL'
+        )
+        if ([string]::IsNullOrWhiteSpace($ProxyUrl)) {
+            $arguments += @('--noproxy', '*')
+        } else {
+            $arguments += @('--proxy', $ProxyUrl)
+        }
+        $arguments += 'https://api.github.com/meta'
+        & curl.exe @arguments
+        if ($LASTEXITCODE -eq 0) {
+            return $true
+        }
+        Write-Host "GitHub route probe $attempt/4 failed; retrying."
+        if ($attempt -lt 4) {
+            Start-Sleep -Seconds (2 * $attempt)
+        }
+    }
+    return $false
+}
+
 $targets = @('github.com', 'api.github.com', 'codeload.github.com')
 foreach ($target in $targets) {
     try {
@@ -14,9 +41,7 @@ foreach ($target in $targets) {
 $directOk = $false
 $connection = Test-NetConnection -ComputerName github.com -Port 443 -WarningAction SilentlyContinue
 if ($connection.TcpTestSucceeded) {
-    curl.exe --noproxy '*' --fail --silent --show-error --head `
-        --connect-timeout 5 --max-time 15 https://github.com | Out-Null
-    $directOk = $LASTEXITCODE -eq 0
+    $directOk = Test-GitHubRoute
 }
 
 $proxyUrl = $env:DEPLOY_HTTPS_PROXY
@@ -30,10 +55,8 @@ if (-not $directOk -and [string]::IsNullOrWhiteSpace($proxyUrl)) {
     }
 }
 if (-not $directOk -and -not [string]::IsNullOrWhiteSpace($proxyUrl)) {
-    curl.exe --proxy $proxyUrl --fail --silent --show-error --head `
-        --connect-timeout 5 --max-time 20 https://github.com | Out-Null
-    if ($LASTEXITCODE -ne 0) {
-        throw "Runner proxy request to GitHub failed with curl exit code $LASTEXITCODE."
+    if (-not (Test-GitHubRoute -ProxyUrl $proxyUrl)) {
+        throw 'Runner proxy request to GitHub failed after 4 attempts.'
     }
 }
 if (-not $directOk -and [string]::IsNullOrWhiteSpace($proxyUrl)) {
