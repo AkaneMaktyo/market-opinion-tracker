@@ -24,6 +24,8 @@ export function useDashboardData() {
   const [backfillBusy, setBackfillBusy] = useState(false);
   const [backfillError, setBackfillError] = useState('');
   const [instrumentGroups, setInstrumentGroups] = useState<string[]>([]);
+  const [quotesRefreshing, setQuotesRefreshing] = useState(false);
+  const [lastQuoteAt, setLastQuoteAt] = useState<number | null>(null);
   const chart = useChartData();
   const { bars, opinions, chartLoading, chartRefreshing, chartMessage, loadChart } = chart;
 
@@ -100,11 +102,15 @@ export function useDashboardData() {
   const refreshQuotes = useCallback(async () => {
     if (quoteRefreshInFlight.current) return;
     quoteRefreshInFlight.current = true;
+    setQuotesRefreshing(true);
+    const kolId = kolRef.current;
     try {
-      const nextInstruments = await api.watchlist(kolRef.current);
-      instrumentCache.current.set(kolRef.current, nextInstruments);
-      writeInstrumentCache(kolRef.current, nextInstruments);
+      const nextInstruments = await api.watchlist(kolId);
+      if (kolId !== kolRef.current) return;
+      instrumentCache.current.set(kolId, nextInstruments);
+      writeInstrumentCache(kolId, nextInstruments);
       setInstruments(nextInstruments);
+      setLastQuoteAt(Date.now());
       const nextSelected = selectionPinned.current && selectedRef.current
         ? selectedRef.current
         : pickSelectedSymbol(nextInstruments, selectedRef.current);
@@ -113,15 +119,23 @@ export function useDashboardData() {
       }
     } finally {
       quoteRefreshInFlight.current = false;
+      setQuotesRefreshing(false);
     }
   }, [setSelectedValue]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
+    const refreshWhenVisible = () => {
       if (document.hidden) return;
       void refreshQuotes().catch(() => undefined);
-    }, QUOTE_REFRESH_MS);
-    return () => window.clearInterval(timer);
+    };
+    const timer = window.setInterval(refreshWhenVisible, QUOTE_REFRESH_MS);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    window.addEventListener('focus', refreshWhenVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener('focus', refreshWhenVisible);
+    };
   }, [refreshQuotes]);
 
   useEffect(() => {
@@ -200,6 +214,7 @@ export function useDashboardData() {
     backfill, backfillBusy, backfillError, instrumentGroups, chartLoading,
     chartRefreshing, chartMessage, setKols, selectKol, selectSymbol, changeTimeframe,
     reload, refreshOpinions, startBackfillAll, startBackfillCurrent,
+    refreshQuotes, quotesRefreshing, lastQuoteAt,
     chartLiveStatus: chart.chartLiveStatus,
     lastRealtimeAt: chart.lastRealtimeAt,
     historyLoading: chart.historyLoading,

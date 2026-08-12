@@ -50,17 +50,23 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
     setComposerOpen(true);
   }
 
+  function focusSymbol(symbol: string) {
+    dashboard.selectSymbol(symbol);
+    setTab('overview');
+    window.requestAnimationFrame(() => viewportRef.current?.scrollTo({ top: 0, behavior: 'smooth' }));
+  }
+
   return (
     <main className="mobile-app-shell">
       <header className="mobile-app-header">
         <div className="mobile-brand-mark" aria-hidden="true"><span /></div>
         <div className="mobile-page-title"><small>Market pulse</small><strong>{tabTitles[tab]}</strong></div>
         <button aria-label="搜索观点" className="mobile-header-button" onClick={() => setTab('opinions')} type="button"><Search size={20} /></button>
-        <PriceAlertButton onJumpToChart={(symbol) => { dashboard.selectSymbol(symbol); setTab('overview'); }} selectedSymbol={dashboard.selected} trigger={<><Bell size={20} /><span className="mobile-notice-dot" /><span className="mobile-visually-hidden">价格提醒</span></>} triggerClassName="mobile-header-button mobile-notice-button" />
+        <PriceAlertButton onJumpToChart={focusSymbol} selectedSymbol={dashboard.selected} trigger={<><Bell size={20} /><span className="mobile-notice-dot" /><span className="mobile-visually-hidden">价格提醒</span></>} triggerClassName="mobile-header-button mobile-notice-button" />
       </header>
 
       <section className="mobile-app-viewport" aria-live="polite" ref={viewportRef}>
-        {tab === 'overview' ? <MobileOverview dashboard={dashboard} onOpenOpinions={() => setTab('opinions')} onQuickAdd={() => setQuickOpen(true)} /> : null}
+        {tab === 'overview' ? <MobileOverview dashboard={dashboard} onFocusSymbol={focusSymbol} onOpenOpinions={() => setTab('opinions')} onQuickAdd={() => setQuickOpen(true)} /> : null}
         {tab === 'opinions' ? <MobileOpinions focusMessageId={focusMessageId} /> : null}
         {tab === 'transcript' ? <MobileTranscript onCreateOpinion={openComposer} /> : null}
         {tab === 'profile' ? <MobileProfile dashboard={dashboard} liveUpdate={liveUpdate} onOpenTranscript={() => setTab('transcript')} /> : null}
@@ -74,7 +80,7 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
         <NavButton active={tab === 'profile'} icon={<UserRound size={21} />} label="我的" onClick={() => setTab('profile')} />
       </nav>
 
-      {quickOpen ? <div className="modal-backdrop mobile-quick-backdrop" data-mobile-overlay onMouseDown={() => setQuickOpen(false)}><section className="mobile-quick-sheet" onMouseDown={(event) => event.stopPropagation()}><div className="mobile-sheet-handle" /><div className="mobile-sheet-title"><div><h2>快速添加</h2><small>常用操作集中在这里</small></div><button aria-label="关闭" onClick={() => setQuickOpen(false)} type="button"><X size={20} /></button></div><JsonImportPanel kolId={dashboard.selectedKol} onImported={(symbol) => { dashboard.reload(symbol); setTab('opinions'); }} onOpen={() => setQuickOpen(false)} trigger={<ActionContent icon={<ClipboardPaste size={20} />} note="从聊天或直播文字快速识别" title="粘贴导入观点" />} triggerClassName="mobile-action-row" /><button className="mobile-action-row" onClick={() => openComposer()} type="button"><ActionContent icon={<PenLine size={20} />} note="选择标的、方向和关键价位" title="手动记录观点" /></button><PriceAlertButton onJumpToChart={(symbol) => { dashboard.selectSymbol(symbol); setTab('overview'); }} onOpen={() => setQuickOpen(false)} selectedSymbol={dashboard.selected} trigger={<ActionContent icon={<Bell size={20} />} note="到价后自动发送手机通知" title="创建价格提醒" />} triggerClassName="mobile-action-row" /></section></div> : null}
+      {quickOpen ? <div className="modal-backdrop mobile-quick-backdrop" data-mobile-overlay onMouseDown={() => setQuickOpen(false)}><section className="mobile-quick-sheet" onMouseDown={(event) => event.stopPropagation()}><div className="mobile-sheet-handle" /><div className="mobile-sheet-title"><div><h2>快速添加</h2><small>常用操作集中在这里</small></div><button aria-label="关闭" onClick={() => setQuickOpen(false)} type="button"><X size={20} /></button></div><JsonImportPanel kolId={dashboard.selectedKol} onImported={(symbol) => { dashboard.reload(symbol); setTab('opinions'); }} onOpen={() => setQuickOpen(false)} trigger={<ActionContent icon={<ClipboardPaste size={20} />} note="从聊天或直播文字快速识别" title="粘贴导入观点" />} triggerClassName="mobile-action-row" /><button className="mobile-action-row" onClick={() => openComposer()} type="button"><ActionContent icon={<PenLine size={20} />} note="选择标的、方向和关键价位" title="手动记录观点" /></button><PriceAlertButton onJumpToChart={(symbol) => { setQuickOpen(false); focusSymbol(symbol); }} selectedSymbol={dashboard.selected} trigger={<ActionContent icon={<Bell size={20} />} note="到价后自动发送手机通知" title="创建价格提醒" />} triggerClassName="mobile-action-row" /></section></div> : null}
 
       <MobileComposer dashboard={dashboard} onClose={() => setComposerOpen(false)} onCreated={() => setTab('opinions')} open={composerOpen} seed={composerSeed} />
     </main>

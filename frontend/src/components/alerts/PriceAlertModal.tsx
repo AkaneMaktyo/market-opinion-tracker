@@ -1,4 +1,5 @@
 import { ExternalLink, Pause, Pencil, Play, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import type { PriceAlert, PriceAlertMonitorStatus } from '../../types/alerts';
 
 interface Props {
@@ -28,12 +29,20 @@ interface Props {
 }
 
 export function PriceAlertModal(props: Props) {
-  return (
-    <div className="modal-backdrop" onMouseDown={props.onClose}>
-      <section className="entry price-alert-modal" onMouseDown={(event) => event.stopPropagation()}>
+  return createPortal(
+    <div className="modal-backdrop price-alert-backdrop" onMouseDown={props.onClose}>
+      <section
+        aria-busy={props.busy}
+        aria-labelledby="price-alert-title"
+        aria-modal="true"
+        className="entry price-alert-modal"
+        onMouseDown={(event) => event.stopPropagation()}
+        role="dialog"
+      >
+        <div className="price-alert-sheet-handle" />
         <header className="modal-head">
           <div>
-            <div className="panel-title">价格信号提醒</div>
+            <div className="panel-title" id="price-alert-title">价格信号提醒</div>
             <p>后台通过 Bitget 行情监控，进入区间或穿越点位后发送一次 WxPusher。</p>
           </div>
           <div className="inline-actions">
@@ -46,82 +55,85 @@ export function PriceAlertModal(props: Props) {
           </div>
         </header>
 
-        <MonitorStatus status={props.status} />
+        <div className="price-alert-scroll">
+          <MonitorStatus status={props.status} />
 
-        <div className="price-alert-form">
-          <label>标的
-            <input value={props.symbol} onChange={(event) => props.setSymbol(event.target.value.toUpperCase())} />
-          </label>
-          <label>提醒方式
-            <select value={props.alertType} onChange={(event) => props.setAlertType(event.target.value as 'RANGE' | 'POINT')}>
-              <option value="RANGE">价格区间</option>
-              <option value="POINT">单个点位</option>
-            </select>
-          </label>
-          {props.alertType === 'POINT' ? (
-            <label>提醒点位
-              <input min="0" step="any" type="number" value={props.target} onChange={(event) => props.setTarget(event.target.value)} />
+          <div className="price-alert-form">
+            <label>标的
+              <input value={props.symbol} onChange={(event) => props.setSymbol(event.target.value.toUpperCase())} />
             </label>
-          ) : (
-            <>
-              <label>区间下限
-                <input min="0" step="any" type="number" value={props.lower} onChange={(event) => props.setLower(event.target.value)} />
+            <label>提醒方式
+              <select value={props.alertType} onChange={(event) => props.setAlertType(event.target.value as 'RANGE' | 'POINT')}>
+                <option value="RANGE">价格区间</option>
+                <option value="POINT">单个点位</option>
+              </select>
+            </label>
+            {props.alertType === 'POINT' ? (
+              <label>提醒点位
+                <input min="0" step="any" type="number" value={props.target} onChange={(event) => props.setTarget(event.target.value)} />
               </label>
-              <label>区间上限
-                <input min="0" step="any" type="number" value={props.upper} onChange={(event) => props.setUpper(event.target.value)} />
-              </label>
-            </>
-          )}
-          <button className="primary" disabled={props.busy} onClick={props.onSave} type="button">
-            {props.editing ? <Save size={16} /> : <Plus size={16} />}
-            {props.editing ? '保存修改' : '新增提醒'}
-          </button>
-          {props.editing ? <button className="text-button" onClick={props.onCancelEdit} type="button">取消编辑</button> : null}
-        </div>
+            ) : (
+              <>
+                <label>区间下限
+                  <input min="0" step="any" type="number" value={props.lower} onChange={(event) => props.setLower(event.target.value)} />
+                </label>
+                <label>区间上限
+                  <input min="0" step="any" type="number" value={props.upper} onChange={(event) => props.setUpper(event.target.value)} />
+                </label>
+              </>
+            )}
+            <button className="primary" disabled={props.busy} onClick={props.onSave} type="button">
+              {props.editing ? <Save size={16} /> : <Plus size={16} />}
+              {props.editing ? '保存修改' : '新增提醒'}
+            </button>
+            {props.editing ? <button className="text-button" onClick={props.onCancelEdit} type="button">取消编辑</button> : null}
+          </div>
 
-        {props.message ? <div className="form-message">{props.message}</div> : null}
-        <div className="price-alert-list">
-          {props.alerts.length === 0 ? <p className="muted">还没有价格提醒。</p> : null}
-          {props.alerts.map((alert) => (
-            <article className="price-alert-row" key={alert.id}>
-              <div className="price-alert-main">
-                <div>
-                  <strong>{alert.symbol}</strong>
-                  <span className={`status-pill ${alert.status === 'ACTIVE' ? 'active' : ''}`}>
-                    {statusLabel(alert.status)}
-                  </span>
+          {props.message ? <div className="form-message">{props.message}</div> : null}
+          <div className="price-alert-list">
+            {props.alerts.length === 0 ? <p className="muted">还没有价格提醒。</p> : null}
+            {props.alerts.map((alert) => (
+              <article className="price-alert-row" key={alert.id}>
+                <div className="price-alert-main">
+                  <div>
+                    <strong>{alert.symbol}</strong>
+                    <span className={`status-pill ${alert.status === 'ACTIVE' ? 'active' : ''}`}>
+                      {statusLabel(alert.status)}
+                    </span>
+                  </div>
+                  <p>{conditionLabel(alert)}</p>
+                  {alert.lastPrice != null ? (
+                    <small>最近价 {formatPrice(alert.lastPrice)} · {formatTime(alert.lastCheckedAt)}</small>
+                  ) : <small>等待首次行情</small>}
+                  {alert.errorMessage ? <small className="alert-error">{alert.errorMessage}</small> : null}
                 </div>
-                <p>{conditionLabel(alert)}</p>
-                {alert.lastPrice != null ? (
-                  <small>最近价 {formatPrice(alert.lastPrice)} · {formatTime(alert.lastCheckedAt)}</small>
-                ) : <small>等待首次行情</small>}
-                {alert.errorMessage ? <small className="alert-error">{alert.errorMessage}</small> : null}
-              </div>
-              <div className="inline-actions">
-                <button className="icon-button" disabled={props.busy} onClick={() => props.onJump(alert.symbol)} title="跳转到该 K 线" type="button">
-                  <ExternalLink size={15} />
-                </button>
-                <button className="icon-button" disabled={props.busy} onClick={() => props.onEdit(alert)} title="编辑" type="button">
-                  <Pencil size={15} />
-                </button>
-                <button
-                  className="icon-button"
-                  disabled={props.busy}
-                  onClick={() => props.onSetEnabled(alert.id, alert.status !== 'ACTIVE')}
-                  title={alert.status === 'ACTIVE' ? '暂停' : '重新启用'}
-                  type="button"
-                >
-                  {alert.status === 'ACTIVE' ? <Pause size={15} /> : <Play size={15} />}
-                </button>
-                <button className="icon-button danger" disabled={props.busy} onClick={() => props.onDelete(alert.id)} title="删除" type="button">
-                  <Trash2 size={15} />
-                </button>
-              </div>
-            </article>
-          ))}
+                <div className="inline-actions">
+                  <button className="icon-button" disabled={props.busy} onClick={() => props.onJump(alert.symbol)} title="跳转到该 K 线" type="button">
+                    <ExternalLink size={15} />
+                  </button>
+                  <button className="icon-button" disabled={props.busy} onClick={() => props.onEdit(alert)} title="编辑" type="button">
+                    <Pencil size={15} />
+                  </button>
+                  <button
+                    className="icon-button"
+                    disabled={props.busy}
+                    onClick={() => props.onSetEnabled(alert.id, alert.status !== 'ACTIVE')}
+                    title={alert.status === 'ACTIVE' ? '暂停' : '重新启用'}
+                    type="button"
+                  >
+                    {alert.status === 'ACTIVE' ? <Pause size={15} /> : <Play size={15} />}
+                  </button>
+                  <button className="icon-button danger" disabled={props.busy} onClick={() => props.onDelete(alert.id)} title="删除" type="button">
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
