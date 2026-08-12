@@ -3,9 +3,10 @@ param(
     [int]$SshPort = 29453,
     [string]$SshUser = "root",
     [string]$SshPassword = "",
-    [string]$VersionName = "1.3",
-    [int]$VersionCode = 4,
+    [string]$VersionName = "",
+    [int]$VersionCode = 0,
     [string]$JpushAppKey = "REPLACE_WITH_APPKEY",
+    [string]$ApkPath = "",
     [string]$PublicBaseUrl = "http://103.236.98.149:8888/market",
     [switch]$SkipBuild
 )
@@ -15,12 +16,33 @@ $ErrorActionPreference = "Stop"
 $rootDir = Split-Path -Parent $PSScriptRoot
 $frontendDir = Join-Path $rootDir "frontend"
 $androidDir = Join-Path $frontendDir "android"
-$releaseApk = Join-Path $androidDir "app\build\outputs\apk\release\app-release.apk"
+$releaseApk = if ([string]::IsNullOrWhiteSpace($ApkPath)) {
+    Join-Path $androidDir "app\build\outputs\apk\release\app-release.apk"
+} else {
+    (Resolve-Path $ApkPath).Path
+}
 $remoteApkDir = "/var/www/market-opinion-tracker/market/apk"
 $remoteApk = "$remoteApkDir/market-opinion-tracker.apk"
 $remoteJson = "$remoteApkDir/apk.json"
 $publishClient = Join-Path $PSScriptRoot "apk-upload.py"
 $localJson = Join-Path $env:TEMP "mot-apk-$PID.json"
+$versionFile = Join-Path $PSScriptRoot "mobile\android-version.json"
+
+if ([string]::IsNullOrWhiteSpace($VersionName) -or $VersionCode -le 0) {
+    if (-not (Test-Path $versionFile)) {
+        throw "Android version file not found: $versionFile"
+    }
+    $version = Get-Content -Raw $versionFile | ConvertFrom-Json
+    if ([string]::IsNullOrWhiteSpace($VersionName)) {
+        $VersionName = [string]$version.versionName
+    }
+    if ($VersionCode -le 0) {
+        $VersionCode = [int]$version.versionCode
+    }
+}
+if ([string]::IsNullOrWhiteSpace($VersionName) -or $VersionCode -le 0) {
+    throw "Invalid Android version."
+}
 
 function Set-GradleProxyEnvironment {
     $proxyUrl = if (-not [string]::IsNullOrWhiteSpace($env:HTTPS_PROXY)) {
@@ -68,7 +90,7 @@ function Set-AndroidBuildEnvironment {
 if ([string]::IsNullOrWhiteSpace($SshPassword)) {
     throw "Missing -SshPassword."
 }
-if ([string]::IsNullOrWhiteSpace($JpushAppKey) -or $JpushAppKey -eq "REPLACE_WITH_APPKEY") {
+if (-not $SkipBuild -and ([string]::IsNullOrWhiteSpace($JpushAppKey) -or $JpushAppKey -eq "REPLACE_WITH_APPKEY")) {
     throw "Missing production -JpushAppKey."
 }
 $signingHome = if ([string]::IsNullOrWhiteSpace($env:MOT_ANDROID_SIGNING_HOME)) {
@@ -81,7 +103,7 @@ $signingFiles = @(
     (Join-Path $signingHome 'android-signing.properties')
 )
 $missingSigningFiles = $signingFiles | Where-Object { -not (Test-Path $_) }
-if ($missingSigningFiles) {
+if (-not $SkipBuild -and $missingSigningFiles) {
     throw "Android release signing files are missing: $($missingSigningFiles -join ', ')"
 }
 

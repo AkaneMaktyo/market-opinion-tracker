@@ -1,0 +1,124 @@
+name: Build and publish Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/android/**"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - "frontend/capacitor.config.ts"
+      - "frontend/.env.android"
+      - "deploy/apk-upload.py"
+      - "deploy/publish-apk.ps1"
+      - "deploy/mobile/android-version.json"
+      - ".github/scripts/setup_runner_network.ps1"
+      - ".github/workflows/android-apk.yml"
+
+concurrency:
+  group: android-apk-production
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      JPUSH_APP_KEY: ${{ secrets.JPUSH_APP_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools"
+      - name: Prepare signing
+        env:
+          ANDROID_RELEASE_JKS_B64: ${{ secrets.ANDROID_RELEASE_JKS_B64 }}
+          ANDROID_SIGNING_PROPERTIES_B64: ${{ secrets.ANDROID_SIGNING_PROPERTIES_B64 }}
+        run: |
+          test -n "$ANDROID_RELEASE_JKS_B64"
+          test -n "$ANDROID_SIGNING_PROPERTIES_B64"
+          mkdir -p "$RUNNER_TEMP/android-signing"
+          printf '%s' "$ANDROID_RELEASE_JKS_B64" | base64 -d > "$RUNNER_TEMP/android-signing/android-release.jks"
+          printf '%s' "$ANDROID_SIGNING_PROPERTIES_B64" | base64 -d > "$RUNNER_TEMP/android-signing/android-signing.properties"
+          echo "MOT_ANDROID_SIGNING_HOME=$RUNNER_TEMP/android-signing" >> "$GITHUB_ENV"
+      - name: Build signed APK
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run android:sync
+          chmod +x android/gradlew
+          version_name=$(node -p "JSON.parse(require('fs').readFileSync('../deploy/mobile/android-version.json', 'utf8')).versionName")
+          version_code=$(node -p "JSON.parse(require('fs').readFileSync('../deploy/mobile/android-version.json', 'utf8')).versionCode")
+          test -n "$JPUSH_APP_KEY"
+          ./android/gradlew -p android :app:assembleRelease \
+            -PversionName="$version_name" \
+            -PversionCode="$version_code" \
+            -PjpushAppKey="$JPUSH_APP_KEY" \
+            --no-daemon --console=plain
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-release-apk
+          path: frontend/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    needs: build
+    runs-on: [self-hosted, windows, x64, market-deploy]
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command ". '{0}'"
+    env:
+      DEPLOY_HTTP_PROXY: ${{ secrets.DEPLOY_HTTP_PROXY }}
+      DEPLOY_HTTPS_PROXY: ${{ secrets.DEPLOY_HTTPS_PROXY }}
+      DEPLOY_NO_PROXY: ${{ secrets.DEPLOY_NO_PROXY }}
+      HTTP_PROXY: ${{ secrets.DEPLOY_HTTP_PROXY || 'http://127.0.0.1:7897' }}
+      HTTPS_PROXY: ${{ secrets.DEPLOY_HTTPS_PROXY || 'http://127.0.0.1:7897' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure Runner network
+        run: '& .\.github\scripts\setup_runner_network.ps1'
+      - uses: actions/download-artifact@v4
+        with:
+          name: android-release-apk
+          path: artifacts/android
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Publish APK
+        env:
+          SSH_HOST: ${{ secrets.KMT_SSH_HOST }}
+          SSH_PORT: ${{ secrets.KMT_SSH_PORT }}
+          SSH_USER: ${{ secrets.KMT_SSH_USER }}
+          SSH_PASSWORD: ${{ secrets.KMT_SSH_PASSWORD }}
+        run: |
+          python -m pip install --disable-pip-version-check paramiko
+          $version = Get-Content -Raw .\deploy\mobile\android-version.json | ConvertFrom-Json
+          & .\deploy\publish-apk.ps1 `
+            -SshHost $env:SSH_HOST `
+            -SshPort ([int]$env:SSH_PORT) `
+            -SshUser $env:SSH_USER `
+            -SshPassword $env:SSH_PASSWORD `
+            -VersionName $version.versionName `
+            -VersionCode ([int]$version.versionCode) `
+            -ApkPath .\artifacts\android\app-release.apk `
+            -SkipBuild
+      - name: Verify APK manifest
+        run: |
+          $version = Get-Content -Raw .\deploy\mobile\android-version.json | ConvertFrom-Json
+          $apk = Invoke-RestMethod -Uri 'http://103.236.98.149:8888/market/apk/apk.json' -TimeoutSec 20
+          if ([int]$apk.versionCode -ne [int]$version.versionCode -or $apk.versionName -ne $version.versionName) {
+            throw 'Published APK version verification failed.'
+          }
