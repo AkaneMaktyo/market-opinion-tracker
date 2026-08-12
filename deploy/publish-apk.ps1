@@ -44,6 +44,27 @@ function Set-GradleProxyEnvironment {
     $env:JAVA_TOOL_OPTIONS = "$($env:JAVA_TOOL_OPTIONS) $options".Trim()
 }
 
+function Set-AndroidBuildEnvironment {
+    $jdk = Get-ChildItem 'C:\Program Files\Microsoft' -Directory -Filter 'jdk-21*' -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTime -Descending | Select-Object -First 1
+    if (-not $jdk) {
+        throw "JDK 21 not found."
+    }
+    $env:JAVA_HOME = $jdk.FullName
+    $sdkCandidates = @(
+        $env:ANDROID_HOME,
+        $env:ANDROID_SDK_ROOT,
+        (Join-Path $env:LOCALAPPDATA 'Android\Sdk'),
+        'C:\Android\Sdk'
+    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
+    $sdk = $sdkCandidates | Where-Object { Test-Path (Join-Path $_ 'platform-tools') } | Select-Object -First 1
+    if (-not $sdk) {
+        throw "Android SDK not found. Checked: $($sdkCandidates -join ', ')"
+    }
+    $env:ANDROID_HOME = $sdk
+    $env:ANDROID_SDK_ROOT = $sdk
+}
+
 if ([string]::IsNullOrWhiteSpace($SshPassword)) {
     throw "Missing -SshPassword."
 }
@@ -75,13 +96,7 @@ if (-not $SkipBuild) {
         Pop-Location
     }
 
-    $jdk = Get-ChildItem 'C:\Program Files\Microsoft' -Directory -Filter 'jdk-21*' |
-        Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    if (-not $jdk) {
-        throw "JDK 21 not found."
-    }
-    $env:JAVA_HOME = $jdk.FullName
-    $env:ANDROID_HOME = Join-Path $env:LOCALAPPDATA 'Android\Sdk'
+    Set-AndroidBuildEnvironment
     $versionCodeArg = "-PversionCode=$VersionCode"
     $versionNameArg = "-PversionName=$VersionName"
     $jpushKeyArg = "-PjpushAppKey=$JpushAppKey"
