@@ -6,7 +6,7 @@ param(
     [string]$JarPath = "",
     [string]$FrontendArchivePath = "",
     [string]$PublicBaseUrl = "http://103.236.98.149:8888/market",
-    [string]$NativeVersionCode = "4",
+    [string]$NativeVersionCode = "",
     [switch]$SkipBuild
 )
 
@@ -27,6 +27,18 @@ $localReleaseScript = Join-Path $env:TEMP "mot-apply-release-$PID.sh"
 $localRuntimeEnv = Join-Path $env:TEMP "mot-runtime-env-$PID"
 $localMuxScript = Join-Path $PSScriptRoot "ssh_http_mux.py"
 $releaseClient = Join-Path $PSScriptRoot "ssh-release.py"
+$androidVersionFile = Join-Path $PSScriptRoot "mobile\android-version.json"
+
+if ([string]::IsNullOrWhiteSpace($NativeVersionCode)) {
+    if (-not (Test-Path $androidVersionFile)) {
+        throw "Android version file not found: $androidVersionFile"
+    }
+    $androidVersion = Get-Content -Raw $androidVersionFile | ConvertFrom-Json
+    $NativeVersionCode = [string]$androidVersion.versionCode
+}
+if ($NativeVersionCode -notmatch '^\d+$') {
+    throw "Invalid Android native version code."
+}
 
 function Find-PythonCommand {
     $commands = @()
