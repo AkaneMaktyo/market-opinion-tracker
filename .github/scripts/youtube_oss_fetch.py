@@ -163,7 +163,7 @@ def duration_ms(video_url):
         return 0
 
 
-def download_audio(video):
+def download_audio(video, extra_args=None):
     with tempfile.TemporaryDirectory() as tmp:
         root = pathlib.Path(tmp)
         output = root / f"{video['videoId']}.%(ext)s"
@@ -172,6 +172,7 @@ def download_audio(video):
             "-m",
             "yt_dlp",
             *yt_dlp_args(),
+            *(extra_args or []),
             "--no-playlist",
             "--progress",
             "--newline",
@@ -200,6 +201,47 @@ def attach_audio(store, video):
     video["audioObjectKey"] = audio_key
     video["audioDurationMs"] = duration_ms(video["videoUrl"])
     return video
+
+
+def rotate_proxy(excluded):
+    group = env("MIHOMO_PROXY_GROUP", "红杏云")
+    command = [
+        sys.executable,
+        str(pathlib.Path(__file__).with_name("mihomo_proxy.py")),
+        "rotate",
+        "--group",
+        group,
+    ]
+    for name in excluded:
+        command.extend(["--exclude", name])
+    result = subprocess.run(command, check=True, capture_output=True, text=True, timeout=90)
+    if result.stderr:
+        print(result.stderr.strip(), file=sys.stderr)
+    return result.stdout.strip().splitlines()[-1]
+
+
+def attach_with_proxy_rotation(store, video, max_attempts=8):
+    audio_key = existing_audio_key(store, video["videoId"])
+    if audio_key:
+        return attach_audio(store, video)
+    excluded = []
+    last_error = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            suffix, payload = download_audio(video, ["--no-cookies"])
+            audio_key = bridge_key(f"audio/{video['videoId']}{suffix}")
+            store.put_object(audio_key, payload)
+            video["audioObjectKey"] = audio_key
+            video["audioDurationMs"] = duration_ms(video["videoUrl"])
+            return video
+        except Exception as error:
+            last_error = error
+            print(f"download attempt {attempt} failed for {video['videoId']}: {error}", file=sys.stderr)
+            if not env("YOUTUBE_PROXY_URL") or attempt == max_attempts:
+                break
+            selected = rotate_proxy(excluded)
+            excluded.append(selected)
+    raise RuntimeError(f"all proxy attempts failed for {video['videoId']}: {last_error}")
 
 
 def video_count(manifest):
@@ -231,13 +273,21 @@ def main():
         if not channel_id:
             continue
         fetched = []
-        for video in discover_videos(channel_id, max_videos):
+        discovered = discover_videos(channel_id, max_videos)
+        existing = sum(1 for video in discovered if existing_audio_key(store, video["videoId"]))
+        new_success = 0
+        for video in discovered:
+            was_existing = bool(existing_audio_key(store, video["videoId"]))
             try:
-                fetched.append(attach_audio(store, video))
+                fetched.append(attach_with_proxy_rotation(store, video))
+                if not was_existing:
+                    new_success += 1
             except Exception as error:
                 failed += 1
                 print(f"skip {video.get('videoId')}: {error}", file=sys.stderr)
         manifest["channels"].append({**channel, "videos": fetched})
+        if len(discovered) > existing and new_success == 0:
+            raise RuntimeError(f"all newly discovered videos failed for channel {channel_id}")
     total = video_count(manifest)
     print(f"channels={len(manifest['channels'])} videos={total} failed={failed}")
     write_manifest(store, manifest)

@@ -6,6 +6,7 @@ import json
 import os
 import pathlib
 import re
+import sys
 import urllib.parse
 import urllib.request
 
@@ -136,6 +137,39 @@ def select_proxy(controller, preferred_group):
     print(f"selected_proxy={safe_name} delay_ms={delay} test_url={test_url}")
 
 
+def rotate_proxy(controller, preferred_group, excluded):
+    proxies = request_json(controller, "/proxies").get("proxies", {})
+    group = selectable_group(proxies, preferred_group)
+    excluded_set = set(excluded)
+    current = proxies.get(group, {}).get("now")
+    if current:
+        excluded_set.add(current)
+    names = [name for name in proxy_candidates(proxies, group) if name not in excluded_set]
+    if not names:
+        raise SystemExit("No untried Mihomo proxy nodes remain.")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(24, len(names))) as pool:
+        results = list(pool.map(lambda name: measure_delay(controller, name), names))
+    usable = sorted(result for result in results if isinstance(result[0], int))
+    if not usable:
+        raise SystemExit("No untried Mihomo proxy nodes passed delay tests.")
+    delay, selected, test_url = usable[0]
+    payload = json.dumps({"name": selected}).encode("utf-8")
+    path = "/proxies/" + urllib.parse.quote(group, safe="")
+    request = urllib.request.Request(
+        controller + path,
+        data=payload,
+        method="PUT",
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=6) as response:
+        if response.status != 204:
+            raise SystemExit(f"Failed to rotate Mihomo proxy: HTTP {response.status}")
+    safe_name = selected.encode("unicode_escape").decode("ascii")
+    print(f"rotated_proxy={safe_name} delay_ms={delay} test_url={test_url}", file=sys.stderr)
+    print(selected)
+    return selected
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     commands = parser.add_subparsers(dest="command", required=True)
@@ -145,6 +179,10 @@ def parse_args():
     select = commands.add_parser("select")
     select.add_argument("--controller", default="http://127.0.0.1:9090")
     select.add_argument("--group", default="红杏云")
+    rotate = commands.add_parser("rotate")
+    rotate.add_argument("--controller", default="http://127.0.0.1:9090")
+    rotate.add_argument("--group", default="红杏云")
+    rotate.add_argument("--exclude", action="append", default=[])
     return parser.parse_args()
 
 
@@ -157,7 +195,10 @@ def main():
             args.output,
         )
         return
-    select_proxy(args.controller, args.group)
+    if args.command == "select":
+        select_proxy(args.controller, args.group)
+        return
+    rotate_proxy(args.controller, args.group, args.exclude)
 
 
 if __name__ == "__main__":
