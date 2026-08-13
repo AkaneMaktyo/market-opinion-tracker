@@ -11,12 +11,14 @@ interface Props {
   grouped: { group: string; items: Instrument[] }[];
   manualMode: boolean;
   selected: string;
+  removingId?: string;
   onDragItemEnd: () => void;
   onDragItemOver: (event: DragEvent<HTMLDivElement>) => void;
   onDragItemStart: (symbol: string) => void;
   onDropGroup: (event: DragEvent<HTMLButtonElement>, group: string) => void;
   onDropItem: (event: DragEvent<HTMLDivElement>, symbol: string) => void;
   onManage: (item: Instrument) => void;
+  onRemove?: (item: Instrument) => void;
   onSelect: (symbol: string) => void;
   onSetDraggingGroup: (group: string) => void;
   onSetDropGroup: (group: string) => void;
@@ -32,12 +34,14 @@ export function InstrumentGroupList(props: Props) {
     grouped,
     manualMode,
     selected,
+    removingId,
     onDragItemEnd,
     onDragItemOver,
     onDragItemStart,
     onDropGroup,
     onDropItem,
     onManage,
+    onRemove,
     onSelect,
     onSetDraggingGroup,
     onSetDropGroup,
@@ -77,8 +81,10 @@ export function InstrumentGroupList(props: Props) {
                 onDragStart={onDragItemStart}
                 onDrop={onDropItem}
                 onManage={onManage}
+                onRemove={onRemove}
                 onSelect={onSelect}
                 selected={selected}
+                removing={removingId === item.id}
               />
             ))
             : null}

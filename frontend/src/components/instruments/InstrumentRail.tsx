@@ -7,7 +7,7 @@ import { InstrumentDirectory } from './InstrumentDirectory';
 import { InstrumentGroupList } from './InstrumentGroupList';
 import { InstrumentManager } from './InstrumentManager';
 import { InstrumentSortBar } from './InstrumentSortBar';
-import { applyManualOrder, groupItems, mergeDefaultInstrument, parseMode, sortItems, type SortMode } from './instrumentList';
+import { applyManualOrder, groupItems, parseMode, sortItems, type SortMode } from './instrumentList';
 
 const ORDER_STORAGE_KEY = 'market-opinion-instrument-order';
 const GROUP_ORDER_STORAGE_KEY = 'market-opinion-group-order';
@@ -32,7 +32,7 @@ export function InstrumentRail({ instruments, selected, groups, kolId, onSelect,
   const [directoryOpen, setDirectoryOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const customMode = kolId === DEFAULT_KOL;
-  const railItems = customMode ? applyManualOrder(mergeDefaultInstrument(instruments), order) : instruments;
+  const railItems = customMode ? applyManualOrder(instruments, order) : instruments;
   const grouped = useMemo(() => (customMode ? groupItems(sortItems(railItems, mode), groupOrder) : [{ group: '', items: railItems }]), [customMode, groupOrder, railItems, mode]);
   const instrumentMap = useMemo(() => new Map(instruments.map((item) => [item.symbol, item])), [instruments]);
 

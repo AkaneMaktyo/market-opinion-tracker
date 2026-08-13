@@ -45,4 +45,19 @@ class InstrumentControllerTest {
 
     assertEquals(HttpStatus.NOT_FOUND, error.getStatusCode());
   }
+
+  @Test
+  void removesInstrumentFromCurrentWatchlistWithoutDeletingIt() {
+    var instruments = mock(InstrumentRepository.class);
+    var controller = new InstrumentController(
+        instruments, mock(InstrumentHistoryService.class),
+        mock(MarketBarRepository.class), mock(MarketDataService.class));
+
+    assertEquals(
+        Map.of("status", "ok", "message", "已移出自选表"),
+        controller.updateWatchlist(
+            "inst-1", new InstrumentController.UpdateWatchlistRequest("default", false)));
+
+    verify(instruments).setWatchlist("default", "inst-1", false);
+  }
 }

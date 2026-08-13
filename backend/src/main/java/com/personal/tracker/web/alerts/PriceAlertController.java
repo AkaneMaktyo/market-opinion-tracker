@@ -53,7 +53,7 @@ public class PriceAlertController {
 
   @PostMapping("/batch")
   BatchResult createBatch(@RequestBody BatchRequest request) {
-    return alerts.createBatch(request.recognitionId(), request.items());
+    return alerts.createBatch(request.recognitionId(), request.kolId(), request.items());
   }
 
   @PutMapping("/{id}/active")
@@ -76,7 +76,7 @@ public class PriceAlertController {
       String triggerDirection) {
   }
 
-  public record BatchRequest(String recognitionId, List<BatchItem> items) {
+  public record BatchRequest(String recognitionId, String kolId, List<BatchItem> items) {
   }
 
   public record ActiveRequest(boolean enabled) {

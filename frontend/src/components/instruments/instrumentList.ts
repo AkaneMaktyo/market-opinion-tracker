@@ -30,12 +30,6 @@ export function groupItems(items: Instrument[], groupOrder: string[] = []) {
   ].filter((entry) => entry.items.length > 0);
 }
 
-export function mergeDefaultInstrument(instruments: Instrument[]) {
-  return instruments.some((item) => item.symbol === 'NVDA')
-    ? [...instruments]
-    : [{ id: 'default-nvda', symbol: 'NVDA', name: '示例' }, ...instruments];
-}
-
 export function applyManualOrder(instruments: Instrument[], order: string[]) {
   const bySymbol = new Map(instruments.map((item) => [item.symbol, item]));
   const ordered = order.flatMap((symbol) => (bySymbol.get(symbol) ? [bySymbol.get(symbol)!] : []));

@@ -95,7 +95,7 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
       </header>
 
       <section className={`mobile-app-viewport${detailOpen ? ' showing-chart-detail' : ''}`} aria-live="polite" ref={viewportRef}>
-        {tab === 'opinions' ? <MobileOpinions focusMessageId={focusMessageId} /> : null}
+        {tab === 'opinions' ? <MobileOpinions focusMessageId={focusMessageId} kolId={dashboard.selectedKol} onWatchlistChanged={() => dashboard.reload()} /> : null}
         {tab === 'overview' ? <MobileOverview dashboard={dashboard} onFocusSymbol={openInstrument} onOpenOpinions={() => switchTab('opinions')} onQuickAdd={() => openComposer()} /> : null}
         {tab === 'watchlist' && !detailOpen ? <MobileWatchlist dashboard={dashboard} onOpenDetail={openInstrument} /> : null}
         {tab === 'watchlist' && detailOpen ? <MobileInstrumentDetail dashboard={dashboard} onBack={() => setDetailOpen(false)} /> : null}

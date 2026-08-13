@@ -1,4 +1,4 @@
-import { Settings } from 'lucide-react';
+import { Settings, Trash2 } from 'lucide-react';
 import type { DragEvent, KeyboardEvent } from 'react';
 import type { Instrument } from '../../types';
 import { InstrumentLogo } from './InstrumentLogo';
@@ -10,6 +10,8 @@ interface Props {
   manualMode: boolean;
   selected: string;
   onManage: (item: Instrument) => void;
+  onRemove?: (item: Instrument) => void;
+  removing?: boolean;
   onSelect: (symbol: string) => void;
   onDragEnd: () => void;
   onDragOver: (event: DragEvent<HTMLDivElement>) => void;
@@ -24,6 +26,8 @@ export function InstrumentCard({
   manualMode,
   selected,
   onManage,
+  onRemove,
+  removing = false,
   onSelect,
   onDragEnd,
   onDragOver,
@@ -58,7 +62,22 @@ export function InstrumentCard({
       <span className="symbol-value">{formatClose(item.dayClose)}</span>
       <span className={`symbol-value symbol-move ${tone}`}>{formatDelta(item.dayClose, item.dayChangePct)}</span>
       <span className={`symbol-value symbol-percent ${tone}`}>{formatPercent(item.dayChangePct)}</span>
-      <button
+      {onRemove ? (
+        <button
+          aria-label={`将 ${item.symbol} 移出自选表`}
+          className="symbol-remove"
+          disabled={removing}
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemove(item);
+          }}
+          title={`将 ${item.symbol} 移出自选表`}
+          type="button"
+        >
+          <Trash2 size={14} />
+        </button>
+      ) : null}
+      {!onRemove ? <button
         aria-label={`管理 ${item.symbol}`}
         className="symbol-manage"
         onClick={(event) => {
@@ -69,7 +88,7 @@ export function InstrumentCard({
         type="button"
       >
         <Settings size={12} />
-      </button>
+      </button> : null}
     </div>
   );
 }

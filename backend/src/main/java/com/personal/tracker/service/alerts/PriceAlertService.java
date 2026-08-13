@@ -71,7 +71,7 @@ public class PriceAlertService {
     return updated;
   }
 
-  public BatchResult createBatch(String recognitionId, List<BatchItem> items) {
+  public BatchResult createBatch(String recognitionId, String kolId, List<BatchItem> items) {
     Result recognition = recognitions.require(recognitionId);
     if (!"SUCCESS".equals(recognition.status())) {
       throw new IllegalArgumentException("智能识别结果不可用于创建提醒");
@@ -79,7 +79,7 @@ public class PriceAlertService {
     List<BatchItemResult> results = new ArrayList<>();
     for (BatchItem item : items == null ? List.<BatchItem>of() : items) {
       try {
-        results.add(createRecognized(recognition, item));
+        results.add(createRecognized(recognition, kolId, item));
       } catch (RuntimeException error) {
         results.add(new BatchItemResult(
             item == null ? "" : text(item.candidateId()), "FAILED", null, message(error)));
@@ -91,7 +91,7 @@ public class PriceAlertService {
     return new BatchResult(recognitionId, results);
   }
 
-  private BatchItemResult createRecognized(Result recognition, BatchItem item) {
+  private BatchItemResult createRecognized(Result recognition, String kolId, BatchItem item) {
     if (item == null) throw new IllegalArgumentException("候选不能为空");
     Candidate source = recognition.candidates().stream()
         .filter(candidate -> candidate.candidateId().equals(text(item.candidateId())))
@@ -111,6 +111,7 @@ public class PriceAlertService {
     Instrument instrument = instruments.findBySymbol(selectedSymbol)
         .orElseGet(() -> instruments.saveIfAbsent(selectedSymbol, name, market, null));
     Instrument mapped = ensureBitgetMapping(instrument);
+    instruments.setWatchlist(kolId, mapped.id(), true);
     var equivalent = alerts.findEquivalent(
         mapped.id(), values.alertType(), values.triggerDirection(),
         values.lower(), values.upper(), values.target());

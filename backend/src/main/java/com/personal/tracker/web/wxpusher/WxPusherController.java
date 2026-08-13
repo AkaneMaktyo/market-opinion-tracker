@@ -126,8 +126,10 @@ public class WxPusherController {
   }
 
   @PostMapping("/messages/recent/{id}/price-alert-recognition")
-  Result recognizePriceAlerts(@PathVariable String id) {
-    return priceAlertRecognition.recognize(id);
+  Result recognizePriceAlerts(
+      @PathVariable String id,
+      @RequestParam(defaultValue = "default") String kolId) {
+    return priceAlertRecognition.recognize(id, kolId);
   }
 
   @GetMapping("/messages/ocr")

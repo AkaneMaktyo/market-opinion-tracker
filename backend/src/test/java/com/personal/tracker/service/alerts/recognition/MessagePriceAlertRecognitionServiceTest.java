@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.personal.tracker.config.WxPusherOcrProperties;
 import com.personal.tracker.repository.InstrumentRepository;
+import com.personal.tracker.domain.Instrument;
 import com.personal.tracker.service.alerts.recognition.PriceAlertRecognitionModels.Candidate;
 import com.personal.tracker.service.alerts.recognition.PriceAlertRecognitionModels.Result;
 import com.personal.tracker.service.wxpusher.feed.WxPusherFeedService;
@@ -31,10 +32,11 @@ class MessagePriceAlertRecognitionServiceTest {
   private WxPusherOcrProperties properties;
   private PriceAlertRecognitionRepository repository;
   private PriceAlertDeepSeekClient deepSeek;
+  private InstrumentRepository instruments;
 
   @BeforeEach
   void setUp() {
-    InstrumentRepository instruments = mock(InstrumentRepository.class);
+    instruments = mock(InstrumentRepository.class);
     when(instruments.findBySymbol(anyString())).thenReturn(Optional.empty());
     feed = mock(WxPusherFeedService.class);
     ocr = mock(ImageOcrClient.class);
@@ -129,6 +131,25 @@ class MessagePriceAlertRecognitionServiceTest {
     verify(repository).complete(
         eq("msg-partial"), eq("谷歌 335-350 压力"), any(),
         eq(List.of("图片 2 OCR 失败：图片损坏")));
+  }
+
+  @Test
+  void addsRecognizedSymbolsToCurrentWatchlist() {
+    Candidate candidate = new Candidate(
+        "candidate-1", "谷歌", "GOOGL", "US", "POINT", null, null,
+        new java.math.BigDecimal("335"), "ANY", "SUPPORT", "", "335支撑", "TEXT", "", "");
+    Result cached = new Result(
+        "recognition-3", "msg-cached", "SUCCESS", List.of(candidate), List.of(), "", "now");
+    Instrument instrument = new Instrument(
+        "inst-google", "GOOGL", "谷歌", "US", null, null, null, null,
+        null, null, null, null, "now");
+    when(repository.find("msg-cached")).thenReturn(Optional.of(cached));
+    when(instruments.findBySymbol("GOOGL")).thenReturn(Optional.of(instrument));
+
+    assertEquals("SUCCESS", service.recognize("msg-cached", "kol-1").status());
+
+    verify(instruments).setWatchlist("kol-1", "inst-google", true);
+    verify(deepSeek, never()).recognize(anyString(), anyString(), anyString());
   }
 
   private FeedMessage message(String id, String summary, String detail) {

@@ -11,12 +11,14 @@ import type {
 
 interface Props {
   result: PriceAlertRecognitionResult;
+  kolId: string;
   onClose: () => void;
+  onWatchlistChanged: () => void;
 }
 
 type Draft = PriceAlertRecognitionCandidate & { selected: boolean };
 
-export function PriceAlertRecognitionSheet({ result, onClose }: Props) {
+export function PriceAlertRecognitionSheet({ result, kolId, onClose, onWatchlistChanged }: Props) {
   const [drafts, setDrafts] = useState<Draft[]>(() => result.candidates.map((item) => ({ ...item, selected: false })));
   const [created, setCreated] = useState<Record<string, PriceAlertBatchItemResult>>({});
   const [busy, setBusy] = useState(false);
@@ -37,7 +39,7 @@ export function PriceAlertRecognitionSheet({ result, onClose }: Props) {
     setBusy(true);
     setError('');
     try {
-      const response = await api.createPriceAlertsBatch(result.recognitionId, selected.map((item) => ({
+      const response = await api.createPriceAlertsBatch(result.recognitionId, kolId, selected.map((item) => ({
         candidateId: item.candidateId,
         instrumentName: item.instrumentName,
         symbol: item.symbol.trim().toUpperCase(),
@@ -52,6 +54,9 @@ export function PriceAlertRecognitionSheet({ result, onClose }: Props) {
         ...current,
         ...Object.fromEntries(response.items.map((item) => [item.candidateId, item])),
       }));
+      if (response.items.some((item) => item.status === 'CREATED' || item.status === 'EXISTS')) {
+        onWatchlistChanged();
+      }
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : '批量创建价格提醒失败');
     } finally {

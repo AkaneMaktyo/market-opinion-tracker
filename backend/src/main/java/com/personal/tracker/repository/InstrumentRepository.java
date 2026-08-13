@@ -1,9 +1,12 @@
 package com.personal.tracker.repository;
 
 import com.personal.tracker.domain.Instrument;
+import jakarta.annotation.PostConstruct;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -30,6 +33,21 @@ public class InstrumentRepository {
 
   public InstrumentRepository(JdbcTemplate jdbc) {
     this.jdbc = jdbc;
+  }
+
+  @PostConstruct
+  public void initializeWatchlist() {
+    jdbc.execute("""
+        CREATE TABLE IF NOT EXISTS kol_instrument_watchlist (
+          kol_id VARCHAR(64) NOT NULL,
+          instrument_id VARCHAR(64) NOT NULL,
+          watch_state VARCHAR(16) NOT NULL,
+          created_at VARCHAR(64) NOT NULL,
+          updated_at VARCHAR(64) NOT NULL,
+          PRIMARY KEY (kol_id, instrument_id),
+          INDEX idx_instrument_watchlist(instrument_id, watch_state)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """);
   }
 
   public List<Instrument> findAll(String query) {
@@ -75,6 +93,41 @@ public class InstrumentRepository {
         kolId.trim());
     return items.stream().map(item -> withGroup(item, groups.get(item.id()))).toList();
   }
+
+  public List<Instrument> applyWatchlist(String kolId, List<Instrument> automaticItems) {
+    String safeKol = safeKol(kolId);
+    Map<String, String> states = new LinkedHashMap<>();
+    jdbc.query("""
+        SELECT instrument_id, watch_state
+        FROM kol_instrument_watchlist
+        WHERE kol_id = ?
+        ORDER BY updated_at DESC, instrument_id
+        """,
+        (rs, rowNum) -> states.put(rs.getString("instrument_id"), rs.getString("watch_state")), safeKol);
+    Map<String, Instrument> visible = new LinkedHashMap<>();
+    automaticItems.stream()
+        .filter(item -> !"REMOVED".equals(states.get(item.id())))
+        .forEach(item -> visible.put(item.id(), item));
+    states.entrySet().stream()
+        .filter(entry -> "ADDED".equals(entry.getValue()) && !visible.containsKey(entry.getKey()))
+        .map(entry -> findById(entry.getKey()).orElse(null))
+        .filter(Objects::nonNull)
+        .forEach(item -> visible.put(item.id(), item));
+    return List.copyOf(visible.values());
+  }
+
+  public void setWatchlist(String kolId, String instrumentId, boolean included) {
+    if (findById(instrumentId).isEmpty()) {
+      throw new IllegalArgumentException("标的不存在");
+    }
+    String now = JdbcSupport.now();
+    jdbc.update("""
+        INSERT INTO kol_instrument_watchlist(kol_id, instrument_id, watch_state, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE watch_state = VALUES(watch_state), updated_at = VALUES(updated_at)
+        """, safeKol(kolId), instrumentId, included ? "ADDED" : "REMOVED", now, now);
+  }
+
   public List<Instrument> findCurrentByKol(String kolId, String query) {
     List<Object> args = new java.util.ArrayList<>();
     StringBuilder sql = new StringBuilder("""
@@ -239,6 +292,17 @@ public class InstrumentRepository {
         SELECT kol_id, ?, group_name FROM kol_instrument_groups WHERE instrument_id = ?
         """, targetId, sourceId);
     jdbc.update("DELETE FROM kol_instrument_groups WHERE instrument_id = ?", sourceId);
+    jdbc.update("""
+        INSERT INTO kol_instrument_watchlist(kol_id, instrument_id, watch_state, created_at, updated_at)
+        SELECT kol_id, ?, watch_state, created_at, updated_at
+        FROM kol_instrument_watchlist WHERE instrument_id = ?
+        ON DUPLICATE KEY UPDATE
+          watch_state = IF(
+            kol_instrument_watchlist.watch_state = 'ADDED' OR VALUES(watch_state) = 'ADDED',
+            'ADDED', 'REMOVED'),
+          updated_at = VALUES(updated_at)
+        """, targetId, sourceId);
+    jdbc.update("DELETE FROM kol_instrument_watchlist WHERE instrument_id = ?", sourceId);
     jdbc.update("UPDATE price_signal_alerts SET instrument_id = ? WHERE instrument_id = ?", targetId, sourceId);
     jdbc.update("UPDATE opinions SET instrument_id = ? WHERE instrument_id = ?", targetId, sourceId);
     jdbc.update("""
@@ -259,6 +323,7 @@ public class InstrumentRepository {
     deleteOpinionData(instrumentId);
     jdbc.update("DELETE FROM price_signal_alerts WHERE instrument_id = ?", instrumentId);
     jdbc.update("DELETE FROM kol_instrument_groups WHERE instrument_id = ?", instrumentId);
+    jdbc.update("DELETE FROM kol_instrument_watchlist WHERE instrument_id = ?", instrumentId);
     jdbc.update("DELETE FROM kol_positions WHERE instrument_id = ?", instrumentId);
     jdbc.update("DELETE FROM market_bars WHERE instrument_id = ?", instrumentId);
     return jdbc.update("DELETE FROM instruments WHERE id = ?", instrumentId) > 0;
@@ -276,6 +341,10 @@ public class InstrumentRepository {
         VALUES (?, ?, ?)
         ON DUPLICATE KEY UPDATE group_name = VALUES(group_name)
         """, safeKol, instrumentId, nextGroup);
+  }
+
+  private String safeKol(String kolId) {
+    return kolId == null || kolId.isBlank() ? KolRepository.DEFAULT_ID : kolId.trim();
   }
 
   public void updateMarketDataProvider(String instrumentId, String provider) {

@@ -36,9 +36,11 @@ function fmtDeployTime(iso: string): string {
 
 interface Props {
   focusMessageId?: string;
+  kolId: string;
+  onWatchlistChanged: () => void;
 }
 
-export function MobileOpinions({ focusMessageId = '' }: Props) {
+export function MobileOpinions({ focusMessageId = '', kolId, onWatchlistChanged }: Props) {
   const [query, setQuery] = useState('');
   const [kolName, setKolName] = useState('');
   const [messages, setMessages] = useState<WxPusherRecentMessage[]>([]);
@@ -118,7 +120,7 @@ export function MobileOpinions({ focusMessageId = '' }: Props) {
     setRecognizingIds((current) => new Set(current).add(item.id));
     setRecognitionErrors((current) => ({ ...current, [item.id]: '' }));
     try {
-      const result = await api.recognizeWxPusherPriceAlerts(item.id);
+      const result = await api.recognizeWxPusherPriceAlerts(item.id, kolId);
       const patch: Partial<WxPusherRecentMessage> = {
         priceAlertRecognitionStatus: result.status,
         priceAlertRecognitionId: result.recognitionId,
@@ -128,6 +130,7 @@ export function MobileOpinions({ focusMessageId = '' }: Props) {
       const cached = detailCache.current.get(item.id);
       if (cached) detailCache.current.set(item.id, { ...cached, ...patch });
       if (result.status === 'SUCCESS' && result.candidates.length > 0) setActiveRecognition(result);
+      if (result.status === 'SUCCESS' && result.candidates.length > 0) onWatchlistChanged();
       if (result.status === 'FAILED') {
         setRecognitionErrors((current) => ({ ...current, [item.id]: result.errorMessage || '智能识别失败，请重试' }));
       }
@@ -202,7 +205,7 @@ export function MobileOpinions({ focusMessageId = '' }: Props) {
         ))}
       </section>
       {preview ? <ImagePreview onClose={() => setPreview('')} source={preview} /> : null}
-      {activeRecognition ? <PriceAlertRecognitionSheet onClose={() => setActiveRecognition(null)} result={activeRecognition} /> : null}
+      {activeRecognition ? <PriceAlertRecognitionSheet kolId={kolId} onClose={() => setActiveRecognition(null)} onWatchlistChanged={onWatchlistChanged} result={activeRecognition} /> : null}
       {deployInfo ? (
         <div className="mobile-card mobile-deploy-info">
           <Info size={14} />

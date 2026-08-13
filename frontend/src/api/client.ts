@@ -48,6 +48,17 @@ export const api = {
     return json<Instrument[]>(`/api/instruments${query}`);
   },
   watchlist: fetchWatchlist,
+  createInstrument: (body: {
+    symbol: string;
+    name?: string;
+    market?: string;
+    sector?: string;
+    kolId: string;
+    addToWatchlist: boolean;
+  }) => json<Instrument>('/api/instruments', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  }),
   sessions: (kolId?: string) => {
     const query = kolId ? `?kolId=${encodeURIComponent(kolId)}` : '';
     return json<LiveSession[]>(`/api/sessions${query}`);
@@ -156,6 +167,11 @@ export const api = {
     json<Instrument>(`/api/instruments/${id}/group`, {
       method: 'PUT',
       body: JSON.stringify({ kolId, groupName }),
+    }),
+  updateInstrumentWatchlist: (id: string, kolId: string, included: boolean) =>
+    json<{ status: string; message: string }>(`/api/instruments/${id}/watchlist`, {
+      method: 'PUT',
+      body: JSON.stringify({ kolId, included }),
     }),
   updateInstrumentMarketProvider: (id: string, provider: string | null) =>
     json<Instrument>(`/api/instruments/${id}/market-provider`, {

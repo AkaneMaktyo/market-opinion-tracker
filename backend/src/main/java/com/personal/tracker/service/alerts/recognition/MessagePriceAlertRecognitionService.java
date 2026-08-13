@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.personal.tracker.config.WxPusherOcrProperties;
 import com.personal.tracker.domain.Instrument;
 import com.personal.tracker.repository.InstrumentRepository;
+import com.personal.tracker.repository.KolRepository;
 import com.personal.tracker.service.alerts.recognition.PriceAlertRecognitionModels.Candidate;
 import com.personal.tracker.service.alerts.recognition.PriceAlertRecognitionModels.Result;
 import com.personal.tracker.service.wxpusher.feed.WxPusherFeedService;
@@ -69,8 +70,13 @@ public class MessagePriceAlertRecognitionService {
   }
 
   public Result recognize(String messageId) {
+    return recognize(messageId, KolRepository.DEFAULT_ID);
+  }
+
+  public Result recognize(String messageId, String kolId) {
     Result existing = repository.find(messageId).orElse(null);
     if (existing != null && ("SUCCESS".equals(existing.status()) || "EMPTY".equals(existing.status()))) {
+      addToWatchlist(kolId, existing.candidates(), null);
       return existing;
     }
     if (!repository.claim(messageId)) {
@@ -96,6 +102,7 @@ public class MessagePriceAlertRecognitionService {
           """.formatted(messageId, clean(message.bloggerName()), text);
       String output = deepSeek.recognize(messageId, SYSTEM_PROMPT, prompt);
       List<Candidate> candidates = parse(output);
+      addToWatchlist(kolId, candidates, warnings);
       return repository.complete(messageId, content.ocrText(), candidates, warnings);
     } catch (Exception error) {
       return repository.fail(messageId, content.ocrText(), message(error), warnings);
@@ -104,6 +111,25 @@ public class MessagePriceAlertRecognitionService {
 
   public Result require(String recognitionId) {
     return repository.requireById(recognitionId);
+  }
+
+  private void addToWatchlist(String kolId, List<Candidate> candidates, List<String> warnings) {
+    Map<String, Candidate> symbols = new LinkedHashMap<>();
+    candidates.forEach(candidate -> symbols.putIfAbsent(candidate.symbol(), candidate));
+    symbols.values().forEach(candidate -> {
+      try {
+        Instrument instrument = instruments.findBySymbol(candidate.symbol())
+            .orElseGet(() -> instruments.saveIfAbsent(
+                candidate.symbol(), candidate.instrumentName(), candidate.market(), null));
+        if (instrument != null) {
+          instruments.setWatchlist(kolId, instrument.id(), true);
+        }
+      } catch (RuntimeException error) {
+        if (warnings != null) {
+          warnings.add(candidate.symbol() + " 自动加入自选表失败：" + message(error));
+        }
+      }
+    });
   }
 
   private PreparedContent prepare(String raw, List<String> warnings) {

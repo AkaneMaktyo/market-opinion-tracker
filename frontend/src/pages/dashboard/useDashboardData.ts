@@ -55,9 +55,13 @@ export function useDashboardData() {
   const loadShell = useCallback(async (kolId = kolRef.current, requested = selectedRef.current) => {
     const seq = ++shellSeq.current;
     const cached = instrumentCache.current.get(kolId) || readInstrumentCache(kolId);
-    if (cached) {
+    const requestedMissingFromCache = Boolean(requested)
+      && Boolean(cached)
+      && !cached!.some((item) => item.symbol === requested);
+    if (cached && !requestedMissingFromCache) {
       instrumentCache.current.set(kolId, cached);
-      const nextSelected = selectionPinned.current && selectedRef.current
+      const pinnedExists = cached.some((item) => item.symbol === selectedRef.current);
+      const nextSelected = selectionPinned.current && selectedRef.current && pinnedExists
         ? selectedRef.current
         : pickSelectedSymbol(cached, requested);
       setInstruments(cached);
@@ -73,7 +77,8 @@ export function useDashboardData() {
     ]);
     const nextInstruments = await instrumentsRequest;
     if (seq !== shellSeq.current) return;
-    const nextSelected = selectionPinned.current && selectedRef.current
+    const pinnedExists = nextInstruments.some((item) => item.symbol === selectedRef.current);
+    const nextSelected = selectionPinned.current && selectedRef.current && pinnedExists
       ? selectedRef.current
       : pickSelectedSymbol(nextInstruments, requested);
     instrumentCache.current.set(kolId, nextInstruments);
@@ -111,7 +116,8 @@ export function useDashboardData() {
       writeInstrumentCache(kolId, nextInstruments);
       setInstruments(nextInstruments);
       setLastQuoteAt(Date.now());
-      const nextSelected = selectionPinned.current && selectedRef.current
+      const pinnedExists = nextInstruments.some((item) => item.symbol === selectedRef.current);
+      const nextSelected = selectionPinned.current && selectedRef.current && pinnedExists
         ? selectedRef.current
         : pickSelectedSymbol(nextInstruments, selectedRef.current);
       if (nextSelected && nextSelected !== selectedRef.current) {
@@ -173,6 +179,7 @@ export function useDashboardData() {
   }, [loadChart, setFrameValue]);
 
   const reload = useCallback((symbol = selectedRef.current) => {
+    selectionPinned.current = Boolean(symbol);
     setSelectedValue(symbol);
     void loadShell(kolRef.current, symbol);
   }, [loadShell, setSelectedValue]);

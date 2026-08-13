@@ -62,6 +62,9 @@ public class InstrumentController {
         : kolId == null || kolId.isBlank()
         ? instruments.findAll(query)
         : instrumentHistory.findByKol(kolId, query);
+    if (kolId != null && !kolId.isBlank() && (query == null || query.isBlank())) {
+      items = instruments.applyWatchlist(kolId, items);
+    }
     items = instruments.applyGroups(kolId, items);
     if (!quotes) {
       return items.stream().map(item -> viewOf(item, null)).toList();
@@ -77,12 +80,26 @@ public class InstrumentController {
   }
 
   @PostMapping
-  Instrument create(@RequestBody CreateInstrumentRequest request) {
-    return instruments.saveIfAbsent(
+  InstrumentView create(@RequestBody CreateInstrumentRequest request) {
+    Instrument item = instruments.saveIfAbsent(
         request.symbol(),
         request.name(),
         request.market(),
         request.sector());
+    if (request.addToWatchlist()) {
+      instruments.setWatchlist(request.kolId(), item.id(), true);
+    }
+    return viewOf(instruments.applyGroups(request.kolId(), List.of(item)).get(0), null);
+  }
+
+  @PutMapping("/{id}/watchlist")
+  Map<String, String> updateWatchlist(
+      @PathVariable String id,
+      @RequestBody UpdateWatchlistRequest request) {
+    instruments.setWatchlist(request.kolId(), id, request.included());
+    return Map.of(
+        "status", "ok",
+        "message", request.included() ? "已加入自选表" : "已移出自选表");
   }
 
   @PutMapping("/{id}")
@@ -195,7 +212,9 @@ public class InstrumentController {
       String symbol,
       String name,
       String market,
-      String sector) {
+      String sector,
+      String kolId,
+      boolean addToWatchlist) {
   }
 
   public record RenameInstrumentRequest(
@@ -215,6 +234,11 @@ public class InstrumentController {
 
   public record UpdateMarketProviderRequest(
       String provider) {
+  }
+
+  public record UpdateWatchlistRequest(
+      String kolId,
+      boolean included) {
   }
 
   public record InstrumentView(

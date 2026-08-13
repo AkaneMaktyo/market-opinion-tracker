@@ -56,9 +56,9 @@ export const wxpusherApi = {
     json<WxPusherRecentMessage[]>(`/api/wxpusher/messages/recent?limit=${limit}`),
   wxpusherRecentMessageDetail: (id: string) =>
     json<WxPusherRecentMessage>(`/api/wxpusher/messages/recent/${encodeURIComponent(id)}`),
-  recognizeWxPusherPriceAlerts: (id: string) =>
+  recognizeWxPusherPriceAlerts: (id: string, kolId: string) =>
     json<PriceAlertRecognitionResult>(
-      `/api/wxpusher/messages/recent/${encodeURIComponent(id)}/price-alert-recognition`,
+      `/api/wxpusher/messages/recent/${encodeURIComponent(id)}/price-alert-recognition?kolId=${encodeURIComponent(kolId)}`,
       { method: 'POST' },
     ),
   wxpusherOcrMessages: (limit = 50) =>

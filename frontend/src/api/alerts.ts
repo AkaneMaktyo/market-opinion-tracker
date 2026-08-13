@@ -29,10 +29,10 @@ export const priceAlertApi = {
     json<{ status: string }>(`/api/price-alerts/${encodeURIComponent(id)}`, {
       method: 'DELETE',
     }),
-  createPriceAlertsBatch: (recognitionId: string, items: PriceAlertBatchItem[]) =>
+  createPriceAlertsBatch: (recognitionId: string, kolId: string, items: PriceAlertBatchItem[]) =>
     json<PriceAlertBatchResult>('/api/price-alerts/batch', {
       method: 'POST',
-      body: JSON.stringify({ recognitionId, items }),
+      body: JSON.stringify({ recognitionId, kolId, items }),
     }),
 };
 

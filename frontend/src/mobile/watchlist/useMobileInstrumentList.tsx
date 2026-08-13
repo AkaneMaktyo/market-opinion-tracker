@@ -3,6 +3,7 @@ import type { DragEvent } from 'react';
 import { api } from '../../api/client';
 import { InstrumentDirectory } from '../../components/instruments/InstrumentDirectory';
 import { InstrumentManager } from '../../components/instruments/InstrumentManager';
+import { MobileWatchlistAdd } from './MobileWatchlistAdd';
 import { parseMode, type SortMode } from '../../components/instruments/instrumentList';
 import type { Instrument } from '../../types';
 import type { DashboardModel } from '../screens/mobileTypes';
@@ -24,6 +25,9 @@ export function useMobileInstrumentList(dashboard: DashboardModel, customMode: b
   const [dropGroup, setDropGroup] = useState('');
   const [managing, setManaging] = useState<Instrument | null>(null);
   const [directoryOpen, setDirectoryOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [removing, setRemoving] = useState('');
+  const [message, setMessage] = useState('');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const instrumentMap = useMemo(
     () => new Map(dashboard.instruments.map((item) => [item.symbol, item])),
@@ -95,6 +99,26 @@ export function useMobileInstrumentList(dashboard: DashboardModel, customMode: b
     }
   }
 
+  async function removeFromWatchlist(item: Instrument) {
+    if (removing) return;
+    setRemoving(item.id);
+    setMessage('');
+    try {
+      const response = await api.updateInstrumentWatchlist(item.id, dashboard.selectedKol, false);
+      setOrder((current) => {
+        const next = current.filter((symbol) => symbol !== item.symbol);
+        window.localStorage.setItem(storage.order, JSON.stringify(next));
+        return next;
+      });
+      setMessage(response.message);
+      dashboard.reload(dashboard.selected === item.symbol ? '' : dashboard.selected);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '移出自选表失败');
+    } finally {
+      setRemoving('');
+    }
+  }
+
   function dropGroupOn(event: DragEvent<HTMLButtonElement>, target: string) {
     event.preventDefault();
     if (draggingItem) {
@@ -121,6 +145,11 @@ export function useMobileInstrumentList(dashboard: DashboardModel, customMode: b
         onClose={() => setDirectoryOpen(false)}
         selected={dashboard.selected}
       /> : null}
+      {addOpen ? <MobileWatchlistAdd
+        kolId={dashboard.selectedKol}
+        onAdded={(symbol) => dashboard.reload(symbol)}
+        onClose={() => setAddOpen(false)}
+      /> : null}
       {managing ? <InstrumentManager
         groups={dashboard.instrumentGroups}
         instrument={managing}
@@ -134,9 +163,11 @@ export function useMobileInstrumentList(dashboard: DashboardModel, customMode: b
 
   return {
     collapsedGroups, draggingGroup, draggingItem, dropGroup, groupOrder, mode, order, storage,
+    message, removing,
     setDraggingGroup, setDropGroup, setMode, toggleGroup, resetItemDrag, dropItemOn, dropGroupOn,
     dragItemOver: (event: DragEvent<HTMLDivElement>) => customMode && mode === 'manual' && event.preventDefault(),
-    startItemDrag: setDraggingItem, openDirectory: () => setDirectoryOpen(true), openManager: setManaging,
+    startItemDrag: setDraggingItem, openDirectory: () => setDirectoryOpen(true), openAdd: () => setAddOpen(true),
+    openManager: setManaging, removeFromWatchlist,
     renderOverlays,
   };
 }

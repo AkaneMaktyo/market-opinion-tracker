@@ -413,6 +413,16 @@ CREATE TABLE IF NOT EXISTS resonance_alerts (
   INDEX idx_resonance_alert_cluster(cluster_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS kol_instrument_watchlist (
+  kol_id VARCHAR(64) NOT NULL,
+  instrument_id VARCHAR(64) NOT NULL,
+  watch_state VARCHAR(16) NOT NULL,
+  created_at VARCHAR(64) NOT NULL,
+  updated_at VARCHAR(64) NOT NULL,
+  PRIMARY KEY (kol_id, instrument_id),
+  INDEX idx_instrument_watchlist(instrument_id, watch_state)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 ALTER TABLE llm_call_logs ADD COLUMN message_id VARCHAR(64);
 ALTER TABLE llm_call_logs ADD COLUMN request_body LONGTEXT;
 ALTER TABLE llm_call_logs ADD COLUMN response_body LONGTEXT;
