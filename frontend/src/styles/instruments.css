@@ -92,9 +92,9 @@
 .symbol-manage:hover { background: #f0f3fa; color: #131722; }
 .symbol:hover .symbol-manage, .symbol:focus-within .symbol-manage, .symbol.active .symbol-manage { opacity: 1; }
 .stock-icon, .stock-icon-fallback { border-radius: 999px; height: 20px; justify-content: center; width: 20px; }
-.stock-icon-shell { display: inline-flex; flex: 0 0 auto; position: relative; }
-.stock-icon { inset: 0; object-fit: contain; position: absolute; }
-.stock-icon-fallback { align-items: center; color: #fff; display: inline-flex; font-size: 11px; font-weight: 800; line-height: 1; }
+.stock-icon-shell { display: inline-flex; flex: 0 0 auto; overflow: hidden; position: relative; }
+.stock-icon { background: #fff; inset: 0; object-fit: contain; position: absolute; }
+.stock-icon-fallback { align-items: center; color: #fff; display: inline-flex; font-size: 11px; font-weight: 800; inset: 0; line-height: 1; position: absolute; }
 
 .manager-modal, .directory-modal { max-height: min(720px, calc(100vh - 48px)); overflow-y: auto; width: 100%; }
 .manager-modal { max-width: min(480px, calc(100vw - 48px)); }

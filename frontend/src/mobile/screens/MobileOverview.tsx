@@ -1,10 +1,11 @@
 import { MessageSquareText, PenLine, RefreshCw } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { api } from '../../api/client';
 import { InstrumentLogo } from '../../components/instruments/InstrumentLogo';
 import type { Instrument, MarketBar } from '../../types';
 import type { PriceAlert } from '../../types/alerts';
 import type { DashboardModel } from './mobileTypes';
+import { priceAlertProximity } from './priceAlertProximity';
 
 interface Props {
   dashboard: DashboardModel;
@@ -19,7 +20,7 @@ export function MobileOverview({ dashboard, onFocusSymbol, onOpenMessage, onQuic
   const [alerts, setAlerts] = useState<PriceAlert[]>([]);
   const [alertsLoaded, setAlertsLoaded] = useState(false);
   const [selectedAlertId, setSelectedAlertId] = useState('');
-  const reminders = useMemo(() => uniqueAlerts(alerts), [alerts]);
+  const reminders = useMemo(() => uniqueAlerts(alerts, dashboard.instruments), [alerts, dashboard.instruments]);
   const selected = dashboard.instruments.find((item) => item.symbol === dashboard.selected);
   const selectedAlert = alerts.find((item) => item.id === selectedAlertId && item.symbol === dashboard.selected)
     ?? reminders.find((item) => item.symbol === dashboard.selected);
@@ -125,12 +126,30 @@ export function MobileOverview({ dashboard, onFocusSymbol, onOpenMessage, onQuic
 }
 
 function ReminderRow({ alert, instrument, onSelect, selected }: { alert: PriceAlert; instrument?: Instrument; onSelect: () => void; selected: boolean }) {
+  const price = currentPrice(alert, instrument);
+  const proximity = priceAlertProximity(alert, price);
+  const showInsideRange = alert.alertType === 'RANGE' && proximity.state === 'inside';
+  const showProximity = alert.status === 'ACTIVE' || showInsideRange;
+  const proximityClass = showProximity ? ` proximity-${proximity.state}` : '';
+  const rowStyle = { '--reminder-closeness': proximity.intensity } as CSSProperties;
   return (
-    <button aria-current={selected ? 'true' : undefined} className={`mobile-stock-row mobile-reminder-row${selected ? ' selected' : ''}`} onClick={onSelect} type="button">
+    <button
+      aria-current={selected ? 'true' : undefined}
+      className={`mobile-stock-row mobile-reminder-row${selected ? ' selected' : ''}${proximityClass}`}
+      onClick={onSelect}
+      style={rowStyle}
+      type="button"
+    >
       <InstrumentLogo logoUrl={instrument?.logoUrl} size={38} symbol={alert.symbol} />
       <span className="mobile-stock-name"><strong>{alert.symbol}</strong><small>{alertCondition(alert)}</small></span>
-      <span className="mobile-stock-price"><strong>{formatAlertPrice(currentPrice(alert, instrument))}</strong><small>当前价</small></span>
-      <span className={`mobile-reminder-status status-${alert.status.toLowerCase()}`}>{alertStatus(alert.status)}</span>
+      <span className="mobile-stock-price"><strong>{formatAlertPrice(price)}</strong><small>当前价</small></span>
+      {showProximity ? (
+        <span className="mobile-reminder-status mobile-proximity-status">
+          <strong>{proximity.label}</strong>
+          <small>{formatDistance(proximity.distancePercent, showInsideRange ? alert.status : undefined)}</small>
+        </span>
+      ) : <span className={`mobile-reminder-status status-${alert.status.toLowerCase()}`}>{alertStatus(alert.status)}</span>}
+      {showProximity && proximity.state !== 'unavailable' ? <span aria-hidden="true" className="mobile-reminder-proximity-bar"><i /></span> : null}
     </button>
   );
 }
@@ -161,7 +180,7 @@ function Sparkline({ bars }: { bars: MarketBar[] }) {
   );
 }
 
-function uniqueAlerts(items: PriceAlert[]) {
+function uniqueAlerts(items: PriceAlert[], instruments: Instrument[]) {
   const grouped = new Map<string, PriceAlert>();
   items.forEach((item) => {
     const current = grouped.get(item.symbol);
@@ -169,15 +188,30 @@ function uniqueAlerts(items: PriceAlert[]) {
       grouped.set(item.symbol, item);
       return;
     }
-    const preferred = alertPriority(item) > alertPriority(current) ? item : current;
+    const instrument = instruments.find((candidate) => candidate.symbol === item.symbol);
+    const preferred = preferredAlert(item, current, instrument);
     grouped.set(item.symbol, preferred);
   });
   return [...grouped.values()];
 }
 
+function preferredAlert(candidate: PriceAlert, current: PriceAlert, instrument?: Instrument) {
+  const candidatePriority = alertPriority(candidate);
+  const currentPriority = alertPriority(current);
+  if (candidatePriority !== currentPriority) return candidatePriority > currentPriority ? candidate : current;
+  const candidateDistance = priceAlertProximity(candidate, currentPrice(candidate, instrument)).distancePercent;
+  const currentDistance = priceAlertProximity(current, currentPrice(current, instrument)).distancePercent;
+  if (Number.isFinite(candidateDistance) !== Number.isFinite(currentDistance)) {
+    return Number.isFinite(candidateDistance) ? candidate : current;
+  }
+  if (Number.isFinite(candidateDistance) && Number.isFinite(currentDistance) && candidateDistance !== currentDistance) {
+    return candidateDistance! < currentDistance! ? candidate : current;
+  }
+  return candidate.sourceMessageId && !current.sourceMessageId ? candidate : current;
+}
+
 function alertPriority(alert: PriceAlert) {
-  const status = ({ ACTIVE: 50, DELIVERING: 40, ERROR: 30, PAUSED: 20, TRIGGERED: 10 })[alert.status];
-  return status + Number(Boolean(alert.lastPrice)) + Number(Boolean(alert.sourceMessageId)) * 2;
+  return ({ ACTIVE: 50, DELIVERING: 40, ERROR: 30, PAUSED: 20, TRIGGERED: 10 })[alert.status];
 }
 
 function currentPrice(alert: PriceAlert, instrument?: Instrument) {
@@ -203,6 +237,11 @@ function alertCondition(alert: PriceAlert) {
 
 function alertStatus(status: PriceAlert['status']) {
   return ({ ACTIVE: '监控中', DELIVERING: '发送中', TRIGGERED: '已触发', PAUSED: '已暂停', ERROR: '待恢复' })[status];
+}
+
+function formatDistance(distance?: number, insideStatus?: PriceAlert['status']) {
+  if (insideStatus) return insideStatus === 'ACTIVE' ? '当前已进入' : alertStatus(insideStatus);
+  return Number.isFinite(distance) ? `距离 ${distance!.toFixed(2)}%` : '等待当前价';
 }
 
 function quoteStatus(status: DashboardModel['chartLiveStatus']) {

@@ -65,12 +65,29 @@
 .mobile-stock-price { text-align: right; }
 .mobile-stock-row .stock-icon { border-radius: 12px; }
 .mobile-stock-row > svg { color: #91a29c; }
-.mobile-reminder-row { border-radius: 12px; padding-left: 4px; padding-right: 4px; }
-.mobile-reminder-row.selected { background: #f0f7f4; box-shadow: inset 3px 0 #2b8065; }
+.mobile-reminder-row { --reminder-closeness: 0; border-radius: 12px; overflow: hidden; padding-left: 4px; padding-right: 4px; position: relative; transition: background-color .2s ease, box-shadow .2s ease; }
+.mobile-reminder-row.selected { outline: 1px solid #80aa9e; outline-offset: -1px; }
 .mobile-reminder-status { color: #6b7f79; font-size: 12px; text-align: right; }
 .mobile-reminder-status.status-active { color: #147352; }
 .mobile-reminder-status.status-error { color: #b94747; }
 .mobile-reminder-status.status-triggered { color: #9b6416; }
+.mobile-reminder-row.proximity-watch { background: rgba(221, 165, 55, calc(.06 + var(--reminder-closeness) * .12)); }
+.mobile-reminder-row.proximity-near { background: rgba(231, 116, 54, calc(.07 + var(--reminder-closeness) * .13)); }
+.mobile-reminder-row.proximity-inside { background: #f0edff; box-shadow: inset 3px 0 #7664c8; }
+.mobile-reminder-row.proximity-watch .mobile-stock-price strong,
+.mobile-reminder-row.proximity-watch .mobile-proximity-status strong { color: #a56d14; }
+.mobile-reminder-row.proximity-near .mobile-stock-price strong,
+.mobile-reminder-row.proximity-near .mobile-proximity-status strong { color: #c45624; }
+.mobile-reminder-row.proximity-inside .mobile-stock-price strong,
+.mobile-reminder-row.proximity-inside .mobile-proximity-status strong { color: #6552b5; }
+.mobile-proximity-status { display: grid; gap: 2px; min-width: 72px; }
+.mobile-proximity-status strong { color: #6b7f79; font-size: 12px; white-space: nowrap; }
+.mobile-proximity-status small { color: #85958f; font-size: 10px; white-space: nowrap; }
+.mobile-reminder-proximity-bar { background: #edf1ef; bottom: 0; height: 3px; left: 4px; overflow: hidden; position: absolute; right: 4px; }
+.mobile-reminder-proximity-bar i { background: #aab5b1; display: block; height: 100%; width: calc(var(--reminder-closeness) * 100%); }
+.mobile-reminder-row.proximity-watch .mobile-reminder-proximity-bar i { background: linear-gradient(90deg, #e4bd63, #d89c2e); }
+.mobile-reminder-row.proximity-near .mobile-reminder-proximity-bar i { background: linear-gradient(90deg, #dda039, #e46f35); }
+.mobile-reminder-row.proximity-inside .mobile-reminder-proximity-bar i { background: #7664c8; }
 
 .mobile-avatar { align-items: center; background: #e2f1eb; border-radius: 12px; color: #236f5d; display: flex; flex: 0 0 auto; height: 39px; justify-content: center; width: 39px; }
 
