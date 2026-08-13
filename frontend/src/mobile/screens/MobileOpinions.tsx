@@ -36,11 +36,13 @@ function fmtDeployTime(iso: string): string {
 
 interface Props {
   focusMessageId?: string;
+  focusRequestKey?: number;
   kolId: string;
+  onClearFocus: () => void;
   onWatchlistChanged: () => void;
 }
 
-export function MobileOpinions({ focusMessageId = '', kolId, onWatchlistChanged }: Props) {
+export function MobileOpinions({ focusMessageId = '', focusRequestKey = 0, kolId, onClearFocus, onWatchlistChanged }: Props) {
   const [query, setQuery] = useState('');
   const [kolName, setKolName] = useState('');
   const [messages, setMessages] = useState<WxPusherRecentMessage[]>([]);
@@ -49,6 +51,7 @@ export function MobileOpinions({ focusMessageId = '', kolId, onWatchlistChanged 
   const [preview, setPreview] = useState('');
   const [activeRecognition, setActiveRecognition] = useState<PriceAlertRecognitionResult | null>(null);
   const [focusedMessage, setFocusedMessage] = useState<WxPusherRecentMessage | null>(null);
+  const [focusLoading, setFocusLoading] = useState(false);
   const [recognizingIds, setRecognizingIds] = useState<Set<string>>(new Set());
   const [recognitionErrors, setRecognitionErrors] = useState<Record<string, string>>({});
   const requestId = useRef(0);
@@ -56,12 +59,11 @@ export function MobileOpinions({ focusMessageId = '', kolId, onWatchlistChanged 
   const handledFocus = useRef('');
   const [hydratingIds, setHydratingIds] = useState<Set<string>>(new Set());
   const [deployInfo, setDeployInfo] = useState<{ bundleId: string; createdAt: string } | null>(null);
-  const sourceMessages = useMemo(() => focusedMessage && !messages.some((item) => item.id === focusedMessage.id)
-    ? [focusedMessage, ...messages]
-    : messages, [focusedMessage, messages]);
-  const kolNames = useMemo(() => [...new Set(sourceMessages.map((item) => item.bloggerName).filter(Boolean))]
-    .sort((left, right) => left.localeCompare(right, 'zh-CN')), [sourceMessages]);
-  const items = useMemo(() => filterMessages(sourceMessages, query, kolName), [sourceMessages, query, kolName]);
+  const kolNames = useMemo(() => [...new Set(messages.map((item) => item.bloggerName).filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right, 'zh-CN')), [messages]);
+  const items = useMemo(() => focusMessageId
+    ? focusedMessage ? [focusedMessage] : []
+    : filterMessages(messages, query, kolName), [focusMessageId, focusedMessage, messages, query, kolName]);
 
   const fetchDeployInfo = useCallback(() => {
     const env = (import.meta as unknown as { env?: Record<string, string> }).env;
@@ -168,22 +170,29 @@ export function MobileOpinions({ focusMessageId = '', kolId, onWatchlistChanged 
   useEffect(() => {
     if (!focusMessageId) {
       setFocusedMessage(null);
+      setFocusLoading(false);
       return;
     }
     let disposed = false;
     handledFocus.current = '';
+    setFocusedMessage(null);
+    setFocusLoading(true);
     setQuery('');
     setKolName('');
     void api.wxpusherRecentMessageDetail(focusMessageId).then((item) => {
       if (disposed) return;
       detailCache.current.set(item.id, item);
       setFocusedMessage(item);
+      setFocusLoading(false);
       setError('');
     }).catch(() => {
-      if (!disposed) setError('未能读取该价格提醒对应的原始消息');
+      if (!disposed) {
+        setFocusLoading(false);
+        setError('未能读取该价格提醒对应的原始消息');
+      }
     });
     return () => { disposed = true; };
-  }, [focusMessageId]);
+  }, [focusMessageId, focusRequestKey]);
 
   useEffect(() => {
     if (!focusMessageId || handledFocus.current === focusMessageId) return;
@@ -209,13 +218,15 @@ export function MobileOpinions({ focusMessageId = '', kolId, onWatchlistChanged 
       </div>
 
       <div className="mobile-list-title">
-        <div><strong>最新接收消息</strong><small>{kolName || '全部 KOL'}</small></div>
-        <button aria-label="刷新最新消息" className={loading ? 'spinning' : ''} onClick={() => void load()} type="button"><RefreshCw size={17} /></button>
+        <div><strong>{focusMessageId ? '价格提醒来源消息' : '最新接收消息'}</strong><small>{focusMessageId ? '创建当前提醒时智能识别的原文' : kolName || '全部 KOL'}</small></div>
+        {focusMessageId
+          ? <button aria-label="返回全部消息" onClick={onClearFocus} type="button"><X size={17} /></button>
+          : <button aria-label="刷新最新消息" className={loading ? 'spinning' : ''} onClick={() => void load()} type="button"><RefreshCw size={17} /></button>}
       </div>
       {error ? <div className="mobile-card mobile-message-error">{error}</div> : null}
       <section className="mobile-opinion-feed" aria-busy={loading}>
-        {loading && messages.length === 0 ? <div className="mobile-card mobile-empty">正在读取最新消息…</div> : null}
-        {!loading && items.length === 0 ? <div className="mobile-card mobile-empty">暂时没有符合条件的消息</div> : null}
+        {(focusLoading || loading && messages.length === 0) ? <div className="mobile-card mobile-empty">{focusMessageId ? '正在读取价格提醒来源消息…' : '正在读取最新消息…'}</div> : null}
+        {!focusLoading && !loading && items.length === 0 ? <div className="mobile-card mobile-empty">暂时没有符合条件的消息</div> : null}
         {items.map((item) => (
           <MessageCard
             error={recognitionErrors[item.id]}

@@ -15,25 +15,25 @@ export function InstrumentLogo({ symbol, logoUrl, size = 20 }: Props) {
     setSourceIndex(0);
   }, [logoUrl, symbol]);
 
-  if (sourceIndex < sources.length) {
-    return (
+  return (
+    <span className="stock-icon-shell" style={{ height: size, width: size }}>
+      <span
+        className="stock-icon-fallback"
+        style={{ backgroundColor: `hsl(${hue}, 55%, 45%)`, height: size, width: size }}
+      >
+        {symbol.charAt(0)}
+      </span>
+      {sourceIndex < sources.length ? (
       <img
         alt={symbol}
         className="stock-icon"
         height={size}
         onError={() => setSourceIndex((current) => current + 1)}
+        referrerPolicy="no-referrer"
         src={sources[sourceIndex]}
         width={size}
       />
-    );
-  }
-
-  return (
-    <span
-      className="stock-icon stock-icon-fallback"
-      style={{ backgroundColor: `hsl(${hue}, 55%, 45%)`, height: size, width: size }}
-    >
-      {symbol.charAt(0)}
+      ) : null}
     </span>
   );
 }
@@ -42,7 +42,7 @@ function iconSources(symbol: string, logoUrl?: string) {
   const cleaned = logoUrl?.trim();
   return [
     cleaned,
-    `https://s3-symbol-logo.tradingview.com/${symbol.toLowerCase()}.svg`,
+    `https://assets.parqet.com/logos/symbol/${symbol.toUpperCase()}?format=png`,
     `https://financialmodelingprep.com/image-stock/${symbol.toUpperCase()}.png`,
   ].filter((value, index, items): value is string => Boolean(value) && items.indexOf(value) === index);
 }

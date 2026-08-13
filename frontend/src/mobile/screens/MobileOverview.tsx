@@ -18,9 +18,11 @@ const ALERT_REFRESH_MS = 30000;
 export function MobileOverview({ dashboard, onFocusSymbol, onOpenMessage, onQuickAdd }: Props) {
   const [alerts, setAlerts] = useState<PriceAlert[]>([]);
   const [alertsLoaded, setAlertsLoaded] = useState(false);
+  const [selectedAlertId, setSelectedAlertId] = useState('');
   const reminders = useMemo(() => uniqueAlerts(alerts), [alerts]);
   const selected = dashboard.instruments.find((item) => item.symbol === dashboard.selected);
-  const selectedAlert = reminders.find((item) => item.symbol === dashboard.selected);
+  const selectedAlert = alerts.find((item) => item.id === selectedAlertId && item.symbol === dashboard.selected)
+    ?? reminders.find((item) => item.symbol === dashboard.selected);
   const chartBars = dashboard.bars.filter((bar) => bar.timeframe?.toUpperCase() === dashboard.timeframe);
   const latestBar = chartBars[chartBars.length - 1];
   const quote = latestBar?.close ?? selected?.dayClose ?? selectedAlert?.lastPrice;
@@ -84,7 +86,12 @@ export function MobileOverview({ dashboard, onFocusSymbol, onOpenMessage, onQuic
         <div className="mobile-quote-meta"><span className={`mobile-live-dot status-${dashboard.chartLiveStatus}`} />{quoteStatus(dashboard.chartLiveStatus)}<time>{formatQuoteTime(updatedAt)}</time></div>
         <Sparkline bars={chartBars} />
         <div className="mobile-dual-actions">
-          <button onClick={() => onOpenMessage(selectedAlert?.sourceMessageId)} type="button"><MessageSquareText size={18} />查看消息</button>
+          <button
+            disabled={!selectedAlert?.sourceMessageId}
+            onClick={() => selectedAlert?.sourceMessageId && onOpenMessage(selectedAlert.sourceMessageId)}
+            title={selectedAlert?.sourceMessageId ? '查看创建当前价格提醒的原始消息' : '当前提醒没有智能识别来源消息'}
+            type="button"
+          ><MessageSquareText size={18} />查看消息</button>
           <button className="mobile-primary-action" onClick={onQuickAdd} type="button"><PenLine size={18} />记一条</button>
         </div>
       </section>
@@ -104,7 +111,10 @@ export function MobileOverview({ dashboard, onFocusSymbol, onOpenMessage, onQuic
             alert={alert}
             instrument={dashboard.instruments.find((item) => item.symbol === alert.symbol)}
             key={alert.symbol}
-            onSelect={() => onFocusSymbol(alert.symbol)}
+            onSelect={() => {
+              setSelectedAlertId(alert.id);
+              onFocusSymbol(alert.symbol);
+            }}
             selected={alert.symbol === dashboard.selected}
           />
         ))}
@@ -160,17 +170,14 @@ function uniqueAlerts(items: PriceAlert[]) {
       return;
     }
     const preferred = alertPriority(item) > alertPriority(current) ? item : current;
-    grouped.set(item.symbol, {
-      ...preferred,
-      sourceMessageId: current.sourceMessageId || item.sourceMessageId,
-    });
+    grouped.set(item.symbol, preferred);
   });
   return [...grouped.values()];
 }
 
 function alertPriority(alert: PriceAlert) {
   const status = ({ ACTIVE: 50, DELIVERING: 40, ERROR: 30, PAUSED: 20, TRIGGERED: 10 })[alert.status];
-  return status + Number(Boolean(alert.lastPrice));
+  return status + Number(Boolean(alert.lastPrice)) + Number(Boolean(alert.sourceMessageId)) * 2;
 }
 
 function currentPrice(alert: PriceAlert, instrument?: Instrument) {

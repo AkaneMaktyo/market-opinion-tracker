@@ -55,6 +55,7 @@
 
 .mobile-dual-actions { display: grid; gap: 8px; grid-template-columns: 1fr 1fr; }
 .mobile-dual-actions button { align-items: center; background: #eef5f2; border: 0; border-radius: 13px; color: #173f37; display: flex; gap: 7px; justify-content: center; min-height: 47px; }
+.mobile-dual-actions button:disabled { color: #8ba09a; opacity: .7; }
 .mobile-dual-actions .mobile-primary-action { background: #173f37; color: #fff; }
 
 .mobile-watchlist-card { padding: 13px; }

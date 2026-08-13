@@ -5,10 +5,11 @@ import type { YouTubeChannel, YouTubeTranscriptSegment, YouTubeVideo } from '../
 import { formatMediaClock, formatTranscriptStatus } from '../../components/sources/youtube/youtubeFormat';
 
 interface Props {
+  active: boolean;
   onCreateOpinion: (text: string) => void;
 }
 
-export function MobileTranscript({ onCreateOpinion }: Props) {
+export function MobileTranscript({ active, onCreateOpinion }: Props) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [channels, setChannels] = useState<YouTubeChannel[]>([]);
   const [activeVideo, setActiveVideo] = useState<YouTubeVideo | null>(null);
@@ -47,7 +48,9 @@ export function MobileTranscript({ onCreateOpinion }: Props) {
     }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    if (active) void load();
+  }, [active, load]);
 
   async function selectVideo(videoId: string) {
     setLoading(true);
@@ -82,7 +85,7 @@ export function MobileTranscript({ onCreateOpinion }: Props) {
       <section className="mobile-card mobile-now-playing">
         <div className="mobile-video-cover"><button aria-label={playing ? '暂停' : '播放'} disabled={!activeVideo?.audioPath} onClick={() => void togglePlayback()} type="button">{playing ? <Pause size={23} /> : <Play size={23} />}</button><span>{formatMediaClock(durationMs)}</span></div>
         <div className="mobile-video-meta"><small>正在查看</small><h2>{activeVideo?.title || (loading ? '正在载入…' : '暂无转写视频')}</h2><span>{activeVideo ? formatTranscriptStatus(activeVideo.transcriptStatus) : '请先在来源管理中添加频道'}</span></div>
-        <button className="mobile-refresh-button" aria-label="刷新转写" disabled={loading} onClick={() => void load(activeVideo?.videoId)} type="button"><RefreshCw className={loading ? 'spinning' : ''} size={18} /></button>
+        <button className="mobile-refresh-button" aria-label="刷新并显示最新转写" disabled={loading} onClick={() => void load()} type="button"><RefreshCw className={loading ? 'spinning' : ''} size={18} /></button>
       </section>
 
       {videos.length > 0 ? <label className="mobile-video-picker">切换视频<select onChange={(event) => void selectVideo(event.target.value)} value={activeVideo?.videoId || ''}>{videos.map((video) => <option key={video.videoId} value={video.videoId}>{video.title}</option>)}</select></label> : null}
@@ -96,13 +99,21 @@ export function MobileTranscript({ onCreateOpinion }: Props) {
       <div className="mobile-list-title"><strong>逐段转写</strong><small>{activeVideo?.transcriptSegments.length || 0} 段</small></div>
       <section className="mobile-transcript-list">
         {message ? <div className="mobile-card form-message">{message}</div> : null}
-        {!message && activeVideo?.transcriptSegments.length === 0 ? <div className="mobile-card mobile-empty">转写仍在处理中，下拉刷新后再查看</div> : null}
+        {!message && activeVideo?.transcriptSegments.length === 0 ? <div className="mobile-card mobile-empty">{emptyTranscriptMessage(activeVideo)}</div> : null}
         {activeVideo?.transcriptSegments.map((segment) => <TranscriptItem active={segment === activeSegment} key={`${segment.startMs}-${segment.text}`} onClick={() => seek(segment.startMs)} segment={segment} />)}
       </section>
 
       <button className="mobile-floating-action" disabled={!activeSegment?.text} onClick={() => onCreateOpinion(activeSegment?.text || '')} type="button"><Sparkles size={19} />提取当前段为观点</button>
     </div>
   );
+}
+
+function emptyTranscriptMessage(video: YouTubeVideo) {
+  if (video.errorMessage?.trim()) return video.errorMessage;
+  if (video.transcriptStatus === 'error') return '转写失败，请稍后重试';
+  if (video.transcriptStatus === 'retry_midnight') return '转写额度暂时不足，系统将在午夜自动重试';
+  if (video.transcriptStatus === 'ready') return '转写已完成，但没有识别到可展示的文字';
+  return '转写仍在处理中，刷新后再查看';
 }
 
 function TranscriptItem({ active, onClick, segment }: { active: boolean; onClick: () => void; segment: YouTubeTranscriptSegment }) {

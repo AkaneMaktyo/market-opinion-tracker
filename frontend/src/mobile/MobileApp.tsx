@@ -30,6 +30,7 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerSeed, setComposerSeed] = useState('');
   const [focusMessageId, setFocusMessageId] = useState('');
+  const [focusMessageRequest, setFocusMessageRequest] = useState(0);
   const viewportRef = useRef<HTMLElement | null>(null);
   const detailOpenRef = useRef(detailOpen);
   detailOpenRef.current = detailOpen;
@@ -56,6 +57,7 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
       setDetailOpen(false);
       setTab('opinions');
       setFocusMessageId(detail?.messageId || '');
+      setFocusMessageRequest((current) => current + 1);
     };
     window.addEventListener(OPEN_OPINIONS_EVENT, handler);
     return () => window.removeEventListener(OPEN_OPINIONS_EVENT, handler);
@@ -87,6 +89,7 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
 
   function openOpinions(messageId = '') {
     setFocusMessageId(messageId || '');
+    setFocusMessageRequest((current) => current + 1);
     switchTab('opinions');
   }
 
@@ -107,13 +110,13 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
       </header>
 
       <section className={`mobile-app-viewport${detailOpen ? ' showing-chart-detail' : ''}`} aria-live="polite" ref={viewportRef}>
-        {tab === 'opinions' ? <MobileOpinions focusMessageId={focusMessageId} kolId={dashboard.selectedKol} onWatchlistChanged={() => dashboard.reload()} /> : null}
+        {tab === 'opinions' ? <MobileOpinions focusMessageId={focusMessageId} focusRequestKey={focusMessageRequest} kolId={dashboard.selectedKol} onClearFocus={() => openOpinions()} onWatchlistChanged={() => dashboard.reload()} /> : null}
         {tab === 'overview' ? <MobileOverview dashboard={dashboard} onFocusSymbol={focusOverviewSymbol} onOpenMessage={openOpinions} onQuickAdd={() => openComposer()} /> : null}
         {tab === 'watchlist' && !detailOpen ? <MobileWatchlist dashboard={dashboard} onOpenDetail={openInstrument} /> : null}
         {tab === 'watchlist' && detailOpen ? <MobileInstrumentDetail dashboard={dashboard} onBack={() => setDetailOpen(false)} /> : null}
         {transcriptMounted ? (
           <div className="mobile-persistent-tab" hidden={tab !== 'transcript'}>
-            <MobileTranscript onCreateOpinion={openComposer} />
+            <MobileTranscript active={tab === 'transcript'} onCreateOpinion={openComposer} />
           </div>
         ) : null}
         {tab === 'profile' ? <MobileProfile dashboard={dashboard} liveUpdate={liveUpdate} onOpenTranscript={() => switchTab('transcript')} /> : null}

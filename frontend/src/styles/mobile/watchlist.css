@@ -138,5 +138,6 @@
 
   .mobile-instrument-rail .symbol-value { font-size: 11px; }
   .mobile-instrument-rail .stock-icon,
-  .mobile-instrument-rail .stock-icon-fallback { height: 18px; width: 18px; }
+  .mobile-instrument-rail .stock-icon-fallback,
+  .mobile-instrument-rail .stock-icon-shell { height: 18px; width: 18px; }
 }
