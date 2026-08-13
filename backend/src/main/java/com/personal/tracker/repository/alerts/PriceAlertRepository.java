@@ -32,6 +32,7 @@ public class PriceAlertRepository {
       rs.getString("error_message"),
       rs.getString("source_recognition_id"),
       rs.getString("source_candidate_id"),
+      rs.getString("source_message_id"),
       rs.getString("created_at"),
       rs.getString("updated_at"));
   private final RowMapper<ActiveAlert> activeMapper = (rs, rowNum) -> new ActiveAlert(
@@ -60,9 +61,10 @@ public class PriceAlertRepository {
   public List<PriceAlertView> list() {
     ensureSchema();
     return jdbc.query("""
-        SELECT a.*, i.symbol, i.name
+        SELECT a.*, i.symbol, i.name, r.message_id source_message_id
         FROM price_signal_alerts a
         JOIN instruments i ON i.id = a.instrument_id
+        LEFT JOIN message_price_alert_recognitions r ON r.id = a.source_recognition_id
         ORDER BY FIELD(a.status, 'ACTIVE', 'ERROR', 'TRIGGERED', 'PAUSED'), a.updated_at DESC
         """, viewMapper);
   }
@@ -172,8 +174,9 @@ public class PriceAlertRepository {
       return Optional.empty();
     }
     return jdbc.query("""
-        SELECT a.*, i.symbol, i.name
+        SELECT a.*, i.symbol, i.name, r.message_id source_message_id
         FROM price_signal_alerts a JOIN instruments i ON i.id = a.instrument_id
+        LEFT JOIN message_price_alert_recognitions r ON r.id = a.source_recognition_id
         WHERE a.source_recognition_id = ? AND a.source_candidate_id = ?
         """, viewMapper, recognitionId.trim(), candidateId.trim()).stream().findFirst();
   }
@@ -187,14 +190,26 @@ public class PriceAlertRepository {
       BigDecimal target) {
     ensureSchema();
     return jdbc.query("""
-        SELECT a.*, i.symbol, i.name
+        SELECT a.*, i.symbol, i.name, r.message_id source_message_id
         FROM price_signal_alerts a JOIN instruments i ON i.id = a.instrument_id
+        LEFT JOIN message_price_alert_recognitions r ON r.id = a.source_recognition_id
         WHERE a.instrument_id = ? AND a.alert_type = ? AND a.trigger_direction = ?
           AND a.lower_price = ? AND a.upper_price = ?
           AND (a.target_price = ? OR (a.target_price IS NULL AND ? IS NULL))
         LIMIT 1
         """, viewMapper, instrumentId, alertType, triggerDirection, lower, upper, target, target)
         .stream().findFirst();
+  }
+
+  public PriceAlertView linkSourceIfMissing(
+      String id, String recognitionId, String candidateId) {
+    ensureSchema();
+    jdbc.update("""
+        UPDATE price_signal_alerts
+        SET source_recognition_id = ?, source_candidate_id = ?, updated_at = ?
+        WHERE id = ? AND source_recognition_id IS NULL
+        """, nullable(recognitionId), nullable(candidateId), JdbcSupport.now(), id);
+    return find(id).orElseThrow(() -> new IllegalArgumentException("价格提醒不存在"));
   }
 
   public boolean claim(String id, BigDecimal price, String checkedAt) {
@@ -211,7 +226,7 @@ public class PriceAlertRepository {
     jdbc.update("""
         UPDATE price_signal_alerts
         SET last_price = ?, last_checked_at = ?, updated_at = ?
-        WHERE id = ? AND status = 'ACTIVE' AND last_price IS NULL
+        WHERE id = ? AND status = 'ACTIVE'
         """, price, checkedAt, JdbcSupport.now(), id);
   }
 
@@ -235,9 +250,10 @@ public class PriceAlertRepository {
 
   private Optional<PriceAlertView> find(String id) {
     return jdbc.query("""
-        SELECT a.*, i.symbol, i.name
+        SELECT a.*, i.symbol, i.name, r.message_id source_message_id
         FROM price_signal_alerts a
         JOIN instruments i ON i.id = a.instrument_id
+        LEFT JOIN message_price_alert_recognitions r ON r.id = a.source_recognition_id
         WHERE a.id = ?
         """, viewMapper, id).stream().findFirst();
   }
@@ -334,6 +350,7 @@ public class PriceAlertRepository {
       String errorMessage,
       String sourceRecognitionId,
       String sourceCandidateId,
+      String sourceMessageId,
       String createdAt,
       String updatedAt) {
   }

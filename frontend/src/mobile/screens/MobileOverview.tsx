@@ -1,21 +1,21 @@
-import { ArrowRight, MessageSquareText, PenLine, RefreshCw } from 'lucide-react';
+import { MessageSquareText, PenLine, RefreshCw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../../api/client';
 import { InstrumentLogo } from '../../components/instruments/InstrumentLogo';
-import type { Instrument, MarketBar, OpinionView } from '../../types';
+import type { Instrument, MarketBar } from '../../types';
 import type { PriceAlert } from '../../types/alerts';
 import type { DashboardModel } from './mobileTypes';
 
 interface Props {
   dashboard: DashboardModel;
   onFocusSymbol: (symbol: string) => void;
-  onOpenOpinions: () => void;
+  onOpenMessage: (messageId?: string) => void;
   onQuickAdd: () => void;
 }
 
 const ALERT_REFRESH_MS = 30000;
 
-export function MobileOverview({ dashboard, onFocusSymbol, onOpenOpinions, onQuickAdd }: Props) {
+export function MobileOverview({ dashboard, onFocusSymbol, onOpenMessage, onQuickAdd }: Props) {
   const [alerts, setAlerts] = useState<PriceAlert[]>([]);
   const [alertsLoaded, setAlertsLoaded] = useState(false);
   const reminders = useMemo(() => uniqueAlerts(alerts), [alerts]);
@@ -23,7 +23,6 @@ export function MobileOverview({ dashboard, onFocusSymbol, onOpenOpinions, onQui
   const selectedAlert = reminders.find((item) => item.symbol === dashboard.selected);
   const chartBars = dashboard.bars.filter((bar) => bar.timeframe?.toUpperCase() === dashboard.timeframe);
   const latestBar = chartBars[chartBars.length - 1];
-  const latestOpinion = latestOpinionOf(dashboard.opinions);
   const quote = latestBar?.close ?? selected?.dayClose ?? selectedAlert?.lastPrice;
   const change = quoteChange(selected, chartBars);
   const updatedAt = latestBar
@@ -85,7 +84,7 @@ export function MobileOverview({ dashboard, onFocusSymbol, onOpenOpinions, onQui
         <div className="mobile-quote-meta"><span className={`mobile-live-dot status-${dashboard.chartLiveStatus}`} />{quoteStatus(dashboard.chartLiveStatus)}<time>{formatQuoteTime(updatedAt)}</time></div>
         <Sparkline bars={chartBars} />
         <div className="mobile-dual-actions">
-          <button onClick={onOpenOpinions} type="button"><MessageSquareText size={18} />查看消息</button>
+          <button onClick={() => onOpenMessage(selectedAlert?.sourceMessageId)} type="button"><MessageSquareText size={18} />查看消息</button>
           <button className="mobile-primary-action" onClick={onQuickAdd} type="button"><PenLine size={18} />记一条</button>
         </div>
       </section>
@@ -111,10 +110,6 @@ export function MobileOverview({ dashboard, onFocusSymbol, onOpenOpinions, onQui
         ))}
       </section>
 
-      <section className="mobile-card mobile-latest-card">
-        <div className="mobile-section-head"><h3>最新观点</h3><button onClick={onOpenOpinions} type="button">最新消息</button></div>
-        {latestOpinion ? <LatestOpinion item={latestOpinion} /> : <p className="mobile-empty">当前标的还没有观点</p>}
-      </section>
     </div>
   );
 }
@@ -124,8 +119,8 @@ function ReminderRow({ alert, instrument, onSelect, selected }: { alert: PriceAl
     <button aria-current={selected ? 'true' : undefined} className={`mobile-stock-row mobile-reminder-row${selected ? ' selected' : ''}`} onClick={onSelect} type="button">
       <InstrumentLogo logoUrl={instrument?.logoUrl} size={38} symbol={alert.symbol} />
       <span className="mobile-stock-name"><strong>{alert.symbol}</strong><small>{alertCondition(alert)}</small></span>
-      <span className="mobile-stock-price"><strong>{formatAlertPrice(alert.lastPrice)}</strong><small className={`mobile-reminder-status status-${alert.status.toLowerCase()}`}>{alertStatus(alert.status)}</small></span>
-      <ArrowRight aria-hidden="true" size={17} />
+      <span className="mobile-stock-price"><strong>{formatAlertPrice(currentPrice(alert, instrument))}</strong><small>当前价</small></span>
+      <span className={`mobile-reminder-status status-${alert.status.toLowerCase()}`}>{alertStatus(alert.status)}</span>
     </button>
   );
 }
@@ -156,23 +151,32 @@ function Sparkline({ bars }: { bars: MarketBar[] }) {
   );
 }
 
-function LatestOpinion({ item }: { item: OpinionView }) {
-  const opinion = item.opinion;
-  return (
-    <article className="mobile-opinion-preview">
-      <span className="mobile-avatar">观</span>
-      <div><strong>{opinion.symbol} · {directionLabel(opinion.direction)}</strong><p>{opinion.thesis}</p><small>{formatDate(opinion.opinionTime)}</small></div>
-      <b className={`mobile-direction mobile-direction-${opinion.direction.toLowerCase()}`}>{directionLabel(opinion.direction)}</b>
-    </article>
-  );
-}
-
 function uniqueAlerts(items: PriceAlert[]) {
-  return [...new Map(items.map((item) => [item.symbol, item])).values()];
+  const grouped = new Map<string, PriceAlert>();
+  items.forEach((item) => {
+    const current = grouped.get(item.symbol);
+    if (!current) {
+      grouped.set(item.symbol, item);
+      return;
+    }
+    const preferred = alertPriority(item) > alertPriority(current) ? item : current;
+    grouped.set(item.symbol, {
+      ...preferred,
+      sourceMessageId: current.sourceMessageId || item.sourceMessageId,
+    });
+  });
+  return [...grouped.values()];
 }
 
-function latestOpinionOf(items: OpinionView[]) {
-  return [...items].sort((left, right) => right.opinion.opinionTime.localeCompare(left.opinion.opinionTime))[0];
+function alertPriority(alert: PriceAlert) {
+  const status = ({ ACTIVE: 50, DELIVERING: 40, ERROR: 30, PAUSED: 20, TRIGGERED: 10 })[alert.status];
+  return status + Number(Boolean(alert.lastPrice));
+}
+
+function currentPrice(alert: PriceAlert, instrument?: Instrument) {
+  return alert.status === 'ACTIVE' || alert.status === 'DELIVERING'
+    ? alert.lastPrice ?? instrument?.dayClose
+    : instrument?.dayClose ?? alert.lastPrice;
 }
 
 function quoteChange(instrument: Instrument | undefined, bars: MarketBar[]) {
@@ -207,10 +211,6 @@ function timeValue(value?: string) {
 function formatQuoteTime(value: number | null) {
   if (!value) return '等待更新';
   return new Intl.DateTimeFormat('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(value);
-}
-
-export function directionLabel(value: string) {
-  return ({ BULLISH: '看多', BEARISH: '看空', RANGE: '震荡', WATCH: '观望' } as Record<string, string>)[value] || value;
 }
 
 export function formatPrice(value?: number) {

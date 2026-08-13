@@ -37,6 +37,7 @@ public class PriceAlertService {
   }
 
   public List<PriceAlertView> list() {
+    monitor.refreshCurrentPrices();
     return alerts.list();
   }
 
@@ -116,7 +117,9 @@ public class PriceAlertService {
         mapped.id(), values.alertType(), values.triggerDirection(),
         values.lower(), values.upper(), values.target());
     if (equivalent.isPresent()) {
-      return result(source, "EXISTS", equivalent.get(), "相同提醒已存在");
+      PriceAlertView linked = alerts.linkSourceIfMissing(
+          equivalent.get().id(), recognition.recognitionId(), source.candidateId());
+      return result(source, "EXISTS", linked, "相同提醒已存在");
     }
     PriceAlertView created;
     try {

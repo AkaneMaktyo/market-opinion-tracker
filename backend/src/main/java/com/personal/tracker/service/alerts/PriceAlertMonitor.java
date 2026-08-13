@@ -45,6 +45,7 @@ public class PriceAlertMonitor {
   private final AtomicBoolean connecting = new AtomicBoolean(false);
   private final AtomicBoolean fallbackPolling = new AtomicBoolean(false);
   private final Map<String, BigDecimal> previousPrices = new java.util.concurrent.ConcurrentHashMap<>();
+  private final Map<String, Long> lastPriceWriteAt = new java.util.concurrent.ConcurrentHashMap<>();
   private volatile Map<String, List<ActiveAlert>> alertsByTopic = Map.of();
   private volatile WebSocket websocket;
   private volatile String subscribedSignature = "";
@@ -115,6 +116,10 @@ public class PriceAlertMonitor {
     return crossed(previous, current, target, "ANY");
   }
 
+  public void refreshCurrentPrices() {
+    scheduler.execute(this::pollFallback);
+  }
+
   static boolean crossed(
       BigDecimal previous, BigDecimal current, BigDecimal target, String direction) {
     if (current == null || target == null) {
@@ -158,6 +163,9 @@ public class PriceAlertMonitor {
             Collectors.toList()));
     alertsByTopic = Map.copyOf(next);
     previousPrices.keySet().removeIf(id -> next.values().stream()
+        .flatMap(List::stream)
+        .noneMatch(alert -> alert.id().equals(id)));
+    lastPriceWriteAt.keySet().removeIf(id -> next.values().stream()
         .flatMap(List::stream)
         .noneMatch(alert -> alert.id().equals(id)));
     next.values().stream().flatMap(List::stream)
@@ -354,21 +362,19 @@ public class PriceAlertMonitor {
     }
     String checkedAt = Instant.ofEpochMilli(timestamp).toString();
     for (ActiveAlert alert : alertsByTopic.getOrDefault(key, List.of())) {
-      boolean matched = pointMatched(alert, price, checkedAt);
+      observeAtMostEveryTenSeconds(alert.id(), price, checkedAt);
+      boolean matched = pointMatched(alert, price);
       if (matched && repository.claim(alert.id(), price, checkedAt)) {
         notifier.submit(() -> notify(alert, price, checkedAt));
       }
     }
   }
 
-  private boolean pointMatched(ActiveAlert alert, BigDecimal price, String checkedAt) {
+  private boolean pointMatched(ActiveAlert alert, BigDecimal price) {
     if (!"POINT".equalsIgnoreCase(alert.alertType())) {
       return inRange(price, alert.lowerPrice(), alert.upperPrice());
     }
     BigDecimal previous = previousPrices.put(alert.id(), price);
-    if (previous == null) {
-      repository.observe(alert.id(), price, checkedAt);
-    }
     return crossed(previous, price, alert.targetPrice(), alert.triggerDirection());
   }
 
@@ -405,6 +411,15 @@ public class PriceAlertMonitor {
       repository.markError(alert.id(), price, checkedAt, result.error());
     }
     refreshNow();
+  }
+
+  private void observeAtMostEveryTenSeconds(String id, BigDecimal price, String checkedAt) {
+    long now = System.currentTimeMillis();
+    Long previous = lastPriceWriteAt.putIfAbsent(id, now);
+    if (previous == null || now - previous >= TimeUnit.SECONDS.toMillis(10)
+        && lastPriceWriteAt.replace(id, previous, now)) {
+      repository.observe(id, price, checkedAt);
+    }
   }
 
   private String pointTitle(String direction) {

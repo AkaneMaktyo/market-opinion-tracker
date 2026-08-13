@@ -78,6 +78,18 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
     setDetailOpen(true);
   }
 
+  function focusOverviewSymbol(symbol: string) {
+    dashboard.selectSymbol(symbol);
+    setDetailOpen(false);
+    setTab('overview');
+    viewportRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function openOpinions(messageId = '') {
+    setFocusMessageId(messageId || '');
+    switchTab('opinions');
+  }
+
   const title = detailOpen && tab === 'watchlist' ? '标的详情' : tabTitles[tab];
 
   return (
@@ -85,7 +97,7 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
       <header className="mobile-app-header">
         <div className="mobile-brand-mark" aria-hidden="true"><span /></div>
         <div className="mobile-page-title"><small>Market pulse</small><strong>{title}</strong></div>
-        <button aria-label="搜索观点" className="mobile-header-button" onClick={() => switchTab('opinions')} type="button"><Search size={20} /></button>
+        <button aria-label="搜索观点" className="mobile-header-button" onClick={() => openOpinions()} type="button"><Search size={20} /></button>
         <PriceAlertButton
           onJumpToChart={openInstrument}
           selectedSymbol={dashboard.selected}
@@ -96,7 +108,7 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
 
       <section className={`mobile-app-viewport${detailOpen ? ' showing-chart-detail' : ''}`} aria-live="polite" ref={viewportRef}>
         {tab === 'opinions' ? <MobileOpinions focusMessageId={focusMessageId} kolId={dashboard.selectedKol} onWatchlistChanged={() => dashboard.reload()} /> : null}
-        {tab === 'overview' ? <MobileOverview dashboard={dashboard} onFocusSymbol={openInstrument} onOpenOpinions={() => switchTab('opinions')} onQuickAdd={() => openComposer()} /> : null}
+        {tab === 'overview' ? <MobileOverview dashboard={dashboard} onFocusSymbol={focusOverviewSymbol} onOpenMessage={openOpinions} onQuickAdd={() => openComposer()} /> : null}
         {tab === 'watchlist' && !detailOpen ? <MobileWatchlist dashboard={dashboard} onOpenDetail={openInstrument} /> : null}
         {tab === 'watchlist' && detailOpen ? <MobileInstrumentDetail dashboard={dashboard} onBack={() => setDetailOpen(false)} /> : null}
         {transcriptMounted ? (
@@ -108,14 +120,14 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
       </section>
 
       <nav className="mobile-bottom-nav" aria-label="主要导航">
-        <NavButton active={tab === 'opinions'} icon={<MessageSquareText size={21} />} label="观点" onClick={() => switchTab('opinions')} />
+        <NavButton active={tab === 'opinions'} icon={<MessageSquareText size={21} />} label="观点" onClick={() => openOpinions()} />
         <NavButton active={tab === 'overview'} icon={<LayoutDashboard size={21} />} label="概览" onClick={() => switchTab('overview')} />
         <NavButton active={tab === 'watchlist'} icon={<ListChecks size={21} />} label="自选" onClick={() => switchTab('watchlist')} />
         <NavButton active={tab === 'transcript'} icon={<Captions size={21} />} label="转写" onClick={() => switchTab('transcript')} />
         <NavButton active={tab === 'profile'} icon={<UserRound size={21} />} label="我的" onClick={() => switchTab('profile')} />
       </nav>
 
-      <MobileComposer dashboard={dashboard} onClose={() => setComposerOpen(false)} onCreated={() => switchTab('opinions')} open={composerOpen} seed={composerSeed} />
+      <MobileComposer dashboard={dashboard} onClose={() => setComposerOpen(false)} onCreated={() => openOpinions()} open={composerOpen} seed={composerSeed} />
     </main>
   );
 }

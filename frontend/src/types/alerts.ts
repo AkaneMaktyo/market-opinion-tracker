@@ -16,6 +16,7 @@ export interface PriceAlert {
   errorMessage?: string;
   sourceRecognitionId?: string;
   sourceCandidateId?: string;
+  sourceMessageId?: string;
   createdAt: string;
   updatedAt: string;
 }

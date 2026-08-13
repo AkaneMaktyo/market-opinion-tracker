@@ -48,6 +48,7 @@ export function MobileOpinions({ focusMessageId = '', kolId, onWatchlistChanged 
   const [error, setError] = useState('');
   const [preview, setPreview] = useState('');
   const [activeRecognition, setActiveRecognition] = useState<PriceAlertRecognitionResult | null>(null);
+  const [focusedMessage, setFocusedMessage] = useState<WxPusherRecentMessage | null>(null);
   const [recognizingIds, setRecognizingIds] = useState<Set<string>>(new Set());
   const [recognitionErrors, setRecognitionErrors] = useState<Record<string, string>>({});
   const requestId = useRef(0);
@@ -55,9 +56,12 @@ export function MobileOpinions({ focusMessageId = '', kolId, onWatchlistChanged 
   const handledFocus = useRef('');
   const [hydratingIds, setHydratingIds] = useState<Set<string>>(new Set());
   const [deployInfo, setDeployInfo] = useState<{ bundleId: string; createdAt: string } | null>(null);
-  const kolNames = useMemo(() => [...new Set(messages.map((item) => item.bloggerName).filter(Boolean))]
-    .sort((left, right) => left.localeCompare(right, 'zh-CN')), [messages]);
-  const items = useMemo(() => filterMessages(messages, query, kolName), [messages, query, kolName]);
+  const sourceMessages = useMemo(() => focusedMessage && !messages.some((item) => item.id === focusedMessage.id)
+    ? [focusedMessage, ...messages]
+    : messages, [focusedMessage, messages]);
+  const kolNames = useMemo(() => [...new Set(sourceMessages.map((item) => item.bloggerName).filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right, 'zh-CN')), [sourceMessages]);
+  const items = useMemo(() => filterMessages(sourceMessages, query, kolName), [sourceMessages, query, kolName]);
 
   const fetchDeployInfo = useCallback(() => {
     const env = (import.meta as unknown as { env?: Record<string, string> }).env;
@@ -160,6 +164,26 @@ export function MobileOpinions({ focusMessageId = '', kolId, onWatchlistChanged 
       window.clearInterval(timer);
     };
   }, [fetchDeployInfo]);
+
+  useEffect(() => {
+    if (!focusMessageId) {
+      setFocusedMessage(null);
+      return;
+    }
+    let disposed = false;
+    handledFocus.current = '';
+    setQuery('');
+    setKolName('');
+    void api.wxpusherRecentMessageDetail(focusMessageId).then((item) => {
+      if (disposed) return;
+      detailCache.current.set(item.id, item);
+      setFocusedMessage(item);
+      setError('');
+    }).catch(() => {
+      if (!disposed) setError('未能读取该价格提醒对应的原始消息');
+    });
+    return () => { disposed = true; };
+  }, [focusMessageId]);
 
   useEffect(() => {
     if (!focusMessageId || handledFocus.current === focusMessageId) return;
