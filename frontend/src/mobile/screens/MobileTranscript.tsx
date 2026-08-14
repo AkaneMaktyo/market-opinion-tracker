@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../api/client';
 import type { YouTubeChannel, YouTubeTranscriptSegment, YouTubeVideo } from '../../types/youtube';
 import { formatMediaClock, formatTranscriptStatus } from '../../components/sources/youtube/youtubeFormat';
+import { useTranscriptAutoCenter } from '../../components/sources/youtube/timeline/useTranscriptAutoCenter';
 
 interface Props {
   active: boolean;
@@ -19,7 +20,9 @@ export function MobileTranscript({ active, onCreateOpinion }: Props) {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const videos = useMemo(() => channels.flatMap((item) => item.videos || []), [channels]);
-  const activeSegment = activeVideo?.transcriptSegments.find((segment) => activeMs >= segment.startMs && activeMs < segment.endMs);
+  const segments = activeVideo?.transcriptSegments || [];
+  const { activeIndex, refs: segmentRefs } = useTranscriptAutoCenter(segments, activeMs, active);
+  const activeSegment = activeIndex >= 0 ? segments[activeIndex] : undefined;
 
   const load = useCallback(async (requestedVideoId = '') => {
     setLoading(true);
@@ -100,7 +103,15 @@ export function MobileTranscript({ active, onCreateOpinion }: Props) {
       <section className="mobile-transcript-list">
         {message ? <div className="mobile-card form-message">{message}</div> : null}
         {!message && activeVideo?.transcriptSegments.length === 0 ? <div className="mobile-card mobile-empty">{emptyTranscriptMessage(activeVideo)}</div> : null}
-        {activeVideo?.transcriptSegments.map((segment) => <TranscriptItem active={segment === activeSegment} key={`${segment.startMs}-${segment.text}`} onClick={() => seek(segment.startMs)} segment={segment} />)}
+        {segments.map((segment, index) => (
+          <TranscriptItem
+            active={index === activeIndex}
+            itemRef={(node) => { segmentRefs.current[index] = node; }}
+            key={`${segment.startMs}-${segment.text}`}
+            onClick={() => seek(segment.startMs)}
+            segment={segment}
+          />
+        ))}
       </section>
 
       <button className="mobile-floating-action" disabled={!activeSegment?.text} onClick={() => onCreateOpinion(activeSegment?.text || '')} type="button"><Sparkles size={19} />提取当前段为观点</button>
@@ -116,6 +127,11 @@ function emptyTranscriptMessage(video: YouTubeVideo) {
   return '转写仍在处理中，刷新后再查看';
 }
 
-function TranscriptItem({ active, onClick, segment }: { active: boolean; onClick: () => void; segment: YouTubeTranscriptSegment }) {
-  return <button className={`mobile-transcript-item${active ? ' active' : ''}`} onClick={onClick} type="button"><time>{formatMediaClock(segment.startMs)}</time><p>{segment.text}</p>{active ? <span>正在播放</span> : null}</button>;
+function TranscriptItem({ active, itemRef, onClick, segment }: {
+  active: boolean;
+  itemRef: (node: HTMLButtonElement | null) => void;
+  onClick: () => void;
+  segment: YouTubeTranscriptSegment;
+}) {
+  return <button className={`mobile-transcript-item${active ? ' active' : ''}`} onClick={onClick} ref={itemRef} type="button"><time>{formatMediaClock(segment.startMs)}</time><p>{segment.text}</p>{active ? <span>正在播放</span> : null}</button>;
 }

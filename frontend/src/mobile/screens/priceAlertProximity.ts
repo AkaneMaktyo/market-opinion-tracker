@@ -9,6 +9,7 @@ export interface AlertProximity {
   state: AlertProximityState;
   label: string;
   distancePercent?: number;
+  lowerBoundaryDistancePercent?: number;
   intensity: number;
 }
 
@@ -29,7 +30,13 @@ function rangeProximity(alert: PriceAlert, price: number) {
   const lower = Math.min(alert.lowerPrice, alert.upperPrice);
   const upper = Math.max(alert.lowerPrice, alert.upperPrice);
   if (price >= lower && price <= upper) {
-    return { state: 'inside' as const, label: '区间内', distancePercent: 0, intensity: 1 };
+    return {
+      state: 'inside' as const,
+      label: '区间内',
+      distancePercent: 0,
+      lowerBoundaryDistancePercent: Math.abs(price - lower) / Math.abs(lower) * 100,
+      intensity: 1,
+    };
   }
   const boundary = price < lower ? lower : upper;
   return distanceProximity(Math.abs(price - boundary) / Math.abs(boundary) * 100, '即将进入');

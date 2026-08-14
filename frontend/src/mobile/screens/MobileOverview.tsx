@@ -146,7 +146,9 @@ function ReminderRow({ alert, instrument, onSelect, selected }: { alert: PriceAl
       {showProximity ? (
         <span className="mobile-reminder-status mobile-proximity-status">
           <strong>{proximity.label}</strong>
-          <small>{formatDistance(proximity.distancePercent, showInsideRange ? alert.status : undefined)}</small>
+          <small>{showInsideRange
+            ? formatLowerBoundaryDistance(proximity.lowerBoundaryDistancePercent)
+            : formatDistance(proximity.distancePercent)}</small>
         </span>
       ) : <span className={`mobile-reminder-status status-${alert.status.toLowerCase()}`}>{alertStatus(alert.status)}</span>}
       {showProximity && proximity.state !== 'unavailable' ? <span aria-hidden="true" className="mobile-reminder-proximity-bar"><i /></span> : null}
@@ -239,9 +241,12 @@ function alertStatus(status: PriceAlert['status']) {
   return ({ ACTIVE: '监控中', DELIVERING: '发送中', TRIGGERED: '已触发', PAUSED: '已暂停', ERROR: '待恢复' })[status];
 }
 
-function formatDistance(distance?: number, insideStatus?: PriceAlert['status']) {
-  if (insideStatus) return insideStatus === 'ACTIVE' ? '当前已进入' : alertStatus(insideStatus);
+function formatDistance(distance?: number) {
   return Number.isFinite(distance) ? `距离 ${distance!.toFixed(2)}%` : '等待当前价';
+}
+
+function formatLowerBoundaryDistance(distance?: number) {
+  return Number.isFinite(distance) ? `距下边界 ${distance!.toFixed(2)}%` : '等待当前价';
 }
 
 function quoteStatus(status: DashboardModel['chartLiveStatus']) {
