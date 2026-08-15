@@ -192,18 +192,17 @@
 .mobile-position-row.cash { padding-bottom: 12px; }
 .mobile-position-main { align-items: center; display: flex; gap: 10px; justify-content: space-between; min-height: 34px; min-width: 0; }
 .mobile-position-asset { align-items: center; display: flex; gap: 10px; min-width: 0; }
-.mobile-position-asset .stock-icon-shell { background: transparent; border-radius: 50%; box-shadow: none; }
-.mobile-position-asset .stock-icon,
+.mobile-position-asset .stock-icon-shell { background: transparent; border-radius: 0; box-shadow: none; overflow: visible; }
+.mobile-position-asset .stock-icon { background: transparent; border-radius: 0; object-fit: contain; transform: none; }
 .mobile-position-asset .stock-icon-fallback { border-radius: 50%; }
-.mobile-position-asset .stock-icon { background: transparent; object-fit: contain; transform: scale(1.08); }
 .mobile-position-asset .stock-icon-fallback { font-size: 12px; }
 .mobile-position-asset strong { font-size: 15px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mobile-position-quantity { flex: 0 0 auto; font-size: 15px; font-variant-numeric: tabular-nums; font-weight: 750; white-space: nowrap; }
 .mobile-position-meta { align-items: center; display: flex; gap: 12px; justify-content: space-between; margin-left: 44px; min-height: 23px; }
 .mobile-position-meta span { color: #71847d; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mobile-position-meta strong { flex: 0 0 auto; font-size: 11px; font-weight: 500; white-space: nowrap; }
-.mobile-position-metrics { display: grid; margin: 4px 0 0 44px; }
-.mobile-position-metrics > div { align-items: center; display: flex; gap: 12px; height: 28px; justify-content: space-between; min-height: 28px; min-width: 0; }
+.mobile-position-metrics { display: grid; margin: 2px 0 0 44px; }
+.mobile-position-metrics > div { align-items: center; display: flex; gap: 12px; height: 26px; justify-content: space-between; min-height: 26px; min-width: 0; }
 .mobile-position-row dt { color: #7a8c86; flex: 0 0 auto; font-size: 11px; }
 .mobile-position-row dd { align-items: center; display: inline-flex; font-size: 12px; font-variant-numeric: tabular-nums; font-weight: 750; gap: 4px; margin: 0; min-width: 0; text-align: right; white-space: nowrap; }
 .mobile-position-cost dd { padding-right: 23px; position: relative; }

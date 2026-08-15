@@ -2,6 +2,7 @@ import { Check, PencilLine, RefreshCw, ShieldCheck, Trash2, WalletCards, X } fro
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { InstrumentLogo } from '../../components/instruments/InstrumentLogo';
+import type { Instrument } from '../../types';
 import type { PositionPortfolio, SignalTradingStatus, SpotPosition } from '../../types/trading';
 
 const REFRESH_MS = 15000;
@@ -14,6 +15,7 @@ export function MobilePositions() {
   const [editing, setEditing] = useState('');
   const [averageCost, setAverageCost] = useState('');
   const [savingCost, setSavingCost] = useState(false);
+  const [instrumentDirectory, setInstrumentDirectory] = useState<Record<string, Instrument>>({});
 
   async function load(refresh = false) {
     setLoading(true);
@@ -38,6 +40,19 @@ export function MobilePositions() {
       if (!document.hidden) void load(false);
     }, REFRESH_MS);
     return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    void api.instruments(undefined, 'history', false).then((items) => {
+      if (!active) return;
+      setInstrumentDirectory(Object.fromEntries(
+        items.map((item) => [item.symbol.toUpperCase(), item]),
+      ));
+    }).catch(() => {
+      // 标的资料读取失败不阻塞持仓本身展示。
+    });
+    return () => { active = false; };
   }, []);
 
   function startEditing(position: SpotPosition) {
@@ -106,16 +121,17 @@ export function MobilePositions() {
         {portfolio?.positions.map((position) => {
           const isEditing = editing === positionKey(position);
           const isCash = position.assetClass === 'CASH';
+          const instrument = instrumentDirectory[position.asset.toUpperCase()];
           return <article className={`mobile-position-row ${isCash ? 'cash' : ''}`} key={positionKey(position)}>
             <div className="mobile-position-main">
               <div className="mobile-position-asset">
-                <InstrumentLogo logoUrl={positionLogoUrl(position)} size={34} sourceKind={position.assetClass === 'STOCK' ? 'stock' : 'crypto'} symbol={position.asset} />
+                <InstrumentLogo logoUrl={instrument?.logoUrl || positionLogoUrl(position)} size={34} sourceKind={position.assetClass === 'STOCK' ? 'stock' : 'crypto'} symbol={position.asset} />
                 <strong>{position.asset}</strong>
               </div>
               <div className="mobile-position-quantity">{quantity(position.quantity)}</div>
             </div>
             <div className="mobile-position-meta">
-              <span>{positionLabel(position.assetClass, position.provider)}</span>
+              <span>{positionSubtitle(position, instrument)}</span>
               <strong>{money(position.marketValue)} {portfolio.valuationCurrency || 'USD'}</strong>
             </div>
             {!isCash ? <dl className="mobile-position-metrics">
@@ -183,6 +199,16 @@ function price(value?: number) {
 function positionLogoUrl(position: SpotPosition) {
   if (position.assetClass === 'STOCK') return undefined;
   return `https://assets.coincap.io/assets/icons/${position.asset.toLowerCase()}@2x.png`;
+}
+
+function positionSubtitle(position: SpotPosition, instrument?: Instrument) {
+  if (position.assetClass !== 'STOCK') {
+    return positionLabel(position.assetClass, position.provider);
+  }
+  const name = instrument?.name?.trim();
+  return name && name.toUpperCase() !== position.asset.toUpperCase()
+    ? name
+    : positionLabel(position.assetClass, position.provider);
 }
 
 function positionLabel(assetClass: SpotPosition['assetClass'], provider: SpotPosition['provider']) {
