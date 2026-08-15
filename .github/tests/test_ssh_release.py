@@ -14,6 +14,21 @@ SPEC.loader.exec_module(ssh_release)
 
 
 class SshReleaseTest(unittest.TestCase):
+    def test_parser_accepts_binance_private_key(self):
+        args = ssh_release.parser().parse_args([
+            "--host", "example.test",
+            "--port", "22",
+            "--user", "root",
+            "--remote-dir", "/tmp/release",
+            "--jar", "app.jar",
+            "--archive", "frontend.tar.gz",
+            "--script", "apply-release.sh",
+            "--mux-script", "ssh_http_mux.py",
+            "--binance-private-key", "private.pem",
+        ])
+
+        self.assertEqual("private.pem", args.binance_private_key)
+
     def test_upload_enables_pipelining_and_reports_speed(self):
         sftp = MagicMock()
         target = MagicMock()

@@ -19,6 +19,7 @@ public class PriceAlertRepository {
       rs.getString("instrument_id"),
       rs.getString("symbol"),
       rs.getString("name"),
+      rs.getString("market"),
       rs.getString("alert_type"),
       rs.getString("trigger_direction"),
       rs.getBigDecimal("lower_price"),
@@ -61,7 +62,7 @@ public class PriceAlertRepository {
   public List<PriceAlertView> list() {
     ensureSchema();
     return jdbc.query("""
-        SELECT a.*, i.symbol, i.name, r.message_id source_message_id
+        SELECT a.*, i.symbol, i.name, i.market, r.message_id source_message_id
         FROM price_signal_alerts a
         JOIN instruments i ON i.id = a.instrument_id
         LEFT JOIN message_price_alert_recognitions r ON r.id = a.source_recognition_id
@@ -174,11 +175,16 @@ public class PriceAlertRepository {
       return Optional.empty();
     }
     return jdbc.query("""
-        SELECT a.*, i.symbol, i.name, r.message_id source_message_id
+        SELECT a.*, i.symbol, i.name, i.market, r.message_id source_message_id
         FROM price_signal_alerts a JOIN instruments i ON i.id = a.instrument_id
         LEFT JOIN message_price_alert_recognitions r ON r.id = a.source_recognition_id
         WHERE a.source_recognition_id = ? AND a.source_candidate_id = ?
         """, viewMapper, recognitionId.trim(), candidateId.trim()).stream().findFirst();
+  }
+
+  public Optional<PriceAlertView> findById(String id) {
+    ensureSchema();
+    return find(id);
   }
 
   public Optional<PriceAlertView> findEquivalent(
@@ -190,7 +196,7 @@ public class PriceAlertRepository {
       BigDecimal target) {
     ensureSchema();
     return jdbc.query("""
-        SELECT a.*, i.symbol, i.name, r.message_id source_message_id
+        SELECT a.*, i.symbol, i.name, i.market, r.message_id source_message_id
         FROM price_signal_alerts a JOIN instruments i ON i.id = a.instrument_id
         LEFT JOIN message_price_alert_recognitions r ON r.id = a.source_recognition_id
         WHERE a.instrument_id = ? AND a.alert_type = ? AND a.trigger_direction = ?
@@ -250,7 +256,7 @@ public class PriceAlertRepository {
 
   private Optional<PriceAlertView> find(String id) {
     return jdbc.query("""
-        SELECT a.*, i.symbol, i.name, r.message_id source_message_id
+        SELECT a.*, i.symbol, i.name, i.market, r.message_id source_message_id
         FROM price_signal_alerts a
         JOIN instruments i ON i.id = a.instrument_id
         LEFT JOIN message_price_alert_recognitions r ON r.id = a.source_recognition_id
@@ -337,6 +343,7 @@ public class PriceAlertRepository {
       String instrumentId,
       String symbol,
       String name,
+      String market,
       String alertType,
       String triggerDirection,
       BigDecimal lowerPrice,

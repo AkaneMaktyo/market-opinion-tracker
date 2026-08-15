@@ -4,8 +4,10 @@ set -euo pipefail
 JAR_PATH="${1:?jar path required}"
 DIST_ARCHIVE="${2:?frontend archive path required}"
 RUNTIME_ENV_PATH="${3:-}"
+BINANCE_PRIVATE_KEY_PATH="${4:-}"
 APP_BASE="${APP_BASE:-/opt/market-opinion-tracker}"
 ENV_DIR="${ENV_DIR:-/etc/market-opinion-tracker}"
+KEY_DIR="$ENV_DIR/keys"
 WWW_ROOT="${WWW_ROOT:-/var/www/market-opinion-tracker}"
 SERVICE_NAME="${SERVICE_NAME:-market-opinion-tracker}"
 MUX_BASE="${MUX_BASE:-/opt/market-opinion-tracker-deploy}"
@@ -46,7 +48,23 @@ validate_frontend_archive "$DIST_ARCHIVE"
 id -u markettracker >/dev/null 2>&1 || \
   useradd --system --home "$APP_BASE" --shell /usr/sbin/nologin markettracker
 
-mkdir -p "$APP_BASE" "$ENV_DIR" "$WWW_ROOT/market"
+mkdir -p "$APP_BASE" "$ENV_DIR" "$KEY_DIR" "$WWW_ROOT/market"
+chown root:markettracker "$KEY_DIR"
+chmod 750 "$KEY_DIR"
+
+if [[ -n "$BINANCE_PRIVATE_KEY_PATH" && -f "$BINANCE_PRIVATE_KEY_PATH" ]]; then
+  private_key_header="$(head -n 1 "$BINANCE_PRIVATE_KEY_PATH")"
+  case "$private_key_header" in
+    '-----BEGIN PRIVATE KEY-----'|'-----BEGIN ENCRYPTED PRIVATE KEY-----') ;;
+    *)
+      echo "Binance RSA file is not a PKCS#8 private key" >&2
+      exit 1
+      ;;
+  esac
+  install -o root -g markettracker -m 640 \
+    "$BINANCE_PRIVATE_KEY_PATH" "$KEY_DIR/binance-spot-private.pem"
+fi
+
 cp -f "$JAR_PATH" "$APP_BASE/market-opinion-tracker.jar"
 if [ -d "$WWW_ROOT/market/apk" ]; then
   mv "$WWW_ROOT/market/apk" "$MUX_BASE/web-apk-backup"
@@ -67,11 +85,14 @@ fi
 
 if [[ -n "$RUNTIME_ENV_PATH" && -f "$RUNTIME_ENV_PATH" ]]; then
   while IFS= read -r line; do
+    line="${line%$'\r'}"
     [[ "$line" == *=* ]] || continue
     key="${line%%=*}"
     value="${line#*=}"
     case "$key" in
-      PRICE_ALERT_WXPUSHER_SPT)
+      PRICE_ALERT_WXPUSHER_SPT|BINANCE_SPOT_API_KEY|BINANCE_SPOT_KEY_TYPE|\
+      BINANCE_SPOT_ENABLED|BINANCE_SPOT_PAPER_TRADING|BINANCE_SPOT_ENVIRONMENT|\
+      BINANCE_SPOT_PROXY_URL|BINANCE_SPOT_PRIVATE_KEY_PATH|BINANCE_SPOT_PRIVATE_KEY_PASSPHRASE)
         temp_env="$(mktemp)"
         grep -v "^${key}=" "$ENV_DIR/app.env" > "$temp_env" || true
         printf '%s=%s\n' "$key" "$value" >> "$temp_env"

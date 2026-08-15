@@ -3,6 +3,7 @@ export interface PriceAlert {
   instrumentId: string;
   symbol: string;
   name?: string;
+  market?: string;
   alertType: 'RANGE' | 'POINT';
   lowerPrice: number;
   upperPrice: number;

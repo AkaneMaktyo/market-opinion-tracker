@@ -78,7 +78,7 @@ class PriceAlertServiceTest {
 
   private PriceAlertView alert(String sourceMessageId) {
     return new PriceAlertView(
-        "alert-1", "instrument-1", "GOOGL", "谷歌", "POINT", "ANY",
+        "alert-1", "instrument-1", "GOOGL", "谷歌", "US", "POINT", "ANY",
         price("335"), price("335"), price("335"), "ACTIVE", price("330"), "now",
         null, "WAITING", null, sourceMessageId == null ? null : "recognition-1",
         sourceMessageId == null ? null : "candidate-1", sourceMessageId, "now", "now");

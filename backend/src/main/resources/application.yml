@@ -28,6 +28,21 @@ trading:
     passphrase: ${BITGET_DEMO_PASSPHRASE:}
     product-type: ${BITGET_DEMO_PRODUCT_TYPE:USDT-FUTURES}
     margin-coin: ${BITGET_DEMO_MARGIN_COIN:USDT}
+  binance:
+    enabled: ${BINANCE_SPOT_ENABLED:false}
+    paper: ${BINANCE_SPOT_PAPER_TRADING:true}
+    environment: ${BINANCE_SPOT_ENVIRONMENT:testnet}
+    base-url: ${BINANCE_SPOT_BASE_URL:}
+    proxy-url: ${BINANCE_SPOT_PROXY_URL:}
+    api-key: ${BINANCE_SPOT_API_KEY:}
+    api-secret: ${BINANCE_SPOT_API_SECRET:}
+    key-type: ${BINANCE_SPOT_KEY_TYPE:HMAC}
+    private-key-path: ${BINANCE_SPOT_PRIVATE_KEY_PATH:}
+    private-key-passphrase: ${BINANCE_SPOT_PRIVATE_KEY_PASSPHRASE:}
+    recv-window: ${BINANCE_SPOT_RECV_WINDOW:5000}
+    reconcile-ms: ${BINANCE_SPOT_RECONCILE_MS:15000}
+    positions-refresh-ms: ${BINANCE_SPOT_POSITIONS_REFRESH_MS:30000}
+    positions-initial-delay-ms: ${BINANCE_SPOT_POSITIONS_INITIAL_DELAY_MS:1000}
 
 llm:
   base-url: ${LLM_BASE_URL:}

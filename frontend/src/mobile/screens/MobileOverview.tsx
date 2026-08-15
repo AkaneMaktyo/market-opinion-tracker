@@ -1,9 +1,12 @@
-import { MessageSquareText, PenLine, RefreshCw } from 'lucide-react';
+import { MessageSquareText, PenLine, RefreshCw, ShoppingCart } from 'lucide-react';
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { api } from '../../api/client';
 import { InstrumentLogo } from '../../components/instruments/InstrumentLogo';
 import type { Instrument, MarketBar } from '../../types';
 import type { PriceAlert } from '../../types/alerts';
+import type { SignalTradePlan, SignalTradingStatus } from '../../types/trading';
+import { SignalTradeSheet } from '../trading/SignalTradeSheet';
+import { isCryptoAlert } from '../trading/tradeRouting';
 import type { DashboardModel } from './mobileTypes';
 import { priceAlertProximity } from './priceAlertProximity';
 
@@ -20,6 +23,9 @@ export function MobileOverview({ dashboard, onFocusSymbol, onOpenMessage, onQuic
   const [alerts, setAlerts] = useState<PriceAlert[]>([]);
   const [alertsLoaded, setAlertsLoaded] = useState(false);
   const [selectedAlertId, setSelectedAlertId] = useState('');
+  const [tradePlans, setTradePlans] = useState<SignalTradePlan[]>([]);
+  const [tradingStatus, setTradingStatus] = useState<SignalTradingStatus>();
+  const [tradeAlert, setTradeAlert] = useState<PriceAlert>();
   const reminders = useMemo(() => uniqueAlerts(alerts, dashboard.instruments), [alerts, dashboard.instruments]);
   const selected = dashboard.instruments.find((item) => item.symbol === dashboard.selected);
   const selectedAlert = alerts.find((item) => item.id === selectedAlertId && item.symbol === dashboard.selected)
@@ -54,6 +60,32 @@ export function MobileOverview({ dashboard, onFocusSymbol, onOpenMessage, onQuic
       disposed = true;
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    async function loadTrading() {
+      try {
+        const [status, plans] = await Promise.all([
+          api.signalTradingStatus(),
+          api.signalTradePlans(),
+        ]);
+        if (!disposed) {
+          setTradingStatus(status);
+          setTradePlans(plans);
+        }
+      } catch {
+        // 交易入口故障不影响价格提醒和行情的正常使用。
+      }
+    }
+    void loadTrading();
+    const timer = window.setInterval(() => {
+      if (!document.hidden) void loadTrading();
+    }, ALERT_REFRESH_MS);
+    return () => {
+      disposed = true;
+      window.clearInterval(timer);
     };
   }, []);
 
@@ -116,16 +148,37 @@ export function MobileOverview({ dashboard, onFocusSymbol, onOpenMessage, onQuic
               setSelectedAlertId(alert.id);
               onFocusSymbol(alert.symbol);
             }}
+            onTrade={() => setTradeAlert(alert)}
+            plan={tradePlans.find((plan) => plan.alertId === alert.id)}
             selected={alert.symbol === dashboard.selected}
           />
         ))}
       </section>
 
+      {tradeAlert ? (
+        <SignalTradeSheet
+          alert={tradeAlert}
+          existingPlan={tradePlans.find((plan) => plan.alertId === tradeAlert.id)}
+          onClose={() => setTradeAlert(undefined)}
+          onSaved={(plan) => setTradePlans((current) => [
+            plan,
+            ...current.filter((item) => item.id !== plan.id),
+          ])}
+          status={tradingStatus}
+        />
+      ) : null}
     </div>
   );
 }
 
-function ReminderRow({ alert, instrument, onSelect, selected }: { alert: PriceAlert; instrument?: Instrument; onSelect: () => void; selected: boolean }) {
+function ReminderRow({ alert, instrument, onSelect, onTrade, plan, selected }: {
+  alert: PriceAlert;
+  instrument?: Instrument;
+  onSelect: () => void;
+  onTrade: () => void;
+  plan?: SignalTradePlan;
+  selected: boolean;
+}) {
   const price = currentPrice(alert, instrument);
   const proximity = priceAlertProximity(alert, price);
   const showInsideRange = alert.alertType === 'RANGE' && proximity.state === 'inside';
@@ -133,26 +186,29 @@ function ReminderRow({ alert, instrument, onSelect, selected }: { alert: PriceAl
   const proximityClass = showProximity ? ` proximity-${proximity.state}` : '';
   const rowStyle = { '--reminder-closeness': proximity.intensity } as CSSProperties;
   return (
-    <button
-      aria-current={selected ? 'true' : undefined}
-      className={`mobile-stock-row mobile-reminder-row${selected ? ' selected' : ''}${proximityClass}`}
-      onClick={onSelect}
-      style={rowStyle}
-      type="button"
-    >
-      <InstrumentLogo logoUrl={instrument?.logoUrl} size={38} symbol={alert.symbol} />
-      <span className="mobile-stock-name"><strong>{alert.symbol}</strong><small>{alertCondition(alert)}</small></span>
-      <span className="mobile-stock-price"><strong>{formatAlertPrice(price)}</strong><small>当前价</small></span>
-      {showProximity ? (
-        <span className="mobile-reminder-status mobile-proximity-status">
-          <strong>{proximity.label}</strong>
-          <small>{showInsideRange
+    <div className={`mobile-reminder-trade-row${selected ? ' selected' : ''}`} style={rowStyle}>
+      <button
+        aria-current={selected ? 'true' : undefined}
+        className={`mobile-stock-row mobile-reminder-row${selected ? ' selected' : ''}${proximityClass}`}
+        onClick={onSelect}
+        type="button"
+      >
+        <InstrumentLogo logoUrl={instrument?.logoUrl} size={38} symbol={alert.symbol} />
+        <span className="mobile-stock-name"><strong>{alert.symbol}</strong><small>{alertCondition(alert)}</small></span>
+        <span className="mobile-reminder-metrics">
+          <strong>{formatAlertPrice(price)}</strong>
+          <small>当前价 · {showProximity ? proximity.label : alertStatus(alert.status)}</small>
+          {showProximity ? <small className="mobile-reminder-distance">{showInsideRange
             ? formatLowerBoundaryDistance(proximity.lowerBoundaryDistancePercent)
-            : formatDistance(proximity.distancePercent)}</small>
+            : formatDistance(proximity.distancePercent)}</small> : null}
         </span>
-      ) : <span className={`mobile-reminder-status status-${alert.status.toLowerCase()}`}>{alertStatus(alert.status)}</span>}
-      {showProximity && proximity.state !== 'unavailable' ? <span aria-hidden="true" className="mobile-reminder-proximity-bar"><i /></span> : null}
-    </button>
+        {showProximity && proximity.state !== 'unavailable' ? <span aria-hidden="true" className="mobile-reminder-proximity-bar"><i /></span> : null}
+      </button>
+      <button className={`mobile-signal-trade-button${plan ? ' configured' : ''}`} onClick={onTrade} type="button">
+        <ShoppingCart size={15} />
+        <span>{plan ? '已设置' : isCryptoAlert(alert) ? '设置交易' : '股票买入'}</span>
+      </button>
+    </div>
   );
 }
 

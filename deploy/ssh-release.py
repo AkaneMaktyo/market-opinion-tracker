@@ -2,6 +2,7 @@ import argparse
 import hashlib
 import os
 import posixpath
+import shlex
 import sys
 import time
 
@@ -24,6 +25,7 @@ def parser():
     result.add_argument("--script", required=True)
     result.add_argument("--mux-script", required=True)
     result.add_argument("--runtime-env")
+    result.add_argument("--binance-private-key")
     return result
 
 
@@ -168,6 +170,7 @@ def main():
     remote_script = posixpath.join(remote_dir, "apply-release.sh")
     remote_mux = posixpath.join(remote_dir, "ssh_http_mux.py")
     remote_runtime_env = posixpath.join(remote_dir, "runtime.env")
+    remote_binance_private_key = posixpath.join(remote_dir, "binance-spot-private.pem")
     files = [
         (args.jar, remote_jar, True),
         (args.archive, remote_archive, True),
@@ -176,6 +179,8 @@ def main():
     ]
     if args.runtime_env:
         files.append((args.runtime_env, remote_runtime_env, False))
+    if args.binance_private_key:
+        files.append((args.binance_private_key, remote_binance_private_key, False))
 
     client = stage_files(args, remote_dir, files)
     try:
@@ -185,19 +190,32 @@ def main():
                 f"echo '{file_digest(local_path)}  {remote_path}' | sha256sum -c -",
                 timeout=120,
             )
-        runtime_arg = f" {remote_runtime_env}" if args.runtime_env else ""
         if args.runtime_env:
             run(client, f"chmod 600 {remote_runtime_env}", timeout=30)
+        if args.binance_private_key:
+            run(client, f"chmod 600 {remote_binance_private_key}", timeout=30)
+        runtime_arg = shlex.quote(remote_runtime_env if args.runtime_env else "")
+        private_key_arg = shlex.quote(
+            remote_binance_private_key if args.binance_private_key else ""
+        )
         try:
             run(
                 client,
-                f"bash {remote_script} {remote_jar} {remote_archive}{runtime_arg}",
+                "bash "
+                f"{shlex.quote(remote_script)} {shlex.quote(remote_jar)} "
+                f"{shlex.quote(remote_archive)} {runtime_arg} {private_key_arg}",
                 timeout=300,
             )
         finally:
+            cleanup_paths = []
             if args.runtime_env:
+                cleanup_paths.append(remote_runtime_env)
+            if args.binance_private_key:
+                cleanup_paths.append(remote_binance_private_key)
+            if cleanup_paths:
                 try:
-                    run(client, f"rm -f {remote_runtime_env}", timeout=30)
+                    quoted_paths = " ".join(shlex.quote(path) for path in cleanup_paths)
+                    run(client, f"rm -f {quoted_paths}", timeout=30)
                 except Exception:
                     pass
     finally:

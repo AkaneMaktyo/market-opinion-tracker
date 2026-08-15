@@ -413,6 +413,60 @@ CREATE TABLE IF NOT EXISTS resonance_alerts (
   INDEX idx_resonance_alert_cluster(cluster_id, created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS signal_trade_plans (
+  id VARCHAR(64) PRIMARY KEY,
+  alert_id VARCHAR(64) NOT NULL,
+  instrument_id VARCHAR(64) NOT NULL,
+  asset_class VARCHAR(16) NOT NULL,
+  provider VARCHAR(32) NOT NULL,
+  exchange_symbol VARCHAR(64) NOT NULL,
+  base_asset VARCHAR(32) NOT NULL,
+  quote_asset VARCHAR(32) NOT NULL,
+  side VARCHAR(8) NOT NULL,
+  total_cost DECIMAL(24, 8) NOT NULL,
+  batch_count INT NOT NULL,
+  environment VARCHAR(32) NOT NULL,
+  paper BOOLEAN NOT NULL DEFAULT TRUE,
+  status VARCHAR(32) NOT NULL,
+  error_message TEXT,
+  created_at VARCHAR(64) NOT NULL,
+  updated_at VARCHAR(64) NOT NULL,
+  UNIQUE KEY uq_signal_trade_alert(alert_id),
+  INDEX idx_signal_trade_status(provider, status, updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS signal_trade_orders (
+  id VARCHAR(64) PRIMARY KEY,
+  plan_id VARCHAR(64) NOT NULL,
+  batch_no INT NOT NULL,
+  exchange_symbol VARCHAR(64) NOT NULL,
+  side VARCHAR(8) NOT NULL,
+  order_type VARCHAR(16) NOT NULL,
+  price DECIMAL(24, 8) NOT NULL,
+  planned_cost DECIMAL(24, 8) NOT NULL,
+  quantity DECIMAL(32, 12) NOT NULL,
+  client_order_id VARCHAR(64) NOT NULL,
+  exchange_order_id VARCHAR(64),
+  status VARCHAR(32) NOT NULL,
+  executed_quantity DECIMAL(32, 12) NOT NULL DEFAULT 0,
+  cumulative_quote DECIMAL(24, 8) NOT NULL DEFAULT 0,
+  average_price DECIMAL(24, 8) NOT NULL DEFAULT 0,
+  error_message TEXT,
+  created_at VARCHAR(64) NOT NULL,
+  updated_at VARCHAR(64) NOT NULL,
+  UNIQUE KEY uq_signal_trade_batch(plan_id, batch_no),
+  UNIQUE KEY uq_signal_trade_client_order(client_order_id),
+  INDEX idx_signal_trade_order_status(status, updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS position_cost_overrides (
+  provider VARCHAR(32) NOT NULL,
+  symbol VARCHAR(64) NOT NULL,
+  average_cost DECIMAL(24, 8) NOT NULL,
+  updated_at VARCHAR(64) NOT NULL,
+  PRIMARY KEY (provider, symbol)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS kol_instrument_watchlist (
   kol_id VARCHAR(64) NOT NULL,
   instrument_id VARCHAR(64) NOT NULL,

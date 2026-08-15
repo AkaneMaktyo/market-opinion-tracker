@@ -1,0 +1,218 @@
+.mobile-bottom-nav { grid-template-columns: repeat(6, 1fr); }
+.mobile-bottom-nav > button { font-size: 11px; gap: 2px; }
+
+.mobile-reminder-trade-row {
+  align-items: stretch;
+  border-top: 1px solid #edf2f0;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) 62px;
+}
+
+.mobile-reminder-trade-row:first-of-type { border-top: 0; }
+.mobile-reminder-trade-row .mobile-reminder-row { border-top: 0; grid-template-columns: auto minmax(0, 1fr) minmax(78px, auto); min-width: 0; }
+.mobile-reminder-metrics { display: grid; gap: 1px; min-width: 78px; text-align: right; }
+.mobile-reminder-metrics strong { font-size: 13px; }
+.mobile-reminder-metrics small { color: #71847d; font-size: 9px; white-space: nowrap; }
+.mobile-reminder-metrics .mobile-reminder-distance { color: #3d6f62; font-size: 10px; font-weight: 700; }
+.mobile-reminder-row.proximity-watch .mobile-reminder-metrics strong { color: #a56d14; }
+.mobile-reminder-row.proximity-near .mobile-reminder-metrics strong { color: #c45624; }
+.mobile-reminder-row.proximity-inside .mobile-reminder-metrics strong { color: #6552b5; }
+
+.mobile-signal-trade-button {
+  align-items: center;
+  align-self: center;
+  background: #e6f1ed;
+  border: 0;
+  border-radius: 11px;
+  color: #1f705c;
+  display: flex;
+  flex-direction: column;
+  font-size: 10px;
+  font-weight: 700;
+  gap: 4px;
+  justify-content: center;
+  min-height: 48px;
+  padding: 5px 3px;
+}
+
+.mobile-signal-trade-button.configured { background: #edf0ff; color: #5b55ae; }
+
+.mobile-trade-backdrop {
+  align-items: flex-end;
+  padding: max(12px, env(safe-area-inset-top)) 0 0;
+  z-index: 60;
+}
+
+.mobile-trade-sheet {
+  background: #f7faf9;
+  border-radius: 24px 24px 0 0;
+  display: grid;
+  gap: 12px;
+  max-height: calc(100dvh - max(12px, env(safe-area-inset-top)));
+  overflow-y: auto;
+  padding: 9px 14px max(20px, env(safe-area-inset-bottom));
+  width: 100%;
+}
+
+.mobile-trade-channel,
+.mobile-position-channel {
+  align-items: flex-start;
+  background: #e9f4ef;
+  border: 1px solid #cde4da;
+  border-radius: 14px;
+  color: #24725c;
+  display: grid;
+  gap: 9px;
+  grid-template-columns: auto minmax(0, 1fr);
+  padding: 11px 12px;
+}
+
+.mobile-trade-channel > div,
+.mobile-position-channel > div { display: grid; gap: 3px; }
+.mobile-trade-channel small,
+.mobile-position-channel small { color: #638078; font-size: 12px; line-height: 1.45; }
+.mobile-trade-channel.paper { background: #fff7e8; border-color: #ead6ac; color: #9b681b; }
+.mobile-trade-channel.blocked,
+.mobile-position-channel.waiting { background: #f7f0ee; border-color: #ead4ce; color: #9c5849; }
+
+.mobile-trade-signal {
+  background: #fff;
+  border: 1px solid #e0eae6;
+  border-radius: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+}
+
+.mobile-trade-signal > span { display: grid; gap: 4px; padding: 12px; }
+.mobile-trade-signal > span + span { border-left: 1px solid #e5ece9; }
+.mobile-trade-signal small { color: #71847d; }
+.mobile-trade-signal strong { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.mobile-trade-field { color: #40564f; display: grid; font-weight: 700; gap: 7px; }
+.mobile-trade-field > div { position: relative; }
+.mobile-trade-field input,
+.mobile-trade-field select,
+.mobile-trade-field > select {
+  background: #fff;
+  border: 1px solid #ccdad5;
+  border-radius: 12px;
+  color: #14231f;
+  font-size: 16px;
+  min-height: 48px;
+  padding: 0 12px;
+  width: 100%;
+}
+.mobile-trade-field input { padding-right: 68px; }
+.mobile-trade-field b { color: #667c74; font-size: 12px; position: absolute; right: 13px; top: 16px; }
+
+.mobile-trade-batches,
+.mobile-trade-existing {
+  background: #fff;
+  border: 1px solid #e0eae6;
+  border-radius: 14px;
+  display: grid;
+  overflow: hidden;
+}
+
+.mobile-trade-subhead {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  padding: 11px 12px;
+}
+.mobile-trade-subhead > span { align-items: center; display: inline-flex; font-weight: 700; gap: 6px; }
+.mobile-trade-subhead small { color: #72857e; }
+.mobile-trade-batches > div:not(.mobile-trade-subhead) {
+  align-items: center;
+  border-top: 1px solid #edf2f0;
+  display: grid;
+  font-size: 13px;
+  gap: 8px;
+  grid-template-columns: 54px minmax(0, 1fr) auto;
+  padding: 10px 12px;
+}
+.mobile-trade-batches > div > strong { text-align: right; }
+.mobile-trade-batches > div > small { color: #71847d; min-width: 90px; text-align: right; }
+
+.mobile-trade-submit {
+  background: #173f37;
+  border: 0;
+  border-radius: 14px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  min-height: 50px;
+}
+.mobile-trade-submit:disabled { opacity: .48; }
+.mobile-trade-error,
+.mobile-position-error { background: #fff0ed; border-radius: 10px; color: #aa4c3c; font-size: 13px; line-height: 1.5; margin: 0; padding: 9px 11px; }
+
+.mobile-trade-existing { padding: 4px 12px 10px; }
+.mobile-trade-existing > div { align-items: center; display: flex; justify-content: space-between; padding: 9px 0 5px; }
+.mobile-trade-existing > div > b { background: #e9f2ef; border-radius: 999px; color: #31705e; font-size: 11px; padding: 4px 8px; }
+.mobile-trade-existing > strong { font-size: 18px; padding-bottom: 8px; }
+.mobile-trade-existing p { align-items: center; border-top: 1px solid #edf2f0; display: flex; justify-content: space-between; margin: 0; padding: 8px 0 0; }
+.mobile-trade-existing p small { color: #71847d; }
+
+.mobile-positions { align-content: start; }
+.mobile-position-summary {
+  background: linear-gradient(145deg, #173f37, #246c5d);
+  border-radius: 18px;
+  color: #fff;
+  display: grid;
+  gap: 18px;
+  padding: 17px;
+}
+.mobile-position-summary .mobile-section-head small { color: rgba(255, 255, 255, .7); }
+.mobile-position-summary h2 { font-size: 28px; margin: 4px 0 0; }
+.mobile-position-summary h2 span { color: rgba(255, 255, 255, .72); font-size: 12px; }
+.mobile-position-summary .mobile-section-head button { background: rgba(255, 255, 255, .12); border-radius: 50%; color: #fff; height: 40px; width: 40px; }
+.mobile-position-totals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.mobile-position-totals > span { display: grid; gap: 5px; }
+.mobile-position-totals > span + span { border-left: 1px solid rgba(255, 255, 255, .16); padding-left: 11px; }
+.mobile-position-totals small { color: rgba(255, 255, 255, .65); font-size: 11px; }
+.mobile-position-totals strong { font-size: 13px; }
+.mobile-position-summary .mobile-up { color: #9cf0c8 !important; }
+.mobile-position-summary .mobile-down { color: #ffb3a3 !important; }
+
+.mobile-position-list { display: grid; gap: 0; }
+.mobile-position-list > .mobile-section-head { padding-bottom: 10px; }
+.mobile-position-empty { align-items: center; border-top: 1px solid #e9efed; color: #7a8c86; display: flex; flex-direction: column; gap: 7px; padding: 32px 14px; text-align: center; }
+.mobile-position-empty strong { color: #3d514b; }
+.mobile-position-empty small { line-height: 1.5; }
+.mobile-position-row { border-top: 1px solid #e9efed; display: grid; gap: 12px; padding: 13px 0; }
+.mobile-position-asset { align-items: center; display: flex; gap: 9px; }
+.mobile-position-asset > span { align-items: center; background: #e3f0eb; border-radius: 11px; color: #236f5d; display: flex; font-size: 12px; font-weight: 800; height: 38px; justify-content: center; width: 38px; }
+.mobile-position-asset > div,
+.mobile-position-value { display: grid; gap: 2px; }
+.mobile-position-asset small,
+.mobile-position-value small { color: #71847d; font-size: 11px; }
+.mobile-position-value { position: absolute; right: 16px; text-align: right; }
+.mobile-position-row { position: relative; }
+.mobile-position-row dl { background: #f6f9f8; border-radius: 11px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; padding: 9px; }
+.mobile-position-row dl > div { display: grid; gap: 4px; min-width: 0; }
+.mobile-position-row dl > div:last-child { align-items: center; display: flex; grid-column: 1 / -1; justify-content: space-between; margin-top: 8px; }
+.mobile-position-row dt { color: #7a8c86; font-size: 10px; }
+.mobile-position-row dd { font-size: 11px; font-weight: 700; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mobile-position-cost { align-content: start; grid-template-columns: minmax(0, 1fr) auto; }
+.mobile-position-cost dt,
+.mobile-position-cost dd { grid-column: 1; }
+.mobile-position-cost button { align-items: center; align-self: center; background: #e5f0ec; border: 0; border-radius: 8px; color: #286d5c; display: flex; font-size: 10px; gap: 3px; grid-column: 2; grid-row: 1 / 3; padding: 6px 7px; }
+.mobile-position-cost-editor { background: #f1f6f4; border: 1px solid #dce9e4; border-radius: 12px; display: grid; gap: 9px; padding: 10px; }
+.mobile-position-cost-editor label { color: #60756e; display: grid; font-size: 11px; gap: 5px; }
+.mobile-position-cost-editor input { background: #fff; border: 1px solid #ceded8; border-radius: 9px; color: #19372f; min-height: 39px; padding: 0 10px; width: 100%; }
+.mobile-position-cost-editor > div { display: flex; gap: 7px; justify-content: flex-end; }
+.mobile-position-cost-editor button { align-items: center; background: #e5ece9; border: 0; border-radius: 9px; color: #425a53; display: flex; font-size: 11px; gap: 4px; min-height: 34px; padding: 0 9px; }
+.mobile-position-cost-editor button.primary { background: #236b5a; color: #fff; }
+.mobile-position-cost-editor button.danger { color: #a34d42; margin-right: auto; }
+.mobile-position-cost-editor button:disabled { opacity: .55; }
+.mobile-position-note { color: #7b8c86; font-size: 11px; line-height: 1.55; margin: 0; padding: 0 5px; text-align: center; }
+
+@media (max-width: 380px) {
+  .mobile-reminder-trade-row { grid-template-columns: minmax(0, 1fr) 56px; gap: 3px; }
+  .mobile-signal-trade-button { font-size: 9px; }
+  .mobile-reminder-trade-row .mobile-stock-row { gap: 5px; grid-template-columns: auto minmax(0, 1fr) auto; }
+  .mobile-reminder-trade-row .mobile-reminder-status { display: none; }
+}

@@ -1,6 +1,7 @@
 package com.personal.tracker.config;
 
 import com.personal.tracker.service.trading.BitgetDemoClient.BitgetClientException;
+import com.personal.tracker.service.trading.binance.BinanceSpotClient.BinanceClientException;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -24,6 +25,12 @@ public class ApiExceptionHandler {
   @ExceptionHandler(BitgetClientException.class)
   @ResponseStatus(HttpStatus.BAD_GATEWAY)
   Map<String, String> bitgetError(BitgetClientException error) {
+    return Map.of("message", error.getMessage());
+  }
+
+  @ExceptionHandler(BinanceClientException.class)
+  @ResponseStatus(HttpStatus.BAD_GATEWAY)
+  Map<String, String> binanceError(BinanceClientException error) {
     return Map.of("message", error.getMessage());
   }
 }

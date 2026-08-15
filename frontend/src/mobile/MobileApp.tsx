@@ -1,4 +1,4 @@
-import { Bell, Captions, LayoutDashboard, ListChecks, MessageSquareText, Search, UserRound } from 'lucide-react';
+import { Bell, Captions, LayoutDashboard, ListChecks, MessageSquareText, Search, UserRound, WalletCards } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { PriceAlertButton } from '../components/alerts/PriceAlertButton';
 import { useDashboardData } from '../pages/dashboard/useDashboardData';
@@ -8,6 +8,7 @@ import { MobileOpinions } from './screens/MobileOpinions';
 import { MobileOverview } from './screens/MobileOverview';
 import { MobileProfile } from './screens/MobileProfile';
 import { MobileTranscript } from './screens/MobileTranscript';
+import { MobilePositions } from './trading/MobilePositions';
 import type { MobileTab } from './screens/mobileTypes';
 import { MobileInstrumentDetail } from './watchlist/MobileInstrumentDetail';
 import { MobileWatchlist } from './watchlist/MobileWatchlist';
@@ -18,6 +19,7 @@ const tabTitles: Record<MobileTab, string> = {
   opinions: '最新观点',
   overview: '今日概览',
   watchlist: '自选表',
+  positions: '当前持仓',
   transcript: '视频转写',
   profile: '我的',
 };
@@ -114,6 +116,7 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
         {tab === 'overview' ? <MobileOverview dashboard={dashboard} onFocusSymbol={focusOverviewSymbol} onOpenMessage={openOpinions} onQuickAdd={() => openComposer()} /> : null}
         {tab === 'watchlist' && !detailOpen ? <MobileWatchlist dashboard={dashboard} onOpenDetail={openInstrument} /> : null}
         {tab === 'watchlist' && detailOpen ? <MobileInstrumentDetail dashboard={dashboard} onBack={() => setDetailOpen(false)} /> : null}
+        {tab === 'positions' ? <MobilePositions /> : null}
         {transcriptMounted ? (
           <div className="mobile-persistent-tab" hidden={tab !== 'transcript'}>
             <MobileTranscript active={tab === 'transcript'} onCreateOpinion={openComposer} />
@@ -126,6 +129,7 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
         <NavButton active={tab === 'opinions'} icon={<MessageSquareText size={21} />} label="观点" onClick={() => openOpinions()} />
         <NavButton active={tab === 'overview'} icon={<LayoutDashboard size={21} />} label="概览" onClick={() => switchTab('overview')} />
         <NavButton active={tab === 'watchlist'} icon={<ListChecks size={21} />} label="自选" onClick={() => switchTab('watchlist')} />
+        <NavButton active={tab === 'positions'} icon={<WalletCards size={21} />} label="持仓" onClick={() => switchTab('positions')} />
         <NavButton active={tab === 'transcript'} icon={<Captions size={21} />} label="转写" onClick={() => switchTab('transcript')} />
         <NavButton active={tab === 'profile'} icon={<UserRound size={21} />} label="我的" onClick={() => switchTab('profile')} />
       </nav>
