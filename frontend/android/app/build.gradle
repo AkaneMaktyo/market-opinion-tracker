@@ -124,6 +124,7 @@ dependencies {
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation "androidx.lifecycle:lifecycle-process:2.8.7"
     implementation project(':capacitor-android')
     implementation "cn.jiguang.sdk:jpush:$jpushVersion"
     if (enabledPushVendors.contains('xiaomi')) implementation "cn.jiguang.sdk.plugin:xiaomi:$jpushVersion"

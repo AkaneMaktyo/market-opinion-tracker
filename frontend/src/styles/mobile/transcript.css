@@ -19,7 +19,15 @@
 .mobile-transcript-item p { line-height: 1.55; margin: 0; }
 .mobile-transcript-item.active { background: #e7f5ef; border-color: #7ebfae; }
 .mobile-transcript-item > span { background: #173f37; border-radius: 999px; color: #fff; font-size: 11px; padding: 3px 7px; position: absolute; right: 9px; top: -8px; }
+.mobile-transcript-actions { bottom: calc(78px + env(safe-area-inset-bottom)); display: grid; gap: 8px; grid-template-columns: auto minmax(0, 1fr); left: max(13px, calc((100vw - 480px) / 2 + 13px)); position: fixed; right: max(13px, calc((100vw - 480px) / 2 + 13px)); z-index: 5; }
+.mobile-transcript-actions button { align-items: center; border: 0; border-radius: 14px; box-shadow: 0 10px 24px rgba(23, 63, 55, 0.24); display: flex; gap: 7px; justify-content: center; min-height: 50px; padding: 10px 14px; }
+.mobile-transcript-playback { background: #173f37; color: #fff; min-width: 104px; }
+.mobile-transcript-playback.paused { background: #fff; border: 1px solid #39776a; color: #173f37; }
+.mobile-transcript-extract { background: #e4f2ed; color: #173f37; width: 100%; }
+.mobile-transcript-actions button:disabled { opacity: 0.45; }
 
 @media (max-width: 360px) {
   .mobile-now-playing { grid-template-columns: 88px minmax(0, 1fr) auto; }
+  .mobile-transcript-actions button { padding-inline: 11px; }
+  .mobile-transcript-playback { min-width: 96px; }
 }

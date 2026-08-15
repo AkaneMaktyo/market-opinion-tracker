@@ -4,6 +4,7 @@ import { api } from '../../api/client';
 import type { YouTubeChannel, YouTubeTranscriptSegment, YouTubeVideo } from '../../types/youtube';
 import { formatMediaClock, formatTranscriptStatus } from '../../components/sources/youtube/youtubeFormat';
 import { useTranscriptAutoCenter } from '../../components/sources/youtube/timeline/useTranscriptAutoCenter';
+import { useAudioKeepAlive } from '../useAudioKeepAlive';
 
 interface Props {
   active: boolean;
@@ -22,7 +23,9 @@ export function MobileTranscript({ active, onCreateOpinion }: Props) {
   const videos = useMemo(() => channels.flatMap((item) => item.videos || []), [channels]);
   const segments = activeVideo?.transcriptSegments || [];
   const { activeIndex, refs: segmentRefs } = useTranscriptAutoCenter(segments, activeMs, active);
+  useAudioKeepAlive(playing, activeVideo?.title || '');
   const activeSegment = activeIndex >= 0 ? segments[activeIndex] : undefined;
+  const playbackLabel = playing ? '暂停' : activeMs > 0 ? '继续播放' : '播放';
 
   const load = useCallback(async (requestedVideoId = '') => {
     setLoading(true);
@@ -109,12 +112,26 @@ export function MobileTranscript({ active, onCreateOpinion }: Props) {
             itemRef={(node) => { segmentRefs.current[index] = node; }}
             key={`${segment.startMs}-${segment.text}`}
             onClick={() => seek(segment.startMs)}
+            playing={playing}
             segment={segment}
           />
         ))}
       </section>
 
-      <button className="mobile-floating-action" disabled={!activeSegment?.text} onClick={() => onCreateOpinion(activeSegment?.text || '')} type="button"><Sparkles size={19} />提取当前段为观点</button>
+      <div className="mobile-transcript-actions">
+        <button
+          aria-label={playing ? '暂停播放' : playbackLabel}
+          aria-pressed={playing}
+          className={`mobile-transcript-playback${playing ? '' : ' paused'}`}
+          disabled={!activeVideo?.audioPath}
+          onClick={() => void togglePlayback()}
+          type="button"
+        >
+          {playing ? <Pause size={19} /> : <Play size={19} />}
+          <span>{playbackLabel}</span>
+        </button>
+        <button className="mobile-transcript-extract" disabled={!activeSegment?.text} onClick={() => onCreateOpinion(activeSegment?.text || '')} type="button"><Sparkles size={19} />提取当前段</button>
+      </div>
     </div>
   );
 }
@@ -127,11 +144,12 @@ function emptyTranscriptMessage(video: YouTubeVideo) {
   return '转写仍在处理中，刷新后再查看';
 }
 
-function TranscriptItem({ active, itemRef, onClick, segment }: {
+function TranscriptItem({ active, itemRef, onClick, playing, segment }: {
   active: boolean;
   itemRef: (node: HTMLButtonElement | null) => void;
   onClick: () => void;
+  playing: boolean;
   segment: YouTubeTranscriptSegment;
 }) {
-  return <button className={`mobile-transcript-item${active ? ' active' : ''}`} onClick={onClick} ref={itemRef} type="button"><time>{formatMediaClock(segment.startMs)}</time><p>{segment.text}</p>{active ? <span>正在播放</span> : null}</button>;
+  return <button className={`mobile-transcript-item${active ? ' active' : ''}`} onClick={onClick} ref={itemRef} type="button"><time>{formatMediaClock(segment.startMs)}</time><p>{segment.text}</p>{active ? <span>{playing ? '正在播放' : '已暂停'}</span> : null}</button>;
 }

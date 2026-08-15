@@ -3,12 +3,14 @@ package com.personal.marketopiniontracker;
 import android.content.Intent;
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;
+import com.personal.marketopiniontracker.playback.KeepAlivePlugin;
 
 public class MainActivity extends BridgeActivity {
   @Override
   public void onCreate(Bundle savedInstanceState) {
     registerPlugin(InstallApkPlugin.class);
     registerPlugin(JpushPlugin.class);
+    registerPlugin(KeepAlivePlugin.class);
     super.onCreate(savedInstanceState);
     captureNotification(getIntent());
   }
