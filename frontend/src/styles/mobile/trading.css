@@ -203,10 +203,11 @@
 .mobile-position-meta span { color: #71847d; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mobile-position-meta strong { flex: 0 0 auto; font-size: 11px; font-weight: 500; white-space: nowrap; }
 .mobile-position-metrics { display: grid; margin: 4px 0 0 44px; }
-.mobile-position-metrics > div { align-items: center; display: flex; gap: 12px; justify-content: space-between; min-height: 23px; min-width: 0; }
+.mobile-position-metrics > div { align-items: center; display: flex; gap: 12px; height: 28px; justify-content: space-between; min-height: 28px; min-width: 0; }
 .mobile-position-row dt { color: #7a8c86; flex: 0 0 auto; font-size: 11px; }
 .mobile-position-row dd { align-items: center; display: inline-flex; font-size: 12px; font-variant-numeric: tabular-nums; font-weight: 750; gap: 4px; margin: 0; min-width: 0; text-align: right; white-space: nowrap; }
-.mobile-position-cost button { align-items: center; background: transparent; border: 0; color: #6b827a; display: flex; height: 19px; justify-content: center; padding: 0; width: 19px; }
+.mobile-position-cost dd { padding-right: 23px; position: relative; }
+.mobile-position-cost button { align-items: center; background: transparent; border: 0; color: #6b827a; display: flex; height: auto; inset: -14px 0; justify-content: flex-end; min-height: 44px; padding: 0; position: absolute; width: 100%; }
 .mobile-position-cost dd.needs-review { color: #ae6e1b; font-size: 11px; }
 .mobile-position-pnl dd { justify-content: flex-end; }
 .mobile-position-pnl dd small { color: inherit; font-size: 11px; font-weight: 700; }
