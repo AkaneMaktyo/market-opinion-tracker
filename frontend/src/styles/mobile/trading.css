@@ -192,8 +192,8 @@
 .mobile-position-row.cash { padding-bottom: 12px; }
 .mobile-position-main { align-items: center; display: flex; gap: 10px; justify-content: space-between; min-height: 34px; min-width: 0; }
 .mobile-position-asset { align-items: center; display: flex; gap: 10px; min-width: 0; }
-.mobile-position-asset .stock-icon-shell { background: transparent; border-radius: 0; box-shadow: none; overflow: visible; }
-.mobile-position-asset .stock-icon { background: transparent; border-radius: 0; object-fit: contain; transform: none; }
+.mobile-position-asset .stock-icon-shell { background: transparent; border-radius: 50%; box-shadow: none; overflow: hidden; }
+.mobile-position-asset .stock-icon { background: transparent; border-radius: 50%; object-fit: contain; transform: none; }
 .mobile-position-asset .stock-icon-fallback { border-radius: 50%; }
 .mobile-position-asset .stock-icon-fallback { font-size: 12px; }
 .mobile-position-asset strong { font-size: 15px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
