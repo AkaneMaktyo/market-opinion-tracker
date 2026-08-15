@@ -28,7 +28,7 @@
   color: #f5fff9;
   display: grid;
   gap: 9px;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   padding: max(12px, env(safe-area-inset-top)) 14px 15px;
   position: relative;
   z-index: 3;
@@ -91,6 +91,7 @@
 }
 
 .mobile-header-button:active { background: rgba(255, 255, 255, 0.12); }
+.mobile-profile-button.active { background: rgba(255, 255, 255, 0.16); }
 .mobile-notice-dot { background: #ff7a5c; border: 2px solid #173f37; border-radius: 50%; height: 9px; position: absolute; right: 7px; top: 6px; width: 9px; }
 .mobile-visually-hidden { clip: rect(0 0 0 0); clip-path: inset(50%); height: 1px; overflow: hidden; position: absolute; white-space: nowrap; width: 1px; }
 .mobile-app-shell button:focus:not(:focus-visible),

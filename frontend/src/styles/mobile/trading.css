@@ -1,6 +1,3 @@
-.mobile-bottom-nav { grid-template-columns: repeat(6, 1fr); }
-.mobile-bottom-nav > button { font-size: 11px; gap: 2px; }
-
 .mobile-reminder-trade-row {
   align-items: stretch;
   border-top: 1px solid #edf2f0;

@@ -109,6 +109,13 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
           trigger={<><Bell size={20} /><span className="mobile-notice-dot" /><span className="mobile-visually-hidden">价格提醒</span></>}
           triggerClassName="mobile-header-button mobile-notice-button"
         />
+        <button
+          aria-current={tab === 'profile' ? 'page' : undefined}
+          aria-label="我的"
+          className={`mobile-header-button mobile-profile-button${tab === 'profile' ? ' active' : ''}`}
+          onClick={() => switchTab('profile')}
+          type="button"
+        ><UserRound size={20} /></button>
       </header>
 
       <section className={`mobile-app-viewport${detailOpen ? ' showing-chart-detail' : ''}`} aria-live="polite" ref={viewportRef}>
@@ -131,7 +138,6 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
         <NavButton active={tab === 'watchlist'} icon={<ListChecks size={21} />} label="自选" onClick={() => switchTab('watchlist')} />
         <NavButton active={tab === 'positions'} icon={<WalletCards size={21} />} label="持仓" onClick={() => switchTab('positions')} />
         <NavButton active={tab === 'transcript'} icon={<Captions size={21} />} label="转写" onClick={() => switchTab('transcript')} />
-        <NavButton active={tab === 'profile'} icon={<UserRound size={21} />} label="我的" onClick={() => switchTab('profile')} />
       </nav>
 
       <MobileComposer dashboard={dashboard} onClose={() => setComposerOpen(false)} onCreated={() => openOpinions()} open={composerOpen} seed={composerSeed} />
