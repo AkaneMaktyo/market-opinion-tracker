@@ -1,6 +1,7 @@
 import { Check, PencilLine, RefreshCw, ShieldCheck, Trash2, WalletCards, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import { InstrumentLogo } from '../../components/instruments/InstrumentLogo';
 import type { PositionPortfolio, SignalTradingStatus, SpotPosition } from '../../types/trading';
 
 const REFRESH_MS = 15000;
@@ -98,19 +99,27 @@ export function MobilePositions() {
       {error ? <p className="mobile-position-error">{error}</p> : null}
 
       <section className="mobile-card mobile-position-list">
-        <div className="mobile-section-head"><div><h3>持仓明细</h3><small>页面读取缓存，后台每 30 秒更新</small></div><span>{portfolio?.positions.length || 0} 项</span></div>
+        <div className="mobile-section-head"><div><h3>持仓明细</h3><small>每 30 秒自动更新</small></div><span>{portfolio?.positions.length || 0} 项</span></div>
         {!loading && portfolio?.positions.length === 0 ? (
           <div className="mobile-position-empty"><WalletCards size={34} /><strong>暂无可展示持仓</strong><small>{status?.paper ? '模拟计划不会显示为真实持仓' : '成交后会在这里显示数量、成本和盈亏'}</small></div>
         ) : null}
         {portfolio?.positions.map((position) => {
           const isEditing = editing === positionKey(position);
           return <article className="mobile-position-row" key={positionKey(position)}>
-            <div className="mobile-position-asset"><span>{position.asset.slice(0, 2)}</span><div><strong>{position.asset}</strong><small>{positionLabel(position.assetClass, position.provider)}</small></div></div>
-            <div className="mobile-position-value"><strong>{money(position.marketValue)} {portfolio.valuationCurrency || 'USD'}</strong><small>{quantity(position.quantity)} {position.asset}</small></div>
-            <dl>
-              <div className="mobile-position-cost"><dt>平均成本</dt><dd>{position.costKnown ? money(position.averageCost) : '成本未知'}</dd>{position.assetClass !== 'CASH' ? <button onClick={() => startEditing(position)} type="button"><PencilLine size={12} />{position.costKnown ? '修改' : '设置成本'}</button> : null}</div>
-              <div><dt>当前价格</dt><dd>{money(position.currentPrice)}</dd></div>
-              <div><dt>持仓盈亏</dt><dd className={(position.pnl || 0) >= 0 ? 'mobile-up' : 'mobile-down'}>{position.costKnown ? `${signedMoney(position.pnl)} (${percent(position.pnlPercent)})` : '--'}</dd></div>
+            <div className="mobile-position-main">
+              <div className="mobile-position-asset">
+                <InstrumentLogo logoUrl={positionLogoUrl(position)} size={34} sourceKind={position.assetClass === 'STOCK' ? 'stock' : 'crypto'} symbol={position.asset} />
+                <div><strong>{position.asset}</strong><small>{positionLabel(position.assetClass, position.provider)}</small></div>
+              </div>
+              <div className="mobile-position-value"><strong>{money(position.marketValue)} <span>{portfolio.valuationCurrency || 'USD'}</span></strong><small>{quantity(position.quantity)} {position.asset}</small></div>
+            </div>
+            <dl className="mobile-position-metrics">
+              <div className="mobile-position-cost">
+                <dt>平均成本</dt><dd>{position.costKnown ? price(position.averageCost) : '未设置'}</dd>
+                {position.assetClass !== 'CASH' ? <button aria-label={`${position.costKnown ? '修改' : '设置'} ${position.asset} 平均成本`} onClick={() => startEditing(position)} title={position.costKnown ? '修改平均成本' : '设置平均成本'} type="button"><PencilLine size={12} /></button> : null}
+              </div>
+              <div><dt>当前价格</dt><dd>{price(position.currentPrice)}</dd></div>
+              <div className="mobile-position-pnl"><dt>持仓盈亏</dt><dd className={(position.pnl || 0) >= 0 ? 'mobile-up' : 'mobile-down'}>{position.costKnown ? signedMoney(position.pnl) : '--'}{position.costKnown ? <small>{percent(position.pnlPercent)}</small> : null}</dd></div>
             </dl>
             {isEditing ? <div className="mobile-position-cost-editor">
               <label><span>每股 / 每币平均成本</span><input autoFocus inputMode="decimal" min="0" onChange={(event) => setAverageCost(event.target.value)} step="0.00000001" type="number" value={averageCost} /></label>
@@ -149,10 +158,22 @@ function quantity(value: number) {
   return value.toLocaleString('zh-CN', { maximumFractionDigits: 8 });
 }
 
+function price(value?: number) {
+  if (!Number.isFinite(value)) return '--';
+  const absolute = Math.abs(value!);
+  const digits = absolute >= 100 ? 2 : absolute >= 1 ? 4 : 8;
+  return value!.toLocaleString('zh-CN', { maximumFractionDigits: digits });
+}
+
+function positionLogoUrl(position: SpotPosition) {
+  if (position.assetClass === 'STOCK') return undefined;
+  return `https://assets.coincap.io/assets/icons/${position.asset.toLowerCase()}@2x.png`;
+}
+
 function positionLabel(assetClass: SpotPosition['assetClass'], provider: SpotPosition['provider']) {
   if (assetClass === 'STOCK') return '币安股票';
-  if (assetClass === 'CASH') return provider === 'BINANCE_FUNDING' ? '资金账户现金' : '现货账户现金';
-  return provider === 'BINANCE_FUNDING' ? '资金账户加密资产' : '币安现货';
+  if (assetClass === 'CASH') return provider === 'BINANCE_FUNDING' ? '资金账户 · 现金' : '现货账户 · 现金';
+  return provider === 'BINANCE_FUNDING' ? '资金账户 · 加密' : '币安现货';
 }
 
 function time(value: string) {
