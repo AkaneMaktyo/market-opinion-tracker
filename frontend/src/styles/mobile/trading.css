@@ -179,40 +179,41 @@
 .mobile-position-summary .mobile-up { color: #9cf0c8 !important; }
 .mobile-position-summary .mobile-down { color: #ffb3a3 !important; }
 
-.mobile-position-list { display: grid; gap: 0; }
-.mobile-position-list > .mobile-section-head { padding-bottom: 7px; }
+.mobile-positions .mobile-position-channel { align-items: center; border-radius: 12px; padding: 9px 11px; }
+.mobile-positions .mobile-position-channel > svg { height: 17px; width: 17px; }
+.mobile-positions .mobile-position-channel strong { font-size: 12px; }
+.mobile-positions .mobile-position-channel small { font-size: 10px; line-height: 1.35; }
+.mobile-position-list { display: grid; gap: 0; overflow: hidden; }
+.mobile-position-list > .mobile-section-head { padding: 11px 13px 9px; }
 .mobile-position-empty { align-items: center; border-top: 1px solid #e9efed; color: #7a8c86; display: flex; flex-direction: column; gap: 7px; padding: 32px 14px; text-align: center; }
 .mobile-position-empty strong { color: #3d514b; }
 .mobile-position-empty small { line-height: 1.5; }
-.mobile-position-row { border-top: 1px solid #e9efed; display: grid; gap: 8px; padding: 10px 0; }
-.mobile-position-main { align-items: center; display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr) auto; min-width: 0; }
-.mobile-position-asset { align-items: center; display: flex; gap: 9px; }
-.mobile-position-asset .stock-icon-shell { background: #e3f0eb; border-radius: 11px; box-shadow: inset 0 0 0 1px rgba(23, 63, 55, .06); }
+.mobile-position-row { border-top: 1px solid #e9efed; display: grid; gap: 0; padding: 12px 13px 11px; }
+.mobile-position-row.cash { padding-bottom: 12px; }
+.mobile-position-main { align-items: center; display: flex; gap: 10px; justify-content: space-between; min-height: 34px; min-width: 0; }
+.mobile-position-asset { align-items: center; display: flex; gap: 10px; min-width: 0; }
+.mobile-position-asset .stock-icon-shell { background: transparent; border-radius: 50%; box-shadow: none; }
 .mobile-position-asset .stock-icon,
-.mobile-position-asset .stock-icon-fallback { border-radius: 11px; }
-.mobile-position-asset .stock-icon { background: #fff; object-fit: cover; }
+.mobile-position-asset .stock-icon-fallback { border-radius: 50%; }
+.mobile-position-asset .stock-icon { background: transparent; object-fit: contain; transform: scale(1.08); }
 .mobile-position-asset .stock-icon-fallback { font-size: 12px; }
-.mobile-position-asset > div,
-.mobile-position-value { display: grid; gap: 2px; }
-.mobile-position-asset > div { min-width: 0; }
 .mobile-position-asset strong { font-size: 15px; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mobile-position-asset small,
-.mobile-position-value small { color: #71847d; font-size: 11px; }
-.mobile-position-value { min-width: 0; text-align: right; }
-.mobile-position-value strong { font-size: 14px; line-height: 1.2; white-space: nowrap; }
-.mobile-position-value strong span { color: #71847d; font-size: 9px; font-weight: 700; }
-.mobile-position-metrics { background: #f6f9f8; border: 1px solid #edf2f0; border-radius: 10px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0; overflow: hidden; }
-.mobile-position-metrics > div { display: grid; gap: 2px; min-width: 0; padding: 6px 7px; }
-.mobile-position-metrics > div + div { border-left: 1px solid #e3ebe8; }
-.mobile-position-row dt { color: #7a8c86; font-size: 10px; }
-.mobile-position-row dd { font-size: 11px; font-variant-numeric: tabular-nums; font-weight: 750; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mobile-position-cost { padding-right: 35px !important; position: relative; }
-.mobile-position-cost button { align-items: center; background: #e1eee9; border: 0; border-radius: 8px; color: #286d5c; display: flex; height: 28px; justify-content: center; padding: 0; position: absolute; right: 4px; top: 7px; width: 28px; }
-.mobile-position-pnl dd { display: grid; gap: 0; }
-.mobile-position-pnl dd small { color: inherit; font-size: 9px; font-weight: 700; }
-.mobile-position-cost-editor { background: #f1f6f4; border: 1px solid #dce9e4; border-radius: 12px; display: grid; gap: 9px; padding: 10px; }
+.mobile-position-quantity { flex: 0 0 auto; font-size: 15px; font-variant-numeric: tabular-nums; font-weight: 750; white-space: nowrap; }
+.mobile-position-meta { align-items: center; display: flex; gap: 12px; justify-content: space-between; margin-left: 44px; min-height: 23px; }
+.mobile-position-meta span { color: #71847d; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mobile-position-meta strong { flex: 0 0 auto; font-size: 11px; font-weight: 500; white-space: nowrap; }
+.mobile-position-metrics { display: grid; margin: 4px 0 0 44px; }
+.mobile-position-metrics > div { align-items: center; display: flex; gap: 12px; justify-content: space-between; min-height: 23px; min-width: 0; }
+.mobile-position-row dt { color: #7a8c86; flex: 0 0 auto; font-size: 11px; }
+.mobile-position-row dd { align-items: center; display: inline-flex; font-size: 12px; font-variant-numeric: tabular-nums; font-weight: 750; gap: 4px; margin: 0; min-width: 0; text-align: right; white-space: nowrap; }
+.mobile-position-cost button { align-items: center; background: transparent; border: 0; color: #6b827a; display: flex; height: 19px; justify-content: center; padding: 0; width: 19px; }
+.mobile-position-cost dd.needs-review { color: #ae6e1b; font-size: 11px; }
+.mobile-position-pnl dd { justify-content: flex-end; }
+.mobile-position-pnl dd small { color: inherit; font-size: 11px; font-weight: 700; }
+.mobile-position-cost-editor { background: #f1f6f4; border: 1px solid #dce9e4; border-radius: 12px; display: grid; gap: 9px; margin: 8px 0 0 44px; padding: 10px; }
 .mobile-position-cost-editor label { color: #60756e; display: grid; font-size: 11px; gap: 5px; }
 .mobile-position-cost-editor input { background: #fff; border: 1px solid #ceded8; border-radius: 9px; color: #19372f; min-height: 39px; padding: 0 10px; width: 100%; }
+.mobile-position-cost-editor label small { color: #7a8c86; font-size: 10px; line-height: 1.4; }
 .mobile-position-cost-editor > div { display: flex; gap: 7px; justify-content: flex-end; }
 .mobile-position-cost-editor button { align-items: center; background: #e5ece9; border: 0; border-radius: 9px; color: #425a53; display: flex; font-size: 11px; gap: 4px; min-height: 34px; padding: 0 9px; }
 .mobile-position-cost-editor button.primary { background: #236b5a; color: #fff; }
@@ -225,4 +226,12 @@
   .mobile-signal-trade-button { font-size: 9px; }
   .mobile-reminder-trade-row .mobile-stock-row { gap: 5px; grid-template-columns: auto minmax(0, 1fr) auto; }
   .mobile-reminder-trade-row .mobile-reminder-status { display: none; }
+}
+
+@media (max-width: 360px) {
+  .mobile-position-row { padding-inline: 11px; }
+  .mobile-position-meta,
+  .mobile-position-metrics,
+  .mobile-position-cost-editor { margin-left: 42px; }
+  .mobile-position-row dd { font-size: 11px; }
 }

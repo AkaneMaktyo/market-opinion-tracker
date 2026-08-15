@@ -467,6 +467,17 @@ CREATE TABLE IF NOT EXISTS position_cost_overrides (
   PRIMARY KEY (provider, symbol)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS position_cost_anchors (
+  provider VARCHAR(32) NOT NULL,
+  symbol VARCHAR(64) NOT NULL,
+  basis_quantity DECIMAL(32, 12) NOT NULL,
+  basis_cost DECIMAL(24, 8) NOT NULL,
+  trade_quantity DECIMAL(32, 12) NOT NULL DEFAULT 0,
+  trade_quote DECIMAL(24, 8) NOT NULL DEFAULT 0,
+  updated_at VARCHAR(64) NOT NULL,
+  PRIMARY KEY (provider, symbol)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS kol_instrument_watchlist (
   kol_id VARCHAR(64) NOT NULL,
   instrument_id VARCHAR(64) NOT NULL,

@@ -105,26 +105,32 @@ export function MobilePositions() {
         ) : null}
         {portfolio?.positions.map((position) => {
           const isEditing = editing === positionKey(position);
-          return <article className="mobile-position-row" key={positionKey(position)}>
+          const isCash = position.assetClass === 'CASH';
+          return <article className={`mobile-position-row ${isCash ? 'cash' : ''}`} key={positionKey(position)}>
             <div className="mobile-position-main">
               <div className="mobile-position-asset">
                 <InstrumentLogo logoUrl={positionLogoUrl(position)} size={34} sourceKind={position.assetClass === 'STOCK' ? 'stock' : 'crypto'} symbol={position.asset} />
-                <div><strong>{position.asset}</strong><small>{positionLabel(position.assetClass, position.provider)}</small></div>
+                <strong>{position.asset}</strong>
               </div>
-              <div className="mobile-position-value"><strong>{money(position.marketValue)} <span>{portfolio.valuationCurrency || 'USD'}</span></strong><small>{quantity(position.quantity)} {position.asset}</small></div>
+              <div className="mobile-position-quantity">{quantity(position.quantity)}</div>
             </div>
-            <dl className="mobile-position-metrics">
+            <div className="mobile-position-meta">
+              <span>{positionLabel(position.assetClass, position.provider)}</span>
+              <strong>{money(position.marketValue)} {portfolio.valuationCurrency || 'USD'}</strong>
+            </div>
+            {!isCash ? <dl className="mobile-position-metrics">
               <div className="mobile-position-cost">
-                <dt>平均成本</dt><dd>{position.costKnown ? price(position.averageCost) : '未设置'}</dd>
-                {position.assetClass !== 'CASH' ? <button aria-label={`${position.costKnown ? '修改' : '设置'} ${position.asset} 平均成本`} onClick={() => startEditing(position)} title={position.costKnown ? '修改平均成本' : '设置平均成本'} type="button"><PencilLine size={12} /></button> : null}
+                <dt>平均成本</dt><dd className={position.costSource === 'MANUAL_REVIEW_REQUIRED' ? 'needs-review' : ''}>{costText(position)}
+                  <button aria-label={`${position.costKnown ? '修改' : '设置'} ${position.asset} 平均成本`} onClick={() => startEditing(position)} title={position.costKnown ? '修改平均成本' : '设置平均成本'} type="button"><PencilLine size={12} /></button>
+                </dd>
               </div>
-              <div><dt>当前价格</dt><dd>{price(position.currentPrice)}</dd></div>
-              <div className="mobile-position-pnl"><dt>持仓盈亏</dt><dd className={(position.pnl || 0) >= 0 ? 'mobile-up' : 'mobile-down'}>{position.costKnown ? signedMoney(position.pnl) : '--'}{position.costKnown ? <small>{percent(position.pnlPercent)}</small> : null}</dd></div>
-            </dl>
+              <div><dt>当前价格</dt><dd>{price(position.currentPrice)} {portfolio.valuationCurrency || 'USD'}</dd></div>
+              <div className="mobile-position-pnl"><dt>持仓盈亏</dt><dd className={(position.pnl || 0) >= 0 ? 'mobile-up' : 'mobile-down'}>{position.costKnown ? `${signedMoney(position.pnl)} ${portfolio.valuationCurrency || 'USD'}` : '--'}{position.costKnown ? <small>({percent(position.pnlPercent)})</small> : null}</dd></div>
+            </dl> : null}
             {isEditing ? <div className="mobile-position-cost-editor">
-              <label><span>每股 / 每币平均成本</span><input autoFocus inputMode="decimal" min="0" onChange={(event) => setAverageCost(event.target.value)} step="0.00000001" type="number" value={averageCost} /></label>
+              <label><span>当前全部持仓的每股 / 每币平均成本</span><input autoFocus inputMode="decimal" min="0" onChange={(event) => setAverageCost(event.target.value)} step="0.00000001" type="number" value={averageCost} /><small>保存后，应用内新增成交会自动按真实成交金额加权更新</small></label>
               <div>
-                {position.costSource === 'MANUAL' ? <button className="danger" disabled={savingCost} onClick={() => void clearCost(position)} type="button"><Trash2 size={14} />恢复自动</button> : null}
+                {isManualCost(position.costSource) ? <button className="danger" disabled={savingCost} onClick={() => void clearCost(position)} type="button"><Trash2 size={14} />恢复自动</button> : null}
                 <button disabled={savingCost} onClick={() => setEditing('')} type="button"><X size={14} />取消</button>
                 <button className="primary" disabled={savingCost} onClick={() => void saveCost(position)} type="button"><Check size={14} />保存</button>
               </div>
@@ -140,6 +146,15 @@ export function MobilePositions() {
 
 function positionKey(position: SpotPosition) {
   return `${position.provider}:${position.symbol}`;
+}
+
+function costText(position: SpotPosition) {
+  if (position.costKnown) return price(position.averageCost);
+  return position.costSource === 'MANUAL_REVIEW_REQUIRED' ? '检测到额外增仓，请更新' : '未设置';
+}
+
+function isManualCost(source: SpotPosition['costSource']) {
+  return source === 'MANUAL' || source === 'MANUAL_REVIEW_REQUIRED';
 }
 
 function money(value?: number) {

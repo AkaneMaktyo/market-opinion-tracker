@@ -3,12 +3,14 @@ package com.personal.tracker.service.trading.spot;
 import com.personal.tracker.config.BinanceSpotProperties;
 import com.personal.tracker.repository.JdbcSupport;
 import com.personal.tracker.repository.trading.PositionCostOverrideRepository;
+import com.personal.tracker.repository.trading.PositionCostOverrideRepository.CostAnchor;
 import com.personal.tracker.repository.trading.PositionCostOverrideRepository.PositionCostOverride;
 import com.personal.tracker.repository.trading.SignalTradeRepository;
 import com.personal.tracker.repository.trading.SignalTradeRepository.PositionCost;
 import com.personal.tracker.service.trading.binance.BinanceSpotClient;
 import com.personal.tracker.service.trading.binance.BinanceSpotClient.AccountBalance;
 import com.personal.tracker.service.trading.binance.BinanceSpotClient.FundingBalance;
+import com.personal.tracker.service.trading.spot.PositionCostBasisCalculator.ReconciledCost;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -22,7 +24,6 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class SpotPositionService {
-  private static final BigDecimal COST_MATCH_TOLERANCE = new BigDecimal("0.005");
   private static final BigDecimal MAX_AVERAGE_COST = new BigDecimal("1000000000");
   private final BinanceSpotClient binance;
   private final BinanceSpotProperties properties;
@@ -79,8 +80,11 @@ public class SpotPositionService {
       throw new IllegalArgumentException("平均成本必须大于 0 且不超过 1,000,000,000");
     }
     PositionPortfolio current = positions(false);
-    requireEditablePosition(current, provider, symbol);
-    overrides.upsert(provider, symbol, averageCost.setScale(8, RoundingMode.HALF_UP));
+    SpotPosition position = requireEditablePosition(current, provider, symbol);
+    BigDecimal normalizedCost = averageCost.setScale(8, RoundingMode.HALF_UP);
+    PositionCost trade = tradeCosts().get(PositionCostOverrideRepository.key(provider, symbol));
+    overrides.upsert(
+        provider, symbol, normalizedCost, createAnchor(position, normalizedCost, trade));
     PositionPortfolio updated = applyCosts(current.positions(), current.marketValue());
     cachedPortfolio = updated;
     return updated;
@@ -158,10 +162,7 @@ public class SpotPositionService {
         .collect(Collectors.toMap(
             item -> PositionCostOverrideRepository.key(item.provider(), item.symbol()),
             Function.identity(), (left, right) -> right));
-    Map<String, PositionCost> tradeCosts = trades.positionCosts().stream()
-        .collect(Collectors.toMap(
-            item -> PositionCostOverrideRepository.key(item.provider(), item.exchangeSymbol()),
-            Function.identity(), (left, right) -> right));
+    Map<String, PositionCost> tradeCosts = tradeCosts();
     List<SpotPosition> positions = new ArrayList<>();
     BigDecimal knownCost = BigDecimal.ZERO;
     BigDecimal knownPnl = BigDecimal.ZERO;
@@ -188,25 +189,31 @@ public class SpotPositionService {
     if ("CASH".equals(position.assetClass())) return position;
     String key = PositionCostOverrideRepository.key(position.provider(), position.symbol());
     PositionCostOverride manual = manualCosts.get(key);
-    BigDecimal cost = null;
-    BigDecimal averageCost = null;
-    String source = "UNKNOWN";
+    ReconciledCost reconciled;
+    String source;
     if (manual != null) {
-      averageCost = manual.averageCost();
-      cost = position.quantity().multiply(averageCost);
+      CostAnchor anchor = manual.anchor();
+      PositionCost trade = tradeCosts.get(key);
+      if (anchor == null) {
+        anchor = createAnchor(position, manual.averageCost(), trade);
+        overrides.anchorIfAbsent(position.provider(), position.symbol(), anchor);
+      }
+      reconciled = PositionCostBasisCalculator.fromAnchor(position.quantity(), anchor, trade);
+      if (reconciled.reviewRequired()) {
+        return reviewPosition(position, reconciled.averageCost());
+      }
+      advanceAnchor(position, anchor, reconciled, trade);
       source = "MANUAL";
     } else {
-      PositionCost trade = tradeCosts.get(key);
-      if (matches(position.quantity(), trade)) {
-        cost = trade.cumulativeQuote();
-        averageCost = cost.divide(trade.executedQuantity(), 16, RoundingMode.HALF_UP);
-        source = "TRADES";
-      }
+      reconciled = PositionCostBasisCalculator.fromTrades(
+          position.quantity(), tradeCosts.get(key));
+      source = "TRADES";
     }
-    if (cost == null) return rawPosition(
+    if (!reconciled.known()) return rawPosition(
         position.assetClass(), position.provider(), position.asset(), position.symbol(),
         position.quantity(), position.freeQuantity(), position.lockedQuantity(),
         position.currentPrice(), position.marketValue());
+    BigDecimal cost = reconciled.cost();
     BigDecimal pnl = position.marketValue().subtract(cost);
     BigDecimal pnlPercent = cost.signum() > 0
         ? pnl.divide(cost, 8, RoundingMode.HALF_UP).multiply(BigDecimal.valueOf(100))
@@ -215,7 +222,36 @@ public class SpotPositionService {
         position.assetClass(), position.provider(), position.asset(), position.symbol(),
         position.quantity(), position.freeQuantity(), position.lockedQuantity(),
         position.currentPrice(), position.marketValue(), true, source,
-        cost, averageCost, pnl, pnlPercent);
+        cost, reconciled.averageCost(), pnl, pnlPercent);
+  }
+
+  private Map<String, PositionCost> tradeCosts() {
+    return trades.positionCosts().stream().collect(Collectors.toMap(
+        item -> PositionCostOverrideRepository.key(item.provider(), item.exchangeSymbol()),
+        Function.identity(), (left, right) -> right));
+  }
+
+  private static CostAnchor createAnchor(
+      SpotPosition position, BigDecimal averageCost, PositionCost trade) {
+    BigDecimal tradeQuantity = trade == null ? BigDecimal.ZERO : trade.executedQuantity();
+    BigDecimal tradeQuote = trade == null ? BigDecimal.ZERO : trade.cumulativeQuote();
+    return new CostAnchor(
+        position.quantity().setScale(12, RoundingMode.HALF_UP),
+        position.quantity().multiply(averageCost).setScale(8, RoundingMode.HALF_UP),
+        tradeQuantity.setScale(12, RoundingMode.HALF_UP),
+        tradeQuote.setScale(8, RoundingMode.HALF_UP));
+  }
+
+  private void advanceAnchor(
+      SpotPosition position, CostAnchor current, ReconciledCost cost, PositionCost trade) {
+    if (!PositionCostBasisCalculator.canAdvanceAnchor(position.quantity(), current, trade)) return;
+    CostAnchor advanced = createAnchor(position, cost.averageCost(), trade);
+    advanced = new CostAnchor(
+        advanced.basisQuantity(), cost.cost().setScale(8, RoundingMode.HALF_UP),
+        advanced.tradeQuantity(), advanced.tradeQuote());
+    if (!advanced.equals(current)) {
+      overrides.updateAnchor(position.provider(), position.symbol(), advanced);
+    }
   }
 
   private BigDecimal equityPrice(String ticker) {
@@ -235,13 +271,14 @@ public class SpotPositionService {
         BigDecimal.ZERO, BigDecimal.ZERO, JdbcSupport.now(), List.of());
   }
 
-  private static void requireEditablePosition(
+  private static SpotPosition requireEditablePosition(
       PositionPortfolio portfolio, String provider, String symbol) {
-    boolean exists = portfolio.positions().stream().anyMatch(position ->
-        !"CASH".equals(position.assetClass())
-            && PositionCostOverrideRepository.key(position.provider(), position.symbol())
-                .equals(PositionCostOverrideRepository.key(provider, symbol)));
-    if (!exists) throw new IllegalArgumentException("找不到可设置成本的当前持仓");
+    return portfolio.positions().stream().filter(position ->
+            !"CASH".equals(position.assetClass())
+                && PositionCostOverrideRepository.key(position.provider(), position.symbol())
+                    .equals(PositionCostOverrideRepository.key(provider, symbol)))
+        .findFirst()
+        .orElseThrow(() -> new IllegalArgumentException("找不到可设置成本的当前持仓"));
   }
 
   private static SpotPosition rawPosition(
@@ -260,10 +297,13 @@ public class SpotPositionService {
         BigDecimal.ONE, quantity, false, "UNKNOWN", null, null, null, null);
   }
 
-  private static boolean matches(BigDecimal quantity, PositionCost cost) {
-    if (cost == null || cost.executedQuantity().signum() <= 0) return false;
-    BigDecimal tolerance = quantity.multiply(COST_MATCH_TOLERANCE).max(new BigDecimal("0.00000001"));
-    return quantity.subtract(cost.executedQuantity()).abs().compareTo(tolerance) <= 0;
+  private static SpotPosition reviewPosition(
+      SpotPosition position, BigDecimal lastKnownAverageCost) {
+    return new SpotPosition(
+        position.assetClass(), position.provider(), position.asset(), position.symbol(),
+        position.quantity(), position.freeQuantity(), position.lockedQuantity(),
+        position.currentPrice(), position.marketValue(), false, "MANUAL_REVIEW_REQUIRED",
+        null, lastKnownAverageCost, null, null);
   }
 
   private static boolean isCash(String asset) {
