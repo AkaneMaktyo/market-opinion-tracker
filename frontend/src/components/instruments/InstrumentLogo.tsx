@@ -47,7 +47,7 @@ export function InstrumentLogo({ symbol, logoUrl, size = 20, sourceKind = 'stock
         }}
         referrerPolicy="no-referrer"
         src={source}
-        style={{ visibility: loaded ? 'visible' : 'hidden' }}
+        style={{ height: size, visibility: loaded ? 'visible' : 'hidden', width: size }}
         width={size}
       />
       ) : null}
