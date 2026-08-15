@@ -62,7 +62,7 @@ export interface SpotPosition {
   currentPrice: number;
   marketValue: number;
   costKnown: boolean;
-  costSource: 'UNKNOWN' | 'MANUAL' | 'TRADES';
+  costSource: 'UNKNOWN' | 'MANUAL' | 'MANUAL_REVIEW_REQUIRED' | 'TRADES';
   cost?: number;
   averageCost?: number;
   pnl?: number;
