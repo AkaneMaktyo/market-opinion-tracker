@@ -4,7 +4,7 @@ import { BloggerPositionPanel } from './BloggerPositionPanel';
 import { LlmCallLogPanel } from './llm/LlmCallLogPanel';
 import { MessageAuditPanel } from './MessageAuditPanel';
 import { SourceStatusPanel } from './SourceStatusPanel';
-import type { BloggerDraft, PositionsByKol, SetDraft, SetNotifySettings, SetSettings } from './sourceTypes';
+import type { BloggerDraft, PositionsByKol, SetDraft, SetNotifySettings, SetSettings, StatsByKol } from './sourceTypes';
 import { WxPusherSettingsPanel } from './WxPusherSettingsPanel';
 import { YouTubePageButton } from './YouTubePageButton';
 
@@ -15,6 +15,7 @@ interface Props {
   bloggers: WxPusherBlogger[];
   messages: WxPusherMessage[];
   positionsByKol: PositionsByKol;
+  statsByKol: StatsByKol;
   draft: BloggerDraft;
   loading: boolean;
   message: string;
@@ -40,6 +41,7 @@ export function SourceManagerModal(props: Props) {
     bloggers,
     messages,
     positionsByKol,
+    statsByKol,
     draft,
     loading,
     message,
@@ -97,6 +99,7 @@ export function SourceManagerModal(props: Props) {
             onEditBlogger={onEditBlogger}
             onSaveBlogger={onSaveBlogger}
             positionsByKol={positionsByKol}
+            statsByKol={statsByKol}
             setDraft={setDraft}
             setMessage={setMessage}
           />

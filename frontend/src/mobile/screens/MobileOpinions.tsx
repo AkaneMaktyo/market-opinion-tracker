@@ -40,9 +40,10 @@ interface Props {
   kolId: string;
   onClearFocus: () => void;
   onWatchlistChanged: () => void;
+  searchFocusRequest?: number;
 }
 
-export function MobileOpinions({ focusMessageId = '', focusRequestKey = 0, kolId, onClearFocus, onWatchlistChanged }: Props) {
+export function MobileOpinions({ focusMessageId = '', focusRequestKey = 0, kolId, onClearFocus, onWatchlistChanged, searchFocusRequest = 0 }: Props) {
   const [query, setQuery] = useState('');
   const [kolName, setKolName] = useState('');
   const [messages, setMessages] = useState<WxPusherRecentMessage[]>([]);
@@ -204,12 +205,22 @@ export function MobileOpinions({ focusMessageId = '', focusRequestKey = 0, kolId
     window.setTimeout(() => target.classList.remove('mobile-msg-highlight'), 2500);
   }, [focusMessageId, items]);
 
+  const searchBoxId = useRef(`mobile-search-${Math.random().toString(36).slice(2, 8)}`);
+
+  useEffect(() => {
+    if (!searchFocusRequest) return;
+    const input = document.getElementById(searchBoxId.current) as HTMLInputElement | null;
+    if (!input) return;
+    input.focus();
+    input.select();
+  }, [searchFocusRequest]);
+
   return (
     <div className="mobile-screen-content mobile-opinions-screen">
       <div className="mobile-opinion-toolbar">
         <label className="mobile-search-box">
           <Search aria-hidden="true" size={18} />
-          <input onChange={(event) => setQuery(event.target.value)} placeholder="搜索消息内容" type="search" value={query} />
+          <input id={searchBoxId.current} onChange={(event) => setQuery(event.target.value)} placeholder="搜索消息内容" type="search" value={query} />
         </label>
         <select aria-label="选择 KOL" onChange={(event) => setKolName(event.target.value)} value={kolName}>
           <option value="">全部 KOL</option>

@@ -91,7 +91,7 @@ public class OpinionService {
         "ACTIVE",
         null));
     opinions.replaceLevels(saved.id(), command.priceLevels());
-    positions.apply(sessionKol(command.sessionId()), instrument, saved.id(), command.positionAction());
+    positions.apply(sessionKol(command.sessionId()), instrument, saved, command.positionAction());
     refreshResonance(saved.symbol());
     return view(saved);
   }

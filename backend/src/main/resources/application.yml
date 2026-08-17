@@ -44,6 +44,10 @@ trading:
     positions-refresh-ms: ${BINANCE_SPOT_POSITIONS_REFRESH_MS:30000}
     positions-initial-delay-ms: ${BINANCE_SPOT_POSITIONS_INITIAL_DELAY_MS:1000}
 
+app:
+  positions:
+    auto-rebuild-enabled: ${POSITIONS_AUTO_REBUILD_ENABLED:true}
+
 llm:
   base-url: ${LLM_BASE_URL:}
   api-key: ${LLM_API_KEY:}

@@ -4,6 +4,7 @@ import com.personal.tracker.domain.MarketBar;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -99,6 +100,45 @@ public class MarketBarRepository {
       ps.setBigDecimal(8, item.close());
       ps.setBigDecimal(9, item.volume());
     });
+  }
+
+  public Optional<BigDecimal> closeAtOrBefore(String instrumentId, String timeframe, String barTime) {
+    if (instrumentId == null || instrumentId.isBlank() || barTime == null || barTime.isBlank()) {
+      return Optional.empty();
+    }
+    return jdbc.query("""
+        SELECT close FROM market_bars
+        WHERE instrument_id = ? AND timeframe = ? AND bar_time <= ?
+        ORDER BY bar_time DESC
+        LIMIT 1
+        """, (rs, rowNum) -> rs.getBigDecimal(1), instrumentId, timeframe, barTime).stream()
+        .findFirst();
+  }
+
+  public Optional<BigDecimal> closeAtOrAfter(String instrumentId, String timeframe, String barTime) {
+    if (instrumentId == null || instrumentId.isBlank() || barTime == null || barTime.isBlank()) {
+      return Optional.empty();
+    }
+    return jdbc.query("""
+        SELECT close FROM market_bars
+        WHERE instrument_id = ? AND timeframe = ? AND bar_time >= ?
+        ORDER BY bar_time
+        LIMIT 1
+        """, (rs, rowNum) -> rs.getBigDecimal(1), instrumentId, timeframe, barTime).stream()
+        .findFirst();
+  }
+
+  public Optional<BigDecimal> latestClose(String instrumentId) {
+    if (instrumentId == null || instrumentId.isBlank()) {
+      return Optional.empty();
+    }
+    return jdbc.query("""
+        SELECT close FROM market_bars
+        WHERE instrument_id = ? AND timeframe = '1D'
+        ORDER BY bar_time DESC
+        LIMIT 1
+        """, (rs, rowNum) -> rs.getBigDecimal(1), instrumentId).stream()
+        .findFirst();
   }
 
   public Map<String, DailySnapshot> latestDailySnapshots(

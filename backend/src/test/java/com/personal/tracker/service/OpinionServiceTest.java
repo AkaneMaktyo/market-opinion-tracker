@@ -58,7 +58,7 @@ class OpinionServiceTest {
         "短线", "买入观察仓", "", "", null, "", null, "看多", "",
         "", "", "{}", "2026-06-06T09:30:00", List.of()));
 
-    verify(positions).apply("kol-1", instrument, "opinion-1", "OPEN");
+    verify(positions).apply("kol-1", instrument, saved, "OPEN");
   }
 
   @Test

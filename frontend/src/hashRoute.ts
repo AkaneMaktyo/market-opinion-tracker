@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-export type AppRoute = 'dashboard' | 'youtube';
+export type AppRoute = 'dashboard' | 'youtube' | 'positions';
 
 export function useHashRoute() {
   const [route, setRoute] = useState<AppRoute>(() => readRoute());
@@ -20,6 +20,13 @@ export function goToYouTubePage() {
   window.location.hash = '#/youtube';
 }
 
+export function goToPositionsPage() {
+  window.location.hash = '#/positions';
+}
+
 function readRoute(): AppRoute {
-  return window.location.hash === '#/youtube' ? 'youtube' : 'dashboard';
+  if (window.location.hash === '#/youtube') {
+    return 'youtube';
+  }
+  return window.location.hash === '#/positions' ? 'positions' : 'dashboard';
 }

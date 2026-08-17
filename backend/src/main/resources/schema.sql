@@ -330,6 +330,10 @@ CREATE TABLE IF NOT EXISTS kol_positions (
   kol_id VARCHAR(64) NOT NULL,
   instrument_id VARCHAR(64) NOT NULL,
   status VARCHAR(32) NOT NULL,
+  direction VARCHAR(16),
+  entry_price DECIMAL(24, 8),
+  exit_price DECIMAL(24, 8),
+  exit_reason VARCHAR(64),
   opened_at VARCHAR(64),
   closed_at VARCHAR(64),
   last_opinion_id VARCHAR(64),
@@ -339,6 +343,32 @@ CREATE TABLE IF NOT EXISTS kol_positions (
   UNIQUE KEY uq_kol_position(kol_id, instrument_id),
   INDEX idx_kol_position_status(kol_id, status, updated_at),
   INDEX idx_kol_position_instrument(instrument_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+ALTER TABLE kol_positions ADD COLUMN direction VARCHAR(16) AFTER status;
+ALTER TABLE kol_positions ADD COLUMN entry_price DECIMAL(24, 8) AFTER direction;
+ALTER TABLE kol_positions ADD COLUMN exit_price DECIMAL(24, 8) AFTER entry_price;
+ALTER TABLE kol_positions ADD COLUMN exit_reason VARCHAR(64) AFTER exit_price;
+
+CREATE TABLE IF NOT EXISTS kol_position_trades (
+  id VARCHAR(64) PRIMARY KEY,
+  kol_id VARCHAR(64) NOT NULL,
+  instrument_id VARCHAR(64) NOT NULL,
+  symbol VARCHAR(64) NOT NULL,
+  direction VARCHAR(16) NOT NULL,
+  entry_price DECIMAL(24, 8),
+  entry_at VARCHAR(64),
+  entry_opinion_id VARCHAR(64),
+  exit_price DECIMAL(24, 8),
+  exit_at VARCHAR(64),
+  exit_opinion_id VARCHAR(64),
+  exit_reason VARCHAR(64),
+  pnl_pct DECIMAL(12, 4),
+  created_at VARCHAR(64) NOT NULL,
+  updated_at VARCHAR(64) NOT NULL,
+  INDEX idx_kol_position_trade_kol(kol_id, exit_at),
+  INDEX idx_kol_position_trade_exit(kol_id, pnl_pct),
+  UNIQUE KEY uq_kol_position_trade_entry(entry_opinion_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS kol_instrument_groups (

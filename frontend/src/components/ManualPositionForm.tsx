@@ -10,6 +10,8 @@ interface Props {
 
 export function ManualPositionForm({ kolId, onAdded }: Props) {
   const [symbol, setSymbol] = useState('');
+  const [direction, setDirection] = useState('LONG');
+  const [entryPrice, setEntryPrice] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
 
@@ -23,8 +25,14 @@ export function ManualPositionForm({ kolId, onAdded }: Props) {
     setBusy(true);
     setMessage('');
     try {
-      await api.openPosition({ kolId, symbol: value });
+      await api.openPosition({
+        kolId,
+        symbol: value,
+        direction,
+        entryPrice: entryPrice.trim() ? Number(entryPrice) : undefined,
+      });
       setSymbol('');
+      setEntryPrice('');
       setMessage(`已加入：${value}`);
       onAdded(value);
     } catch (error) {
@@ -41,6 +49,17 @@ export function ManualPositionForm({ kolId, onAdded }: Props) {
         onChange={(event) => setSymbol(event.target.value)}
         placeholder="持仓代码"
         value={symbol}
+      />
+      <select aria-label="方向" onChange={(event) => setDirection(event.target.value)} value={direction}>
+        <option value="LONG">多</option>
+        <option value="SHORT">空</option>
+      </select>
+      <input
+        aria-label="入场价（可选）"
+        onChange={(event) => setEntryPrice(event.target.value)}
+        placeholder="入场价（可选）"
+        type="number"
+        value={entryPrice}
       />
       <button className="icon-button" disabled={busy} title="添加持仓" type="submit">
         <Plus size={16} />

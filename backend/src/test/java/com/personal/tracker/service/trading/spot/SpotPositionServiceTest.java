@@ -18,6 +18,8 @@ import com.personal.tracker.repository.trading.SignalTradeRepository;
 import com.personal.tracker.repository.trading.SignalTradeRepository.PositionCost;
 import com.personal.tracker.service.trading.binance.BinanceSpotClient;
 import com.personal.tracker.service.trading.binance.BinanceSpotClient.AccountBalance;
+import com.personal.tracker.service.trading.binance.BinanceSpotClient.EquityQuote;
+import com.personal.tracker.service.trading.binance.BinanceSpotClient.FundingBalance;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -125,6 +127,56 @@ class SpotPositionServiceTest {
 
     assertEquals(0, number("72").compareTo(increased.positions().get(0).averageCost()));
     assertEquals(0, number("180").compareTo(increased.knownCost()));
+  }
+
+  @Test
+  void keepsLastValidStockPriceWhenAQuoteTemporarilyFails() {
+    when(binance.balances()).thenReturn(List.of());
+    when(binance.fundingBalances()).thenReturn(List.of(
+        new FundingBalance("EQ_GOOGL", number("0.5"), BigDecimal.ZERO,
+            BigDecimal.ZERO, BigDecimal.ZERO)));
+    when(binance.equityQuote("GOOGL"))
+        .thenReturn(new EquityQuote("GOOGL", number("200"), number("202")))
+        .thenThrow(new IllegalStateException("temporary quote failure"));
+
+    var initial = service.positions(false);
+    var refreshed = service.positions(true);
+
+    assertEquals(0, number("201").compareTo(initial.positions().get(0).currentPrice()));
+    assertEquals(0, number("201").compareTo(refreshed.positions().get(0).currentPrice()));
+    assertEquals(0, number("100.5").compareTo(refreshed.marketValue()));
+  }
+
+  @Test
+  void keepsLastValidFundingPriceWhenBulkTickerTemporarilyOmitsTheSymbol() {
+    when(binance.balances()).thenReturn(List.of());
+    when(binance.fundingBalances()).thenReturn(List.of(
+        new FundingBalance("SOL", number("2"), BigDecimal.ZERO,
+            BigDecimal.ZERO, BigDecimal.ZERO)));
+    when(binance.prices())
+        .thenReturn(Map.of("SOLUSDT", number("150")))
+        .thenReturn(Map.of());
+
+    var initial = service.positions(false);
+    var refreshed = service.positions(true);
+
+    assertEquals(0, number("150").compareTo(initial.positions().get(0).currentPrice()));
+    assertEquals(0, number("150").compareTo(refreshed.positions().get(0).currentPrice()));
+    assertEquals(0, number("300").compareTo(refreshed.marketValue()));
+  }
+
+  @Test
+  void doesNotExposeZeroForAnAssetWithoutAnyValidQuote() {
+    when(binance.balances()).thenReturn(List.of());
+    when(binance.prices()).thenReturn(Map.of());
+    when(binance.fundingBalances()).thenReturn(List.of(
+        new FundingBalance("UNKNOWN", BigDecimal.ONE, BigDecimal.ZERO,
+            BigDecimal.ZERO, BigDecimal.ZERO)));
+
+    var portfolio = service.positions(false);
+
+    assertTrue(portfolio.positions().isEmpty());
+    assertEquals(BigDecimal.ZERO, portfolio.marketValue());
   }
 
   private void useManualStore(AtomicReference<PositionCostOverride> manual) {

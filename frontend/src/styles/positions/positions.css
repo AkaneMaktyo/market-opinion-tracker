@@ -51,3 +51,16 @@
   min-width: 0;
   text-transform: uppercase;
 }
+
+.position-stats {
+  margin: 6px 0 0;
+}
+
+.position-direction {
+  border-right: 1px solid #bbdfcf;
+  padding-right: 4px;
+}
+
+.pnl-pos { color: #089981; }
+.pnl-neg { color: #f23645; }
+.pnl-flat { color: #7a8a86; }

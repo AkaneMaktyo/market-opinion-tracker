@@ -4,27 +4,8 @@ import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import type { WxPusherBlogger, WxPusherMessage, WxPusherNotifySettings, WxPusherSettings, WxPusherStatus } from '../../types';
 import { SourceManagerModal } from './SourceManagerModal';
-import type { BloggerDraft, PositionsByKol } from './sourceTypes';
-
-const defaultSettings: WxPusherSettings = {
-  deviceToken: '',
-  pushToken: '',
-  deviceUuid: '',
-  platform: 'Chrome-Windows',
-  version: '1.1.1',
-  pollIntervalSeconds: 60,
-  enablePolling: false,
-  enableWebsocket: false,
-};
-
-const defaultNotifySettings: WxPusherNotifySettings = {
-  spt: '',
-  appToken: '',
-  uids: '',
-  topicIds: '',
-};
-
-const emptyDraft: BloggerDraft = { id: '', bloggerName: '', aliasesText: '', enabled: true };
+import { defaultNotifySettings, defaultSettings, emptyDraft } from './sourceDefaults';
+import type { PositionsByKol, StatsByKol } from './sourceTypes';
 
 interface Props {
   onChanged: () => void;
@@ -43,6 +24,7 @@ export function SourceManagerButton({ onChanged, trigger, triggerClassName }: Pr
   const [messages, setMessages] = useState<WxPusherMessage[]>([]);
   const [draft, setDraft] = useState(emptyDraft);
   const [positionsByKol, setPositionsByKol] = useState<PositionsByKol>({});
+  const [statsByKol, setStatsByKol] = useState<StatsByKol>({});
 
   useEffect(() => {
     if (open) {
@@ -60,15 +42,22 @@ export function SourceManagerButton({ onChanged, trigger, triggerClassName }: Pr
         api.wxpusherBloggers(),
         api.wxpusherOcrMessages(50),
       ]);
-      const positionEntries = await Promise.all(
-        nextBloggers.map(async (blogger) => [blogger.kolId, await api.positions(blogger.kolId)] as const),
+      const loaded = await Promise.all(
+        nextBloggers.map(async (blogger) => {
+          const [positions, stats] = await Promise.all([
+            api.positions(blogger.kolId),
+            api.positionStats(blogger.kolId),
+          ]);
+          return [blogger.kolId, positions, stats] as const;
+        }),
       );
       setSettings({ ...defaultSettings, ...nextSettings });
       setNotifySettings({ ...defaultNotifySettings, ...nextNotifySettings });
       setStatus(nextStatus);
       setBloggers(nextBloggers);
       setMessages(nextMessages);
-      setPositionsByKol(Object.fromEntries(positionEntries));
+      setPositionsByKol(Object.fromEntries(loaded.map(([kolId, positions]) => [kolId, positions])));
+      setStatsByKol(Object.fromEntries(loaded.map(([kolId, , stats]) => [kolId, stats])));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '读取来源配置失败');
     } finally {
@@ -185,6 +174,7 @@ export function SourceManagerButton({ onChanged, trigger, triggerClassName }: Pr
           onSaveBlogger={() => void saveBlogger()}
           onSaveSettings={() => void saveSettings()}
           positionsByKol={positionsByKol}
+          statsByKol={statsByKol}
           setDraft={setDraft}
           setMessage={setMessage}
           setNotifySettings={setNotifySettings}

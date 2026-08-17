@@ -1,11 +1,13 @@
 import { Pencil, Plus, RotateCcw, Save, X } from 'lucide-react';
 import { useState } from 'react';
+import type { PositionStats } from '../../positionTypes';
 import type { WxPusherBlogger } from '../../types';
-import type { BloggerDraft, PositionsByKol, SetDraft } from './sourceTypes';
+import type { BloggerDraft, PositionsByKol, SetDraft, StatsByKol } from './sourceTypes';
 
 interface Props {
   bloggers: WxPusherBlogger[];
   positionsByKol: PositionsByKol;
+  statsByKol: StatsByKol;
   draft: BloggerDraft;
   loading: boolean;
   setDraft: SetDraft;
@@ -19,6 +21,7 @@ interface Props {
 export function BloggerPositionPanel({
   bloggers,
   positionsByKol,
+  statsByKol,
   draft,
   loading,
   setDraft,
@@ -77,6 +80,7 @@ export function BloggerPositionPanel({
                 消息 {blogger.messageCount} ｜ 已导入 {blogger.importedMessageCount} ｜ 失败 {blogger.failedMessageCount}
                 {blogger.latestMessageTime ? ` ｜ 最新 ${trimTime(blogger.latestMessageTime)}` : ''}
               </p>
+              <StatsSummary stats={statsByKol[blogger.kolId]} />
               <PositionTags
                 positions={positionsByKol[blogger.kolId] || []}
                 onClosePosition={onClosePosition}
@@ -107,6 +111,21 @@ export function BloggerPositionPanel({
   );
 }
 
+function StatsSummary({ stats }: { stats?: PositionStats }) {
+  if (!stats || stats.totalTrades === 0) {
+    return <p className="muted position-stats">暂无已结算交易，胜率待积累</p>;
+  }
+  const winRate = stats.winRate == null ? '—' : `${stats.winRate.toFixed(1)}%`;
+  return (
+    <p className="muted position-stats">
+      虚拟跟单 ｜ 胜率 <strong>{winRate}</strong>（{stats.wins}/{stats.settledTrades}）
+      {stats.avgPnlPct != null && <>｜单笔均值 <strong className={pnlClass(stats.avgPnlPct)}>{formatPct(stats.avgPnlPct)}</strong></>}
+      {stats.totalPnlPct != null && <>｜累计 <strong className={pnlClass(stats.totalPnlPct)}>{formatPct(stats.totalPnlPct)}</strong></>}
+      ｜当前持仓 {stats.activeCount}
+    </p>
+  );
+}
+
 function PositionTags({
   positions,
   onClosePosition,
@@ -119,9 +138,15 @@ function PositionTags({
   }
   return (
     <div className="position-tags">
-      {positions.map((position) => (
-        <span className="position-tag" key={position.id}>
+      {positions.map(({ position, pnlPct }) => (
+        <span className="position-tag" key={position.id} title={positionTitle(position)}>
+          <span className="position-direction">{position.direction === 'SHORT' ? '空' : '多'}</span>
           {position.symbol}
+          {pnlPct != null ? (
+            <span className={pnlClass(pnlPct)}>{formatPct(pnlPct)}</span>
+          ) : (
+            <span className="muted">待价</span>
+          )}
           <button onClick={() => onClosePosition(position.id)} title={`移出 ${position.symbol}`} type="button">
             <X size={12} />
           </button>
@@ -129,6 +154,23 @@ function PositionTags({
       ))}
     </div>
   );
+}
+
+function positionTitle(position: PositionsByKol[string][number]['position']) {
+  return [
+    position.symbol,
+    position.entryPrice != null ? `入场 ${position.entryPrice}` : '入场价缺失',
+    position.exitPrice != null ? `出场 ${position.exitPrice}` : '',
+    position.exitReason ? `（${position.exitReason}）` : '',
+  ].filter(Boolean).join(' ');
+}
+
+function pnlClass(value: number) {
+  return value > 0 ? 'pnl-pos' : value < 0 ? 'pnl-neg' : 'pnl-flat';
+}
+
+function formatPct(value: number) {
+  return `${value > 0 ? '+' : ''}${value.toFixed(1)}%`;
 }
 
 function trimTime(value?: string) {

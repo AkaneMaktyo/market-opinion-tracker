@@ -8,6 +8,7 @@
 @import './market-summary.css';
 @import './opinions.css';
 @import './positions/positions.css';
+@import './positions/positionsPage.css';
 @import './alerts/price-alerts.css';
 @import './mobile/android.css';
 @import './mobile/shell.css';
@@ -15,3 +16,4 @@
 @import './mobile/watchlist.css';
 @import './mobile/transcript.css';
 @import './mobile/trading.css';
+@import './mobile/futures.css';

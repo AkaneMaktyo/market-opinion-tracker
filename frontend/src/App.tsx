@@ -3,6 +3,7 @@ import { useHashRoute } from './hashRoute';
 import { MobileApp } from './mobile/MobileApp';
 import { useAndroidApp } from './mobile/useAndroidApp';
 import { useLiveUpdate } from './mobile/useLiveUpdate';
+import { PositionsPage } from './pages/PositionsPage';
 import { YouTubePage } from './pages/YouTubePage';
 
 export default function App() {
@@ -14,6 +15,9 @@ export default function App() {
   }
   if (route === 'youtube') {
     return <YouTubePage />;
+  }
+  if (route === 'positions') {
+    return <PositionsPage />;
   }
   return <DashboardPage />;
 }

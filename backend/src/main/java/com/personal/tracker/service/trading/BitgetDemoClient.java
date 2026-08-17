@@ -6,20 +6,21 @@ import com.personal.tracker.config.BitgetTradingProperties;
 import com.personal.tracker.repository.ExchangeCredentialRepository;
 import com.personal.tracker.repository.ExchangeCredentialRepository.ExchangeCredential;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.net.URLEncoder;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
-import java.util.concurrent.CompletableFuture;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,7 @@ import org.springframework.web.client.RestClientResponseException;
 
 @Service
 public class BitgetDemoClient {
+  private static final Logger log = LoggerFactory.getLogger(BitgetDemoClient.class);
   private static final String SUCCESS = "00000";
 
   private final BitgetTradingProperties properties;
@@ -38,13 +40,14 @@ public class BitgetDemoClient {
   public BitgetDemoClient(
       BitgetTradingProperties properties,
       ExchangeCredentialRepository exchangeCredentials,
-      ObjectMapper mapper) {
+      ObjectMapper mapper,
+      @Value("${HTTP_PROXY_URL:}") String proxyUrl) {
     this.properties = properties;
     this.exchangeCredentials = exchangeCredentials;
     this.mapper = mapper;
     this.client = RestClient.builder()
         .baseUrl(properties.baseUrl())
-        .requestFactory(requestFactory())
+        .requestFactory(requestFactory(proxyUrl))
         .build();
   }
 
@@ -87,14 +90,11 @@ public class BitgetDemoClient {
     String requestPath = query.isBlank() ? path : path + "?" + query;
     String timestamp = String.valueOf(Instant.now().toEpochMilli());
     SignedHeaders signedHeaders = signedHeaders(credential, timestamp, requestPath);
-    JsonNode root = requestWithJava(requestPath, signedHeaders);
-    if (root == null) {
-      root = requestWithPowerShell(requestPath, signedHeaders);
-    }
+    JsonNode root = request(requestPath, signedHeaders);
     return parseResponse(root);
   }
 
-  private JsonNode requestWithJava(String requestPath, SignedHeaders signedHeaders) {
+  private JsonNode request(String requestPath, SignedHeaders signedHeaders) {
     try {
       return client.method(HttpMethod.GET)
           .uri(requestPath)
@@ -108,7 +108,8 @@ public class BitgetDemoClient {
       }
       throw new BitgetClientException("Bitget request failed: " + error.getMessage());
     } catch (RuntimeException error) {
-      return null;
+      log.warn("Bitget request error on {}: {}", requestPath, error.getMessage());
+      throw new BitgetClientException("Bitget request error: " + error.getMessage());
     }
   }
 
@@ -148,73 +149,6 @@ public class BitgetDemoClient {
         credential.demo() ? "1" : "");
   }
 
-  private JsonNode requestWithPowerShell(String requestPath, SignedHeaders signedHeaders) {
-    Path output = null;
-    try {
-      output = Files.createTempFile("bitget-private-", ".json");
-      String command = """
-          $ProgressPreference = 'SilentlyContinue';
-          [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new();
-          $headers = @{
-            'ACCESS-KEY' = $env:BG_ACCESS_KEY;
-            'ACCESS-SIGN' = $env:BG_ACCESS_SIGN;
-            'ACCESS-TIMESTAMP' = $env:BG_ACCESS_TIMESTAMP;
-            'ACCESS-PASSPHRASE' = $env:BG_ACCESS_PASSPHRASE;
-            'locale' = 'en-US';
-          };
-          if (-not [string]::IsNullOrWhiteSpace($env:BG_PAPER_TRADING)) {
-            $headers['paptrading'] = $env:BG_PAPER_TRADING;
-          }
-          try {
-            (Invoke-WebRequest -Uri $env:BG_URL -Headers $headers -TimeoutSec 20 -UseBasicParsing).Content;
-          } catch {
-            if ($_.ErrorDetails -ne $null -and -not [string]::IsNullOrWhiteSpace($_.ErrorDetails.Message)) {
-              $_.ErrorDetails.Message;
-              exit 0;
-            }
-            throw;
-          }
-          """;
-      ProcessBuilder builder = new ProcessBuilder(
-          "powershell",
-          "-NoProfile",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-Command",
-          command)
-          .redirectErrorStream(true)
-          .redirectOutput(output.toFile());
-      applyEnvironment(builder.environment(), signedHeaders);
-      builder.environment().put("BG_URL", properties.baseUrl() + requestPath);
-      Process process = builder.start();
-      CompletableFuture<Integer> exitCode = CompletableFuture.supplyAsync(() -> waitFor(process));
-      try {
-        if (exitCode.get(25, TimeUnit.SECONDS) != 0) {
-          return null;
-        }
-        return readJson(Files.readAllBytes(output));
-      } finally {
-        if (process.isAlive()) {
-          process.destroyForcibly();
-        }
-      }
-    } catch (TimeoutException error) {
-      return null;
-    } catch (InterruptedException error) {
-      Thread.currentThread().interrupt();
-      return null;
-    } catch (Exception error) {
-      return null;
-    } finally {
-      if (output != null) {
-        try {
-          Files.deleteIfExists(output);
-        } catch (IOException ignored) {
-        }
-      }
-    }
-  }
-
   private static void applyHeaders(HeaderSetter setter, SignedHeaders signedHeaders) {
     setter.set("ACCESS-KEY", signedHeaders.apiKey());
     setter.set("ACCESS-SIGN", signedHeaders.signature());
@@ -226,19 +160,30 @@ public class BitgetDemoClient {
     }
   }
 
-  private static void applyEnvironment(Map<String, String> environment, SignedHeaders signedHeaders) {
-    environment.put("BG_ACCESS_KEY", signedHeaders.apiKey());
-    environment.put("BG_ACCESS_SIGN", signedHeaders.signature());
-    environment.put("BG_ACCESS_TIMESTAMP", signedHeaders.timestamp());
-    environment.put("BG_ACCESS_PASSPHRASE", signedHeaders.passphrase());
-    environment.put("BG_PAPER_TRADING", signedHeaders.paperTrading());
-  }
-
-  private static SimpleClientHttpRequestFactory requestFactory() {
+  private static SimpleClientHttpRequestFactory requestFactory(String proxyUrl) {
     SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
     factory.setConnectTimeout(Duration.ofSeconds(8));
     factory.setReadTimeout(Duration.ofSeconds(15));
+    Proxy proxy = proxy(proxyUrl);
+    if (proxy != null) {
+      factory.setProxy(proxy);
+      log.info("Bitget trading client using proxy {}", proxy.address());
+    }
     return factory;
+  }
+
+  private static Proxy proxy(String raw) {
+    if (raw == null || raw.isBlank()) {
+      return null;
+    }
+    try {
+      URI uri = URI.create(raw.contains("://") ? raw : "http://" + raw);
+      int port = uri.getPort() == -1 ? 7897 : uri.getPort();
+      return new Proxy(Proxy.Type.HTTP, new InetSocketAddress(uri.getHost(), port));
+    } catch (IllegalArgumentException error) {
+      log.warn("Ignoring invalid Bitget proxy url: {}", raw);
+      return null;
+    }
   }
 
   private static String queryString(Map<String, String> params) {
@@ -252,15 +197,6 @@ public class BitgetDemoClient {
 
   private static String encode(String value) {
     return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
-  }
-
-  private static int waitFor(Process process) {
-    try {
-      return process.waitFor();
-    } catch (InterruptedException error) {
-      Thread.currentThread().interrupt();
-      return -1;
-    }
   }
 
   private JsonNode readJson(byte[] data) {

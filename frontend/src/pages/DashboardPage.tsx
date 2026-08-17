@@ -7,6 +7,7 @@ import { ManualPositionForm } from '../components/ManualPositionForm';
 import { MarketSummaryPanel } from '../components/MarketSummaryPanel';
 import { OpinionList } from '../components/OpinionList';
 import { InstrumentRail } from '../components/instruments/InstrumentRail';
+import { PositionsPageButton } from '../components/positions/PositionsPageButton';
 import { ResonancePanel } from '../components/resonance/ResonancePanel';
 import { SourceManagerButton } from '../components/sources/SourceManagerButton';
 import { YouTubePageButton } from '../components/sources/YouTubePageButton';
@@ -35,6 +36,7 @@ export function DashboardPage() {
           onJumpToChart={dashboard.selectSymbol}
         />
         <YouTubePageButton />
+        <PositionsPageButton />
         <ManualPositionForm
           kolId={dashboard.selectedKol}
           onAdded={(next) => dashboard.reload(next || dashboard.selected)}

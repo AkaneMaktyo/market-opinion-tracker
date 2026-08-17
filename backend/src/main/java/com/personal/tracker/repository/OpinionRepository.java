@@ -133,6 +133,27 @@ public class OpinionRepository {
     return jdbc.query(sql.toString(), opinionMapper, args.toArray());
   }
 
+  public List<Opinion> findAllByKol(String kolId, String sourceInclude) {
+    boolean filterSource = sourceInclude != null && !sourceInclude.isBlank();
+    String sourceFilter = filterSource
+        ? " AND s.raw_text LIKE CONCAT('%', ?, '%')\n"
+        : "";
+    List<Object> args = new ArrayList<>();
+    args.add(kolId.trim());
+    if (filterSource) {
+      args.add(sourceInclude.trim());
+    }
+    return jdbc.query("""
+        SELECT o.*, i.symbol FROM opinions o
+        JOIN instruments i ON i.id = o.instrument_id
+        JOIN live_sessions s ON s.id = o.session_id
+        WHERE s.kol_id = ?
+        """ + sourceFilter + """
+        AND o.status <> 'MESSAGE'
+        ORDER BY o.opinion_time, o.created_at
+        """, opinionMapper, args.toArray());
+  }
+
   public Optional<Opinion> findById(String id) {
     List<Opinion> rows = jdbc.query("""
         SELECT o.*, i.symbol FROM opinions o

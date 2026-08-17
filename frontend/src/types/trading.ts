@@ -81,3 +81,34 @@ export interface PositionPortfolio {
   updatedAt: string;
   positions: SpotPosition[];
 }
+
+export interface FuturesPosition {
+  symbol: string;
+  marginCoin: string;
+  side: string;
+  isolated: boolean;
+  leverage?: number;
+  size?: number;
+  openPriceAvg?: number;
+  markPrice?: number;
+  liquidationPrice?: number;
+  margin?: number;
+  unrealizedPL?: number;
+  returnRate?: number;
+}
+
+export interface FuturesPortfolio {
+  accountReady: boolean;
+  demo: boolean;
+  productType: string;
+  marginCoin: string;
+  message: string;
+  accountEquity?: number;
+  available?: number;
+  positionCount: number;
+  totalMargin?: number;
+  totalUnrealizedPL?: number;
+  totalReturnRate?: number;
+  updatedAt: string;
+  positions: FuturesPosition[];
+}

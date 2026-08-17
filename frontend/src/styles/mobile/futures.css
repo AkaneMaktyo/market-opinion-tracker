@@ -1,0 +1,127 @@
+/* 持仓页分区切换与合约持仓卡片 */
+
+.mobile-position-tabs {
+  background: #e9f1ee;
+  border-radius: 13px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 4px;
+}
+
+.mobile-position-tabs button {
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  color: #4c645c;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  min-height: 36px;
+}
+
+.mobile-position-tabs button.active {
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(23, 63, 55, .14);
+  color: #173f37;
+}
+
+.mobile-futures-row {
+  border-top: 1px solid #eef4f1;
+  display: grid;
+  gap: 9px;
+  padding: 12px 13px 11px;
+}
+
+.mobile-futures-top {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.mobile-futures-top .mobile-position-asset strong { font-size: 15px; }
+
+.mobile-futures-side {
+  border-radius: 6px;
+  color: #fff;
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 7px;
+}
+
+.mobile-futures-side.long { background: #147352; }
+.mobile-futures-side.short { background: #c54c4c; }
+
+.mobile-futures-mode {
+  background: #eef3f0;
+  border: 1px solid #d8e4df;
+  border-radius: 6px;
+  color: #4c645c;
+  flex: 0 0 auto;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 6px;
+  white-space: nowrap;
+}
+
+.mobile-futures-size {
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.mobile-futures-pnl {
+  background: #f2f8f5;
+  border-radius: 11px;
+  display: flex;
+  padding: 9px 12px;
+}
+
+.mobile-futures-pnl > div { flex: 1; min-width: 0; }
+
+.mobile-futures-pnl > div + div {
+  border-left: 1px solid #dceae3;
+  padding-left: 12px;
+  text-align: right;
+}
+
+.mobile-futures-pnl small { color: #6c847b; display: block; font-size: 10px; }
+
+.mobile-futures-pnl b {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.mobile-futures-metrics { display: grid; gap: 3px; }
+
+.mobile-futures-metrics > div {
+  align-items: center;
+  display: flex;
+  font-size: 12px;
+  gap: 12px;
+  justify-content: space-between;
+  min-height: 22px;
+}
+
+.mobile-futures-metrics dt { color: #7a8c86; flex: 0 0 auto; font-size: 11px; }
+
+.mobile-futures-metrics dd {
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+  margin: 0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.mobile-futures-metrics dd.mobile-futures-liq { color: #ae6e1b; }
+
+@media (max-width: 360px) {
+  .mobile-futures-row { padding-inline: 11px; }
+  .mobile-futures-mode { display: none; }
+  .mobile-futures-pnl b { font-size: 14px; }
+}

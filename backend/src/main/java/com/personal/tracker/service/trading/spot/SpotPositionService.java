@@ -16,6 +16,7 @@ import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -30,6 +31,7 @@ public class SpotPositionService {
   private final SignalTradeRepository trades;
   private final PositionCostOverrideRepository overrides;
   private final AtomicBoolean refreshing = new AtomicBoolean();
+  private final Map<String, BigDecimal> lastKnownPrices = new ConcurrentHashMap<>();
   private volatile PositionPortfolio cachedPortfolio;
 
   public SpotPositionService(
@@ -112,8 +114,8 @@ public class SpotPositionService {
         continue;
       }
       String symbol = balance.asset() + "USDT";
-      BigDecimal price = prices.get(symbol);
-      if (price == null || price.signum() <= 0) continue;
+      BigDecimal price = currentOrLastKnownPrice("CRYPTO", symbol, prices.get(symbol));
+      if (price == null) continue;
       BigDecimal value = quantity.multiply(price);
       positions.add(rawPosition(
           "CRYPTO", "BINANCE", balance.asset(), symbol, quantity,
@@ -122,18 +124,23 @@ public class SpotPositionService {
     }
 
     List<FundingBalance> fundingBalances = binance.fundingBalances();
-    Map<String, BigDecimal> equityPrices = fundingBalances.parallelStream()
+    Map<String, BigDecimal> equityPrices = new ConcurrentHashMap<>();
+    fundingBalances.parallelStream()
         .map(FundingBalance::asset)
         .filter(asset -> asset.startsWith("EQ_") && asset.length() > 3)
         .map(asset -> asset.substring(3))
         .distinct()
-        .collect(Collectors.toConcurrentMap(Function.identity(), this::equityPrice));
+        .forEach(ticker -> {
+          BigDecimal price = equityPrice(ticker);
+          if (price != null) equityPrices.put(ticker, price);
+        });
     for (FundingBalance balance : fundingBalances) {
       BigDecimal quantity = balance.total();
       BigDecimal locked = quantity.subtract(balance.free());
       if (balance.asset().startsWith("EQ_") && balance.asset().length() > 3) {
         String ticker = balance.asset().substring(3);
-        BigDecimal price = equityPrices.getOrDefault(ticker, BigDecimal.ZERO);
+        BigDecimal price = equityPrices.get(ticker);
+        if (price == null) continue;
         BigDecimal value = quantity.multiply(price);
         positions.add(rawPosition(
             "STOCK", "BINANCE_STOCKS", ticker, ticker, quantity,
@@ -145,7 +152,8 @@ public class SpotPositionService {
         marketValue = marketValue.add(quantity);
       } else {
         String symbol = balance.asset() + "USDT";
-        BigDecimal price = prices.getOrDefault(symbol, BigDecimal.ZERO);
+        BigDecimal price = currentOrLastKnownPrice("CRYPTO", symbol, prices.get(symbol));
+        if (price == null) continue;
         BigDecimal value = quantity.multiply(price);
         positions.add(rawPosition(
             "CRYPTO", "BINANCE_FUNDING", balance.asset(), symbol, quantity,
@@ -256,10 +264,25 @@ public class SpotPositionService {
 
   private BigDecimal equityPrice(String ticker) {
     try {
-      return binance.equityQuote(ticker).midpoint();
+      return currentOrLastKnownPrice(
+          "STOCK", ticker, binance.equityQuote(ticker).midpoint());
     } catch (RuntimeException ignored) {
-      return BigDecimal.ZERO;
+      return lastKnownPrices.get(priceKey("STOCK", ticker));
     }
+  }
+
+  private BigDecimal currentOrLastKnownPrice(
+      String assetClass, String symbol, BigDecimal currentPrice) {
+    String key = priceKey(assetClass, symbol);
+    if (currentPrice != null && currentPrice.signum() > 0) {
+      lastKnownPrices.put(key, currentPrice);
+      return currentPrice;
+    }
+    return lastKnownPrices.get(key);
+  }
+
+  private static String priceKey(String assetClass, String symbol) {
+    return assetClass + ':' + symbol;
   }
 
   private PositionPortfolio unavailablePortfolio() {

@@ -1,5 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
-import type { KolPosition } from '../../positionTypes';
+import type { PositionStats, PositionView } from '../../positionTypes';
 import type { WxPusherNotifySettings, WxPusherSettings } from '../../types';
 
 export interface BloggerDraft {
@@ -9,7 +9,8 @@ export interface BloggerDraft {
   enabled: boolean;
 }
 
-export type PositionsByKol = Record<string, KolPosition[]>;
+export type PositionsByKol = Record<string, PositionView[]>;
+export type StatsByKol = Record<string, PositionStats>;
 
 export type SetSettings = Dispatch<SetStateAction<WxPusherSettings>>;
 export type SetNotifySettings = Dispatch<SetStateAction<WxPusherNotifySettings>>;

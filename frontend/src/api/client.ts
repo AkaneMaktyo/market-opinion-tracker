@@ -15,6 +15,7 @@ import { json } from './http';
 import { priceAlertApi } from './alerts';
 import { llmApi } from './llm';
 import { positionApi } from './positions';
+import { bitgetTradingApi } from './trading/bitget';
 import { signalTradingApi } from './trading/signalTrading';
 import { wxpusherApi } from './wxpusher';
 import { youtubeApi } from './youtube';
@@ -34,6 +35,7 @@ export const api = {
   ...youtubeApi,
   ...positionApi,
   ...signalTradingApi,
+  ...bitgetTradingApi,
   kols: () => json<Kol[]>('/api/kols'),
   createKol: (body: { name: string; description?: string }) =>
     json<Kol>('/api/kols', { method: 'POST', body: JSON.stringify(body) }),

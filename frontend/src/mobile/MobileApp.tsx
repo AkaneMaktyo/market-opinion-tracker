@@ -33,6 +33,7 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
   const [composerSeed, setComposerSeed] = useState('');
   const [focusMessageId, setFocusMessageId] = useState('');
   const [focusMessageRequest, setFocusMessageRequest] = useState(0);
+  const [searchFocusRequest, setSearchFocusRequest] = useState(0);
   const viewportRef = useRef<HTMLElement | null>(null);
   const detailOpenRef = useRef(detailOpen);
   detailOpenRef.current = detailOpen;
@@ -95,6 +96,12 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
     switchTab('opinions');
   }
 
+  function openSearch() {
+    openOpinions();
+    viewportRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    setSearchFocusRequest((current) => current + 1);
+  }
+
   const title = detailOpen && tab === 'watchlist' ? '标的详情' : tabTitles[tab];
 
   return (
@@ -102,7 +109,7 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
       <header className="mobile-app-header">
         <div className="mobile-brand-mark" aria-hidden="true"><span /></div>
         <div className="mobile-page-title"><small>Market pulse</small><strong>{title}</strong></div>
-        <button aria-label="搜索观点" className="mobile-header-button" onClick={() => openOpinions()} type="button"><Search size={20} /></button>
+        <button aria-label="搜索观点" className="mobile-header-button" onClick={openSearch} type="button"><Search size={20} /></button>
         <PriceAlertButton
           onJumpToChart={openInstrument}
           selectedSymbol={dashboard.selected}
@@ -119,7 +126,7 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
       </header>
 
       <section className={`mobile-app-viewport${detailOpen ? ' showing-chart-detail' : ''}`} aria-live="polite" ref={viewportRef}>
-        {tab === 'opinions' ? <MobileOpinions focusMessageId={focusMessageId} focusRequestKey={focusMessageRequest} kolId={dashboard.selectedKol} onClearFocus={() => openOpinions()} onWatchlistChanged={() => dashboard.reload()} /> : null}
+        {tab === 'opinions' ? <MobileOpinions focusMessageId={focusMessageId} focusRequestKey={focusMessageRequest} kolId={dashboard.selectedKol} onClearFocus={() => openOpinions()} onWatchlistChanged={() => dashboard.reload()} searchFocusRequest={searchFocusRequest} /> : null}
         {tab === 'overview' ? <MobileOverview dashboard={dashboard} onFocusSymbol={focusOverviewSymbol} onOpenMessage={openOpinions} onQuickAdd={() => openComposer()} /> : null}
         {tab === 'watchlist' && !detailOpen ? <MobileWatchlist dashboard={dashboard} onOpenDetail={openInstrument} /> : null}
         {tab === 'watchlist' && detailOpen ? <MobileInstrumentDetail dashboard={dashboard} onBack={() => setDetailOpen(false)} /> : null}
