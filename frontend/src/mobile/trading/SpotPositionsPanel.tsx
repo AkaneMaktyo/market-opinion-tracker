@@ -1,9 +1,10 @@
-import { Check, PencilLine, RefreshCw, ShieldCheck, Trash2, WalletCards, X } from 'lucide-react';
+import { Check, PencilLine, RefreshCw, Search, ShieldCheck, Trash2, WalletCards, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { InstrumentLogo } from '../../components/instruments/InstrumentLogo';
 import type { Instrument } from '../../types';
 import type { PositionPortfolio, SignalTradingStatus, SpotPosition } from '../../types/trading';
+import { PositionOpinionSheet } from './PositionOpinionSheet';
 import { clockTime, money, percent, price, pnlClass, quantity, signedMoney } from './positionFormat';
 
 const REFRESH_MS = 15000;
@@ -18,6 +19,7 @@ export function SpotPositionsPanel() {
   const [averageCost, setAverageCost] = useState('');
   const [savingCost, setSavingCost] = useState(false);
   const [instrumentDirectory, setInstrumentDirectory] = useState<Record<string, Instrument>>({});
+  const [opinionLookup, setOpinionLookup] = useState<{ keyword: string; logoUrl?: string; sourceKind: 'stock' | 'crypto' } | null>(null);
 
   async function load(refresh = false) {
     setLoading(true);
@@ -130,6 +132,18 @@ export function SpotPositionsPanel() {
                 <InstrumentLogo logoUrl={instrument?.logoUrl || positionLogoUrl(position)} size={34} sourceKind={position.assetClass === 'STOCK' ? 'stock' : 'crypto'} symbol={position.asset} />
                 <strong>{position.asset}</strong>
               </div>
+              {!isCash ? (
+                <button
+                  aria-label={`查看 ${position.asset} 最近观点`}
+                  className="mobile-position-opinion-btn"
+                  onClick={() => setOpinionLookup({
+                    keyword: instrument?.name?.trim() || position.asset,
+                    logoUrl: instrument?.logoUrl || positionLogoUrl(position),
+                    sourceKind: position.assetClass === 'STOCK' ? 'stock' : 'crypto',
+                  })}
+                  type="button"
+                ><Search size={13} />观点</button>
+              ) : null}
               <div className="mobile-position-quantity">{quantity(position.quantity)}</div>
             </div>
             <div className="mobile-position-meta">
@@ -158,6 +172,15 @@ export function SpotPositionsPanel() {
       </section>
 
       {!status?.stockBrokerConfigured ? <p className="mobile-position-note">股票持仓来自币安股票与资金账户；股票信号当前不会走合约通道。</p> : null}
+
+      {opinionLookup ? (
+        <PositionOpinionSheet
+          keyword={opinionLookup.keyword}
+          logoUrl={opinionLookup.logoUrl}
+          onClose={() => setOpinionLookup(null)}
+          sourceKind={opinionLookup.sourceKind}
+        />
+      ) : null}
     </>
   );
 }

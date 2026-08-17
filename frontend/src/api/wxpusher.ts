@@ -54,6 +54,10 @@ export const wxpusherApi = {
   },
   wxpusherRecentMessages: (limit = 50) =>
     json<WxPusherRecentMessage[]>(`/api/wxpusher/messages/recent?limit=${limit}`),
+  wxpusherSearchMessages: (keyword: string, sinceDays = 31, limit = 50) => {
+    const params = new URLSearchParams({ keyword, sinceDays: String(sinceDays), limit: String(limit) });
+    return json<WxPusherRecentMessage[]>(`/api/wxpusher/messages/recent/search?${params.toString()}`);
+  },
   wxpusherRecentMessageDetail: (id: string) =>
     json<WxPusherRecentMessage>(`/api/wxpusher/messages/recent/${encodeURIComponent(id)}`),
   recognizeWxPusherPriceAlerts: (id: string, kolId: string) =>

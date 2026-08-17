@@ -34,6 +34,18 @@ public class WxPusherFeedService {
         .toList();
   }
 
+  /** 按关键词搜索最近消息（默认一个月内），正文包含图片识别文字。 */
+  public List<FeedMessage> search(String keyword, int sinceDays, int limit) {
+    String cleaned = keyword == null ? "" : keyword.trim();
+    if (cleaned.isEmpty()) {
+      return List.of();
+    }
+    int days = Math.max(1, Math.min(sinceDays, 365));
+    return messages.searchRecentFeed(cleaned, days, limit).stream()
+        .map(this::view)
+        .toList();
+  }
+
   public FeedMessage detail(String id) {
     RecentMessage message = messages.findRecentFeedById(id)
         .orElseThrow(() -> new IllegalArgumentException("消息不存在"));

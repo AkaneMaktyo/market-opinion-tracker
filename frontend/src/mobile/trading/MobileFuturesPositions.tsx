@@ -1,8 +1,9 @@
-import { CandlestickChart, RefreshCw, ShieldCheck, WalletCards } from 'lucide-react';
+import { CandlestickChart, RefreshCw, Search, ShieldCheck, WalletCards } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import { InstrumentLogo } from '../../components/instruments/InstrumentLogo';
 import type { FuturesPortfolio, FuturesPosition } from '../../types/trading';
+import { PositionOpinionSheet } from './PositionOpinionSheet';
 import { clockTime, money, percent, price, pnlClass, signedMoney } from './positionFormat';
 
 const REFRESH_MS = 15000;
@@ -12,6 +13,7 @@ export function MobileFuturesPositions() {
   const [portfolio, setPortfolio] = useState<FuturesPortfolio>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [opinionSymbol, setOpinionSymbol] = useState('');
 
   async function load() {
     setLoading(true);
@@ -75,17 +77,26 @@ export function MobileFuturesPositions() {
             <small>{portfolio?.accountReady ? '在 Bitget 开仓后会显示在这里' : (portfolio?.message || '合约账户未就绪')}</small>
           </div>
         ) : null}
-        {positions.map((position) => <FuturesRow key={`${position.symbol}-${position.side}`} marginCoin={portfolio?.marginCoin || 'USDT'} position={position} />)}
+        {positions.map((position) => <FuturesRow key={`${position.symbol}-${position.side}`} marginCoin={portfolio?.marginCoin || 'USDT'} onLookup={setOpinionSymbol} position={position} />)}
       </section>
 
       <p className="mobile-position-note">
         <CandlestickChart size={13} /> 合约数据来自 Bitget {portfolio?.demo ? '模拟盘' : '实盘'}，仅供持仓跟踪，不构成下单入口。
       </p>
+
+      {opinionSymbol ? (
+        <PositionOpinionSheet
+          keyword={opinionSymbol}
+          logoUrl={baseAsset(opinionSymbol) ? `https://assets.coincap.io/assets/icons/${baseAsset(opinionSymbol).toLowerCase()}@2x.png` : undefined}
+          onClose={() => setOpinionSymbol('')}
+          sourceKind="crypto"
+        />
+      ) : null}
     </>
   );
 }
 
-function FuturesRow({ position, marginCoin }: { position: FuturesPosition; marginCoin: string }) {
+function FuturesRow({ marginCoin, onLookup, position }: { marginCoin: string; onLookup: (keyword: string) => void; position: FuturesPosition }) {
   const base = baseAsset(position.symbol);
   const isLong = position.side === 'long';
   return (
@@ -97,6 +108,12 @@ function FuturesRow({ position, marginCoin }: { position: FuturesPosition; margi
         </div>
         <span className={`mobile-futures-side ${isLong ? 'long' : 'short'}`}>{isLong ? '做多' : '做空'}</span>
         <span className="mobile-futures-mode">{position.leverage ? `${trimNumber(position.leverage)}x ` : ''}{position.isolated ? '逐仓' : '全仓'}</span>
+        <button
+          aria-label={`查看 ${position.symbol} 最近观点`}
+          className="mobile-position-opinion-btn"
+          onClick={() => onLookup(base || position.symbol)}
+          type="button"
+        ><Search size={13} />观点</button>
         <span className="mobile-futures-size">{position.size != null ? `${trimNumber(position.size)} ${base}` : '--'}</span>
       </div>
       <div className="mobile-futures-pnl">

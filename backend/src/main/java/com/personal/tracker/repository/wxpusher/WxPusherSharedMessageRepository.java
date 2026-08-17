@@ -93,6 +93,21 @@ public class WxPusherSharedMessageRepository {
         .findFirst();
   }
 
+  /** 按关键词搜索最近消息，匹配标题、摘要与详情正文（含图片识别文字）。 */
+  public List<RecentMessage> searchRecentFeed(String keyword, int sinceDays, int limit) {
+    String pattern = "%" + keyword.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+    return jdbc.query(RECENT_FEED_SELECT + """
+        WHERE r.source_name <> 'WxPusher官方-极简推送'
+          AND r.message_time >= ?
+          AND (r.title LIKE ? ESCAPE '\\' OR r.summary LIKE ? ESCAPE '\\'
+               OR p.detail_text LIKE ? ESCAPE '\\')
+        ORDER BY r.message_time DESC, r.updated_at DESC
+        LIMIT ?
+        """, recentMapper,
+        Instant.now().minus(java.time.Duration.ofDays(sinceDays)).toString(),
+        pattern, pattern, pattern, bounded(limit));
+  }
+
   public void saveState(
       String consumerName,
       String messageKey,

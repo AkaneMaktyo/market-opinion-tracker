@@ -120,6 +120,14 @@ public class WxPusherController {
     return feed.recent(limit);
   }
 
+  @GetMapping("/messages/recent/search")
+  List<FeedMessage> searchMessages(
+      @RequestParam String keyword,
+      @RequestParam(defaultValue = "31") int sinceDays,
+      @RequestParam(defaultValue = "50") int limit) {
+    return feed.search(keyword, sinceDays, limit);
+  }
+
   @GetMapping("/messages/recent/{id}")
   FeedMessage recentMessageDetail(@PathVariable String id) {
     return feed.detail(id);
