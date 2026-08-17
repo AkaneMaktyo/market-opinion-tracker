@@ -269,6 +269,31 @@ try {
         }
     }
 
+    $bitgetApiKey = Read-DotEnvValue $resolvedBinanceEnvPath "BITGET_API_KEY"
+    $bitgetApiSecret = Read-DotEnvValue $resolvedBinanceEnvPath "BITGET_API_SECRET"
+    if ($bitgetApiKey -or $bitgetApiSecret) {
+        if (-not $bitgetApiKey -or -not $bitgetApiSecret) {
+            throw "Bitget API key and secret must be configured together."
+        }
+        $bitgetPassphrase = Read-DotEnvValue $resolvedBinanceEnvPath "BITGET_PASSPHRASE"
+        if (-not $bitgetPassphrase) {
+            throw "Bitget passphrase is required."
+        }
+        $runtimeLines.Add('BITGET_ENABLED="true"')
+        $runtimeLines.Add('BITGET_PAPER_TRADING="false"')
+        $runtimeLines.Add("BITGET_API_KEY=$(ConvertTo-SystemdEnvValue $bitgetApiKey)")
+        $runtimeLines.Add("BITGET_API_SECRET=$(ConvertTo-SystemdEnvValue $bitgetApiSecret)")
+        $runtimeLines.Add("BITGET_PASSPHRASE=$(ConvertTo-SystemdEnvValue $bitgetPassphrase)")
+        $bitgetProductType = Read-DotEnvValue $resolvedBinanceEnvPath "BITGET_PRODUCT_TYPE"
+        if ($bitgetProductType) {
+            $runtimeLines.Add("BITGET_PRODUCT_TYPE=$(ConvertTo-SystemdEnvValue $bitgetProductType)")
+        }
+        $bitgetMarginCoin = Read-DotEnvValue $resolvedBinanceEnvPath "BITGET_MARGIN_COIN"
+        if ($bitgetMarginCoin) {
+            $runtimeLines.Add("BITGET_MARGIN_COIN=$(ConvertTo-SystemdEnvValue $bitgetMarginCoin)")
+        }
+    }
+
     if ($runtimeLines.Count -gt 0) {
         [IO.File]::WriteAllText(
             $localRuntimeEnv,

@@ -20,14 +20,14 @@ market-data:
 
 trading:
   bitget:
-    enabled: ${BITGET_DEMO_ENABLED:false}
-    demo: ${BITGET_DEMO_PAPER_TRADING:true}
+    enabled: ${BITGET_ENABLED:false}
+    demo: ${BITGET_PAPER_TRADING:true}
     base-url: ${BITGET_BASE_URL:https://api.bitget.com}
-    api-key: ${BITGET_DEMO_API_KEY:}
-    api-secret: ${BITGET_DEMO_API_SECRET:}
-    passphrase: ${BITGET_DEMO_PASSPHRASE:}
-    product-type: ${BITGET_DEMO_PRODUCT_TYPE:USDT-FUTURES}
-    margin-coin: ${BITGET_DEMO_MARGIN_COIN:USDT}
+    api-key: ${BITGET_API_KEY:}
+    api-secret: ${BITGET_API_SECRET:}
+    passphrase: ${BITGET_PASSPHRASE:}
+    product-type: ${BITGET_PRODUCT_TYPE:USDT-FUTURES}
+    margin-coin: ${BITGET_MARGIN_COIN:USDT}
   binance:
     enabled: ${BINANCE_SPOT_ENABLED:false}
     paper: ${BINANCE_SPOT_PAPER_TRADING:true}
