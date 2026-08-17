@@ -69,7 +69,7 @@ public class BitgetFuturesPositionService {
       return result;
     }
     for (JsonNode node : data) {
-      BigDecimal margin = decimal(node, "margin");
+      BigDecimal margin = firstDecimal(node, "marginSize", "occupyMargin", "isolatedMargin");
       BigDecimal unrealized = decimal(node, "unrealizedPL");
       result.add(new FuturesPosition(
           text(node, "symbol"),
@@ -116,6 +116,16 @@ public class BitgetFuturesPositionService {
     } catch (NumberFormatException error) {
       return null;
     }
+  }
+
+  private static BigDecimal firstDecimal(JsonNode node, String... fields) {
+    for (String field : fields) {
+      BigDecimal value = decimal(node, field);
+      if (value != null) {
+        return value;
+      }
+    }
+    return null;
   }
 
   private static BigDecimal ratio(BigDecimal pnl, BigDecimal margin) {
