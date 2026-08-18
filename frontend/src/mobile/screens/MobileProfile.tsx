@@ -38,7 +38,7 @@ export function MobileProfile({ dashboard, liveUpdate, onOpenTranscript }: Props
       <section className="mobile-card mobile-settings-group">
         <SourceManagerButton onChanged={() => dashboard.reload()} trigger={<SettingContent icon={<RadioTower size={20} />} note="来源、博主与同步状态" title="来源与 KOL 管理" />} triggerClassName="mobile-setting-row" />
         <button className="mobile-setting-row" onClick={() => setManagingNotify(true)} type="button"><SettingContent icon={<Megaphone size={20} />} note="每个 KOL 可单独开启或关闭" title="新消息通知" /></button>
-        <button className="mobile-setting-row" disabled={!selectedInstrument} onClick={() => setManagingInstrument(true)} type="button"><SettingContent icon={<ListTree size={20} />} note={`${dashboard.selected || '未选择'} · 改名、分组与行情源`} title="品种管理" /></button>
+        <button className="mobile-setting-row" disabled={!selectedInstrument} onClick={() => setManagingInstrument(true)} type="button"><SettingContent icon={<ListTree size={20} />} note={`${dashboard.selected || '未选择'} · 改名、归并与行情源`} title="品种管理" /></button>
         <PriceAlertButton onJumpToChart={dashboard.selectSymbol} selectedSymbol={dashboard.selected} trigger={<SettingContent icon={<BellRing size={20} />} note="到价后自动发送通知" title="价格提醒" />} triggerClassName="mobile-setting-row" />
         <button className="mobile-setting-row" onClick={onOpenTranscript} type="button"><SettingContent icon={<Database size={20} />} note="频道、音频与逐段文本" title="视频转写" /></button>
       </section>
@@ -51,7 +51,7 @@ export function MobileProfile({ dashboard, liveUpdate, onOpenTranscript }: Props
 
       <p className="mobile-version-note">普通页面和功能更新会自动下载，无需重新传 APK。</p>
 
-      {managingInstrument && selectedInstrument ? <InstrumentManager groups={dashboard.instrumentGroups} instrument={selectedInstrument} instruments={dashboard.instruments} kolId={dashboard.selectedKol} onChanged={(next) => { setManagingInstrument(false); dashboard.reload(next || dashboard.selected); }} onClose={() => setManagingInstrument(false)} /> : null}
+      {managingInstrument && selectedInstrument ? <InstrumentManager instrument={selectedInstrument} instruments={dashboard.instruments} onChanged={(next) => { setManagingInstrument(false); dashboard.reload(next || dashboard.selected); }} onClose={() => setManagingInstrument(false)} /> : null}
       {managingNotify ? <MobileNotifySettings onClose={() => setManagingNotify(false)} /> : null}
     </div>
   );

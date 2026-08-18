@@ -1,9 +1,8 @@
-import { FolderTree, Plus } from 'lucide-react';
-import { InstrumentGroupList } from '../../components/instruments/InstrumentGroupList';
+import { Plus, Settings } from 'lucide-react';
+import { FlatInstrumentList } from '../../components/instruments/FlatInstrumentList';
 import { InstrumentSortBar } from '../../components/instruments/InstrumentSortBar';
 import {
   applyManualOrder,
-  groupItems,
   sortItems,
   type SortMode,
 } from '../../components/instruments/instrumentList';
@@ -23,9 +22,7 @@ export function MobileWatchlist({ dashboard, onOpenDetail }: Props) {
   const railItems = customMode
     ? applyManualOrder(dashboard.instruments, state.order)
     : dashboard.instruments;
-  const grouped = customMode
-    ? groupItems(sortItems(railItems, state.mode), state.groupOrder)
-    : [{ group: '', items: railItems }];
+  const visibleItems = customMode ? sortItems(railItems, state.mode) : railItems;
 
   function changeMode(mode: SortMode) {
     state.setMode(mode);
@@ -42,7 +39,7 @@ export function MobileWatchlist({ dashboard, onOpenDetail }: Props) {
           </div>
           <div className="mobile-watchlist-head-actions">
             <button className="rail-manage" onClick={state.openAdd} type="button"><Plus size={14} /><span>新增</span></button>
-            <button className="rail-manage" onClick={state.openDirectory} type="button"><FolderTree size={14} /><span>管理</span></button>
+            <button className="rail-manage" onClick={state.openDirectory} type="button"><Settings size={14} /><span>管理</span></button>
           </div>
         </div>
         {customMode ? <InstrumentSortBar mode={state.mode} onChange={changeMode} /> : null}
@@ -54,24 +51,17 @@ export function MobileWatchlist({ dashboard, onOpenDetail }: Props) {
           <span>操作</span>
         </div>
         {state.message ? <p className="mobile-watchlist-message">{state.message}</p> : null}
-        <InstrumentGroupList
-          collapsedGroups={state.collapsedGroups}
-          draggingGroup={state.draggingGroup}
+        <FlatInstrumentList
           draggingItem={state.draggingItem}
-          dropGroup={state.dropGroup}
-          grouped={grouped}
+          items={visibleItems}
           manualMode={customMode && state.mode === 'manual'}
           onDragItemEnd={state.resetItemDrag}
           onDragItemOver={state.dragItemOver}
           onDragItemStart={state.startItemDrag}
-          onDropGroup={state.dropGroupOn}
           onDropItem={(event, symbol) => state.dropItemOn(event, symbol, railItems)}
           onManage={state.openManager}
           onRemove={state.removeFromWatchlist}
           onSelect={onOpenDetail}
-          onSetDraggingGroup={state.setDraggingGroup}
-          onSetDropGroup={state.setDropGroup}
-          onToggleGroup={state.toggleGroup}
           selected={dashboard.selected}
           removingId={state.removing}
         />

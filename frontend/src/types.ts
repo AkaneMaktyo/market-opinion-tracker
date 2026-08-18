@@ -9,7 +9,6 @@ export interface Instrument {
   name?: string;
   market?: string;
   sector?: string;
-  groupName?: string;
   logoUrl?: string;
   marketDataProvider?: string;
   createdAt?: string;

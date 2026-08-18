@@ -40,7 +40,6 @@
 .mobile-watchlist-form-error { color: #dc2626; font-size: 12px; margin: 0; }
 .mobile-instrument-rail .symbol-product-text,
 .mobile-instrument-rail .symbol-value { font-size: 12px; }
-.mobile-instrument-rail .group-header { min-height: 34px; }
 .mobile-instrument-rail .sort-button { min-height: 34px; }
 
 .showing-chart-detail { background: #0b1220; }

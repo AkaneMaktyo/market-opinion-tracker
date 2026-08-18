@@ -47,6 +47,10 @@ export function MobileOpinions({ focusMessageId = '', focusRequestKey = 0, kolId
   const [query, setQuery] = useState('');
   const [kolName, setKolName] = useState('');
   const [messages, setMessages] = useState<WxPusherRecentMessage[]>([]);
+  const [searchResults, setSearchResults] = useState<WxPusherRecentMessage[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [searchRefreshKey, setSearchRefreshKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [preview, setPreview] = useState('');
@@ -56,15 +60,24 @@ export function MobileOpinions({ focusMessageId = '', focusRequestKey = 0, kolId
   const [recognizingIds, setRecognizingIds] = useState<Set<string>>(new Set());
   const [recognitionErrors, setRecognitionErrors] = useState<Record<string, string>>({});
   const requestId = useRef(0);
+  const searchRequestId = useRef(0);
+  const searchController = useRef<AbortController | null>(null);
+  const searchCache = useRef(new Map<string, WxPusherRecentMessage[]>());
   const detailCache = useRef(new Map<string, WxPusherRecentMessage>());
   const handledFocus = useRef('');
   const [hydratingIds, setHydratingIds] = useState<Set<string>>(new Set());
   const [deployInfo, setDeployInfo] = useState<{ bundleId: string; createdAt: string } | null>(null);
-  const kolNames = useMemo(() => [...new Set(messages.map((item) => item.bloggerName).filter(Boolean))]
-    .sort((left, right) => left.localeCompare(right, 'zh-CN')), [messages]);
+  const cleanedQuery = normalizeSearchQuery(query);
+  const highlightTerms = useMemo(() => searchTerms(query), [query]);
+  const searchActive = Boolean(cleanedQuery);
+  const visibleMessages = searchActive ? searchResults : messages;
+  const kolNames = useMemo(() => [...new Set([...messages, ...searchResults]
+    .map((item) => item.bloggerName).filter(Boolean))]
+    .sort((left, right) => left.localeCompare(right, 'zh-CN')), [messages, searchResults]);
   const items = useMemo(() => focusMessageId
     ? focusedMessage ? [focusedMessage] : []
-    : filterMessages(messages, query, kolName), [focusMessageId, focusedMessage, messages, query, kolName]);
+    : filterMessages(visibleMessages, kolName, !searchActive),
+  [focusMessageId, focusedMessage, visibleMessages, kolName, searchActive]);
 
   const fetchDeployInfo = useCallback(() => {
     const env = (import.meta as unknown as { env?: Record<string, string> }).env;
@@ -134,6 +147,7 @@ export function MobileOpinions({ focusMessageId = '', focusRequestKey = 0, kolId
         priceAlertCandidateCount: result.candidates.length,
       };
       setMessages((current) => current.map((message) => message.id === item.id ? { ...message, ...patch } : message));
+      setSearchResults((current) => current.map((message) => message.id === item.id ? { ...message, ...patch } : message));
       const cached = detailCache.current.get(item.id);
       if (cached) detailCache.current.set(item.id, { ...cached, ...patch });
       if (result.status === 'SUCCESS' && result.candidates.length > 0) setActiveRecognition(result);
@@ -144,6 +158,9 @@ export function MobileOpinions({ focusMessageId = '', focusRequestKey = 0, kolId
     } catch (recognitionError) {
       const message = recognitionError instanceof Error ? recognitionError.message : '智能识别失败，请重试';
       setMessages((current) => current.map((messageItem) => messageItem.id === item.id
+        ? { ...messageItem, priceAlertRecognitionStatus: 'FAILED' }
+        : messageItem));
+      setSearchResults((current) => current.map((messageItem) => messageItem.id === item.id
         ? { ...messageItem, priceAlertRecognitionStatus: 'FAILED' }
         : messageItem));
       setRecognitionErrors((current) => ({ ...current, [item.id]: message }));
@@ -167,6 +184,49 @@ export function MobileOpinions({ focusMessageId = '', focusRequestKey = 0, kolId
       window.clearInterval(timer);
     };
   }, [fetchDeployInfo]);
+
+  useEffect(() => {
+    searchController.current?.abort();
+    const current = ++searchRequestId.current;
+    setSearchError('');
+    if (!cleanedQuery) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    const cached = searchCache.current.get(cleanedQuery);
+    if (cached) {
+      setSearchResults(cached);
+      setSearching(false);
+      return;
+    }
+    setSearchResults([]);
+    setSearching(true);
+    let controller: AbortController | null = null;
+    const timer = window.setTimeout(() => {
+      controller = new AbortController();
+      searchController.current = controller;
+      void api.wxpusherSearchMessages(cleanedQuery, 365, 200, controller.signal).then((next) => {
+        if (current !== searchRequestId.current) return;
+        next.forEach((item) => detailCache.current.set(item.id, item));
+        if (searchCache.current.size >= 12) {
+          const oldest = searchCache.current.keys().next().value;
+          if (oldest) searchCache.current.delete(oldest);
+        }
+        searchCache.current.set(cleanedQuery, next);
+        setSearchResults(next);
+      }).catch((searchFailure) => {
+        if (current !== searchRequestId.current || controller?.signal.aborted) return;
+        setSearchError(searchFailure instanceof Error ? searchFailure.message : '搜索失败，请重试');
+      }).finally(() => {
+        if (current === searchRequestId.current) setSearching(false);
+      });
+    }, 320);
+    return () => {
+      window.clearTimeout(timer);
+      controller?.abort();
+    };
+  }, [cleanedQuery, searchRefreshKey]);
 
   useEffect(() => {
     if (!focusMessageId) {
@@ -215,13 +275,34 @@ export function MobileOpinions({ focusMessageId = '', focusRequestKey = 0, kolId
     input.select();
   }, [searchFocusRequest]);
 
+  function refreshCurrentList() {
+    if (!searchActive) {
+      void load();
+      return;
+    }
+    searchCache.current.delete(cleanedQuery);
+    setSearchRefreshKey((current) => current + 1);
+  }
+
   return (
     <div className="mobile-screen-content mobile-opinions-screen">
       <div className="mobile-opinion-toolbar">
-        <label className="mobile-search-box">
-          <Search aria-hidden="true" size={18} />
-          <input id={searchBoxId.current} onChange={(event) => setQuery(event.target.value)} placeholder="搜索消息内容" type="search" value={query} />
-        </label>
+        <div className={searchActive ? 'mobile-search-box active' : 'mobile-search-box'}>
+          {searching ? <RefreshCw aria-hidden="true" className="spinning" size={18} /> : <Search aria-hidden="true" size={18} />}
+          <input
+            aria-label="搜索观点消息"
+            autoCapitalize="none"
+            autoComplete="off"
+            enterKeyHint="search"
+            id={searchBoxId.current}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="代码、名称或正文"
+            spellCheck={false}
+            type="search"
+            value={query}
+          />
+          {query ? <button aria-label="清空搜索" onClick={() => setQuery('')} type="button"><X size={16} /></button> : null}
+        </div>
         <select aria-label="选择 KOL" onChange={(event) => setKolName(event.target.value)} value={kolName}>
           <option value="">全部 KOL</option>
           {kolNames.map((name) => <option key={name} value={name}>{displayKolName(name)}</option>)}
@@ -229,19 +310,29 @@ export function MobileOpinions({ focusMessageId = '', focusRequestKey = 0, kolId
       </div>
 
       <div className="mobile-list-title">
-        <div><strong>{focusMessageId ? '价格提醒来源消息' : '最新接收消息'}</strong><small>{focusMessageId ? '创建当前提醒时智能识别的原文' : kolName || '全部 KOL'}</small></div>
+        <div>
+          <strong>{focusMessageId ? '价格提醒来源消息' : searchActive ? '搜索结果' : '最新接收消息'}</strong>
+          <small>{focusMessageId
+            ? '创建当前提醒时智能识别的原文'
+            : searchActive
+              ? searching ? '正在检索近一年完整消息…' : `${items.length} 条结果 · ${kolName || '全部 KOL'}`
+              : kolName || '全部 KOL'}</small>
+        </div>
         {focusMessageId
           ? <button aria-label="返回全部消息" onClick={onClearFocus} type="button"><X size={17} /></button>
-          : <button aria-label="刷新最新消息" className={loading ? 'spinning' : ''} onClick={() => void load()} type="button"><RefreshCw size={17} /></button>}
+          : <button aria-label={searchActive ? '重新搜索' : '刷新最新消息'} className={loading || searching ? 'spinning' : ''} onClick={refreshCurrentList} type="button"><RefreshCw size={17} /></button>}
       </div>
       {error ? <div className="mobile-card mobile-message-error">{error}</div> : null}
-      <section className="mobile-opinion-feed" aria-busy={loading}>
+      {searchError ? <div className="mobile-card mobile-message-error">{searchError}</div> : null}
+      <section className="mobile-opinion-feed" aria-busy={loading || searching}>
         {(focusLoading || loading && messages.length === 0) ? <div className="mobile-card mobile-empty">{focusMessageId ? '正在读取价格提醒来源消息…' : '正在读取最新消息…'}</div> : null}
-        {!focusLoading && !loading && items.length === 0 ? <div className="mobile-card mobile-empty">暂时没有符合条件的消息</div> : null}
+        {searching && searchResults.length === 0 ? <div className="mobile-card mobile-empty">正在搜索标题、正文和图片识别文字…</div> : null}
+        {!focusLoading && !loading && !searching && !searchError && items.length === 0 ? <div className="mobile-card mobile-empty">{searchActive ? `近一年没有找到“${query.trim()}”` : '暂时没有符合条件的消息'}</div> : null}
         {items.map((item) => (
           <MessageCard
             error={recognitionErrors[item.id]}
             hydrating={hydratingIds.has(item.id)}
+            highlightTerms={searchActive ? highlightTerms : []}
             item={item}
             key={item.id}
             onPreview={setPreview}
@@ -263,13 +354,14 @@ export function MobileOpinions({ focusMessageId = '', focusRequestKey = 0, kolId
   );
 }
 
-function MessageCard({ item, onPreview, onRecognize, hydrating, recognizing, error }: {
+function MessageCard({ item, onPreview, onRecognize, hydrating, recognizing, error, highlightTerms }: {
   item: WxPusherRecentMessage;
   onPreview: (source: string) => void;
   onRecognize: () => void;
   hydrating: boolean;
   recognizing: boolean;
   error?: string;
+  highlightTerms: string[];
 }) {
   const parsed = parseMessage(item);
   return (
@@ -279,7 +371,8 @@ function MessageCard({ item, onPreview, onRecognize, hydrating, recognizing, err
         <div><strong>{displayKolName(item.bloggerName) || '未知 KOL'}</strong><small>{formatDate(item.messageTime)}</small></div>
         <b className={`mobile-message-status mobile-message-status-${statusTone(item.status)}`}>{statusLabel(item.status)}</b>
       </div>
-      <p className="mobile-feed-thesis">{parsed.body}</p>
+      {highlightTerms.length > 0 && item.title ? <p className="mobile-search-hit-title"><HighlightedText terms={highlightTerms} text={item.title} /></p> : null}
+      <p className="mobile-feed-thesis"><HighlightedText terms={highlightTerms} text={parsed.body} /></p>
       {hydrating ? <div className="mobile-feed-hint"><RefreshCw size={12} className="spinning" /> 正在获取完整内容…</div> : null}
       {parsed.images.length > 0 ? (
         <div className={`mobile-message-images count-${Math.min(parsed.images.length, 3)}`}>
@@ -291,7 +384,7 @@ function MessageCard({ item, onPreview, onRecognize, hydrating, recognizing, err
           ))}
         </div>
       ) : null}
-      {parsed.ocrText ? <details><summary>查看图片识别文字</summary><p>{parsed.ocrText}</p></details> : null}
+      {parsed.ocrText ? <details><summary>查看图片识别文字</summary><p><HighlightedText terms={highlightTerms} text={parsed.ocrText} /></p></details> : null}
       <div className="mobile-recognition-action">
         <button
           disabled={recognizing || item.priceAlertRecognitionStatus === 'EMPTY'}
@@ -314,6 +407,15 @@ function recognitionButtonLabel(item: WxPusherRecentMessage, recognizing: boolea
   if (item.priceAlertRecognitionStatus === 'FAILED') return '重新识别';
   if (item.priceAlertRecognitionStatus === 'PROCESSING') return '继续查看识别';
   return '智能识别';
+}
+
+function HighlightedText({ text, terms }: { text: string; terms: string[] }) {
+  if (terms.length === 0 || !text) return <>{text}</>;
+  const matcher = new RegExp(`(${terms.map(escapeRegex).join('|')})`, 'giu');
+  const normalizedTerms = new Set(terms.map((term) => term.normalize('NFKC').toLocaleLowerCase()));
+  return <>{text.split(matcher).map((part, index) => normalizedTerms.has(part.normalize('NFKC').toLocaleLowerCase())
+    ? <mark key={`${part}-${index}`}>{part}</mark>
+    : part)}</>;
 }
 
 function ImagePreview({ source, onClose }: { source: string; onClose: () => void }) {
@@ -430,13 +532,23 @@ function parseMessage(item: WxPusherRecentMessage) {
   };
 }
 
-function filterMessages(items: WxPusherRecentMessage[], query: string, kolName: string) {
-  const keyword = query.trim().toLowerCase();
-  return [...items]
-    .filter((item) => !kolName || item.bloggerName === kolName)
-    .filter((item) => !keyword || [item.bloggerName, item.title, item.summary, item.detailText]
-      .some((value) => value?.toLowerCase().includes(keyword)))
-    .sort((left, right) => Date.parse(right.messageTime) - Date.parse(left.messageTime));
+function filterMessages(items: WxPusherRecentMessage[], kolName: string, sortByTime: boolean) {
+  const filtered = items.filter((item) => !kolName || item.bloggerName === kolName);
+  return sortByTime
+    ? [...filtered].sort((left, right) => Date.parse(right.messageTime) - Date.parse(left.messageTime))
+    : filtered;
+}
+
+function normalizeSearchQuery(value: string) {
+  return value.normalize('NFKC').toLocaleLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function searchTerms(value: string) {
+  return [...new Set(normalizeSearchQuery(value).split(/[\p{P}\p{S}\s]+/u).filter(Boolean))].slice(0, 8);
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function needsDetail(item: WxPusherRecentMessage) {

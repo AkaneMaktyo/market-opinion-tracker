@@ -167,11 +167,6 @@ export const api = {
     json<{ status: string; message: string }>(`/api/instruments/${id}`, {
       method: 'DELETE',
     }),
-  updateInstrumentGroup: (id: string, kolId: string, groupName: string | null) =>
-    json<Instrument>(`/api/instruments/${id}/group`, {
-      method: 'PUT',
-      body: JSON.stringify({ kolId, groupName }),
-    }),
   updateInstrumentWatchlist: (id: string, kolId: string, included: boolean) =>
     json<{ status: string; message: string }>(`/api/instruments/${id}/watchlist`, {
       method: 'PUT',
@@ -182,6 +177,4 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ provider }),
     }),
-  instrumentGroups: (kolId: string) =>
-    json<string[]>(`/api/instruments/groups?kolId=${encodeURIComponent(kolId)}`),
 };

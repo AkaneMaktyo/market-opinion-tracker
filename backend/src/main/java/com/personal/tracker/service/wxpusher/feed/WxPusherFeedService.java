@@ -5,7 +5,11 @@ import com.personal.tracker.repository.wxpusher.WxPusherSharedMessageRepository;
 import com.personal.tracker.repository.wxpusher.WxPusherSharedMessageRepository.RecentMessage;
 import com.personal.tracker.service.wxpusher.WxPusherArticleExtractor;
 import com.personal.tracker.service.wxpusher.article.WxPusherArticleParser;
+import java.text.Normalizer;
+import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Pattern;
 import org.springframework.stereotype.Service;
 
@@ -34,15 +38,24 @@ public class WxPusherFeedService {
         .toList();
   }
 
-  /** 按关键词搜索最近消息（默认一个月内），正文包含图片识别文字。 */
+  /** 多关键词搜索最近消息，正文包含图片识别文字，并按命中强度与时间排序。 */
   public List<FeedMessage> search(String keyword, int sinceDays, int limit) {
-    String cleaned = keyword == null ? "" : keyword.trim();
-    if (cleaned.isEmpty()) {
+    String cleaned = normalize(keyword);
+    List<String> terms = terms(cleaned);
+    if (terms.isEmpty()) {
       return List.of();
     }
     int days = Math.max(1, Math.min(sinceDays, 365));
-    return messages.searchRecentFeed(cleaned, days, limit).stream()
-        .map(this::view)
+    int resultLimit = Math.max(1, Math.min(limit, 200));
+    int candidateLimit = Math.min(1000, Math.max(resultLimit, resultLimit * 4));
+    return messages.searchRecentFeed(terms, days, candidateLimit).stream()
+        .map(message -> new SearchHit(view(message), relevance(message, cleaned, terms)))
+        .sorted(Comparator.comparingInt(SearchHit::score)
+            .thenComparing(
+                hit -> time(hit.message().messageTime()),
+                Comparator.reverseOrder()))
+        .limit(resultLimit)
+        .map(SearchHit::message)
         .toList();
   }
 
@@ -132,5 +145,58 @@ public class WxPusherFeedService {
       String priceAlertRecognitionStatus,
       String priceAlertRecognitionId,
       int priceAlertCandidateCount) {
+  }
+
+  private static List<String> terms(String input) {
+    return Pattern.compile("[\\p{P}\\p{S}\\s]+")
+        .splitAsStream(input)
+        .map(String::trim)
+        .filter(term -> !term.isBlank())
+        .distinct()
+        .limit(8)
+        .toList();
+  }
+
+  private static int relevance(RecentMessage message, String query, List<String> terms) {
+    String blogger = normalize(value(message.processedBloggerName()) + " " + value(message.sourceName()));
+    String title = normalize(message.title());
+    String summary = normalize(message.summary());
+    String detail = normalize(message.detailText());
+    int score = fieldScore(title, query, terms, 0, 12)
+        + fieldScore(blogger, query, terms, 2, 10)
+        + fieldScore(summary, query, terms, 5, 6)
+        + fieldScore(detail, query, terms, 8, 3);
+    return score;
+  }
+
+  private static int fieldScore(
+      String field,
+      String query,
+      List<String> terms,
+      int phraseScore,
+      int tokenWeight) {
+    if (field.isBlank()) return 100;
+    int score = field.equals(query) ? phraseScore - 4 : field.contains(query) ? phraseScore : 30;
+    long hits = terms.stream().filter(field::contains).count();
+    return score - (int) hits * tokenWeight;
+  }
+
+  private static String normalize(String input) {
+    if (input == null) return "";
+    return Normalizer.normalize(input, Normalizer.Form.NFKC)
+        .toLowerCase(Locale.ROOT)
+        .replaceAll("\\s+", " ")
+        .trim();
+  }
+
+  private static Instant time(String value) {
+    try {
+      return Instant.parse(value);
+    } catch (RuntimeException ignored) {
+      return Instant.EPOCH;
+    }
+  }
+
+  private record SearchHit(FeedMessage message, int score) {
   }
 }

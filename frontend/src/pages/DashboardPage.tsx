@@ -50,7 +50,6 @@ export function DashboardPage() {
 
       <div className="workspace">
         <InstrumentRail
-          groups={dashboard.instrumentGroups}
           instruments={dashboard.instruments}
           kolId={dashboard.selectedKol}
           onChanged={(next) => dashboard.reload(next || dashboard.selected)}

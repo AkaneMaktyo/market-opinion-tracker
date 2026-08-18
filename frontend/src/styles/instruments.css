@@ -45,20 +45,6 @@
 .rail-list::-webkit-scrollbar-track { background: transparent; }
 .rail-list::-webkit-scrollbar-thumb { background: #b8bdc8; border: 1px solid transparent; border-radius: 999px; background-clip: padding-box; }
 .rail-list::-webkit-scrollbar-thumb:hover { background-color: #8f96a3; }
-.instrument-group { margin-bottom: 0; }
-.group-header {
-  align-items: center; background: #f7f8fa; border: 0; border-bottom: 1px solid #e0e3eb; border-radius: 0; color: #787b86;
-  cursor: grab; display: flex; font-size: 12px; font-weight: 600; gap: 5px; min-height: 32px; padding: 5px 10px;
-  text-align: left; width: 100%;
-}
-.group-header:hover { background: #f0f3fa; color: #131722; }
-.group-header.dragging { cursor: grabbing; opacity: .5; }
-.group-header.drop-target { background: #e8f0fe; box-shadow: inset 0 0 0 1px #2962ff; }
-.group-count, .directory-badge, .directory-group-pill {
-  background: transparent; border-radius: 0; color: #787b86; font-size: 11px; font-weight: 500; padding: 0;
-}
-.group-count { margin-left: auto; }
-
 .symbol {
   align-items: center; background: #fff; border: 0; border-bottom: 1px solid #e0e3eb;
   border-left: 3px solid transparent; border-radius: 0; color: #131722; height: 38px;
@@ -105,13 +91,16 @@
   display: inline-flex; font-size: 13px; font-weight: 700; gap: 5px; justify-content: center; min-height: 36px; padding: 8px 10px;
 }
 .manager-tab.active { background: #fff; border-color: #0f766e; color: #0f766e; }
-.manager-panel, .directory-list, .directory-groups { display: flex; flex-direction: column; }
+.manager-panel, .directory-list { display: flex; flex-direction: column; }
 .manager-panel, .directory-list { gap: 10px; }
 .manager-logo-row, .directory-main, .directory-meta, .directory-search { gap: 8px; }
 .directory-search {
   background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; margin-bottom: 12px; padding: 0 10px;
 }
 .directory-search input { background: transparent; border: 0; padding-left: 0; width: 100%; }
+.directory-search button { align-items: center; background: transparent; border: 0; color: #64748b; display: inline-flex; height: 30px; justify-content: center; padding: 0; width: 30px; }
+.directory-result-count { color: #64748b; flex: 0 0 auto; font-size: 12px; }
+.directory-empty { background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px; color: #64748b; padding: 24px 14px; text-align: center; }
 .directory-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; gap: 12px; padding: 10px 12px; }
 .directory-item.active { border-color: #67e8f9; }
 .directory-main strong, .directory-name { display: block; }

@@ -3,6 +3,7 @@ package com.personal.tracker.repository.wxpusher;
 import com.personal.tracker.repository.JdbcSupport;
 import com.personal.tracker.service.wxpusher.WxPusherClient.IncomingMessage;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -93,19 +94,25 @@ public class WxPusherSharedMessageRepository {
         .findFirst();
   }
 
-  /** 按关键词搜索最近消息，匹配标题、摘要与详情正文（含图片识别文字）。 */
-  public List<RecentMessage> searchRecentFeed(String keyword, int sinceDays, int limit) {
-    String pattern = "%" + keyword.replace("|", "||").replace("%", "|%").replace("_", "|_") + "%";
-    return jdbc.query(RECENT_FEED_SELECT + """
+  /** 按多个关键词搜索最近消息；每个关键词都必须在任一可检索字段中命中。 */
+  public List<RecentMessage> searchRecentFeed(List<String> keywords, int sinceDays, int limit) {
+    String searchable = """
+        CONCAT_WS(' ', COALESCE(p.blogger_name, ''), COALESCE(r.source_name, ''),
+          COALESCE(r.title, ''), COALESCE(r.summary, ''), COALESCE(p.detail_text, ''))
+        """.trim();
+    StringBuilder sql = new StringBuilder(RECENT_FEED_SELECT).append("""
         WHERE r.source_name <> 'WxPusher官方-极简推送'
           AND r.message_time >= ?
-          AND (r.title LIKE ? ESCAPE '|' OR r.summary LIKE ? ESCAPE '|'
-               OR p.detail_text LIKE ? ESCAPE '|')
-        ORDER BY r.message_time DESC, r.updated_at DESC
-        LIMIT ?
-        """, recentMapper,
-        Instant.now().minus(java.time.Duration.ofDays(sinceDays)).toString(),
-        pattern, pattern, pattern, bounded(limit));
+        """);
+    List<Object> args = new ArrayList<>();
+    args.add(Instant.now().minus(java.time.Duration.ofDays(sinceDays)).toString());
+    for (String keyword : keywords) {
+      sql.append(" AND ").append(searchable).append(" LIKE ? ESCAPE '|'");
+      args.add(likePattern(keyword));
+    }
+    sql.append(" ORDER BY r.message_time DESC, r.updated_at DESC LIMIT ?");
+    args.add(bounded(limit));
+    return jdbc.query(sql.toString(), recentMapper, args.toArray());
   }
 
   public void saveState(
@@ -177,5 +184,9 @@ public class WxPusherSharedMessageRepository {
       String recognitionStatus,
       String recognitionId,
       int recognitionCandidateCount) {
+  }
+
+  private static String likePattern(String keyword) {
+    return "%" + keyword.replace("|", "||").replace("%", "|%").replace("_", "|_") + "%";
   }
 }

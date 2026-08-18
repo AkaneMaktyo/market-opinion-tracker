@@ -76,4 +76,25 @@ class WxPusherFeedServiceTest {
         "",
         0);
   }
+
+  @Test
+  void searchNormalizesTermsAndRanksTitleMatchFirst() {
+    var messages = mock(WxPusherSharedMessageRepository.class);
+    var service = new WxPusherFeedService(
+        messages,
+        mock(WxPusherSettingsRepository.class),
+        mock(WxPusherArticleExtractor.class));
+    RecentMessage detailHit = message("detail", "牛顿师兄", "普通消息", "NVDA 英伟达继续走强");
+    RecentMessage titleHit = new RecentMessage(
+        "title", "key-title", "CIA-信息推送", "舒琴", "", "NVDA 英伟达机会",
+        "盘中观察", "", "", "2026-08-05T14:11:15Z", "盘中观察", "IMPORTED",
+        "NOT_STARTED", "", 0);
+    when(messages.searchRecentFeed(List.of("nvda", "英伟达"), 365, 400))
+        .thenReturn(List.of(detailHit, titleHit));
+
+    var result = service.search("  NVDA，英伟达  ", 500, 100);
+
+    assertEquals(List.of("title", "detail"), result.stream().map(WxPusherFeedService.FeedMessage::id).toList());
+    verify(messages).searchRecentFeed(List.of("nvda", "英伟达"), 365, 400);
+  }
 }

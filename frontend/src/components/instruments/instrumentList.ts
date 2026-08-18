@@ -8,28 +8,6 @@ export const sortOptions = [
   { value: 'loss' as const, label: '跌幅' },
 ];
 
-export function groupItems(items: Instrument[], groupOrder: string[] = []) {
-  const groups = new Map<string, Instrument[]>();
-  const ungrouped: Instrument[] = [];
-  items.forEach((item) => {
-    if (!item.groupName) {
-      ungrouped.push(item);
-      return;
-    }
-    const list = groups.get(item.groupName) || [];
-    list.push(item);
-    groups.set(item.groupName, list);
-  });
-  const orderedGroups = [
-    ...groupOrder.filter((group) => groups.has(group)),
-    ...[...groups.keys()].filter((group) => !groupOrder.includes(group)).sort((left, right) => left.localeCompare(right)),
-  ];
-  return [
-    ...orderedGroups.map((group) => ({ group, items: groups.get(group) || [] })),
-    { group: '', items: ungrouped },
-  ].filter((entry) => entry.items.length > 0);
-}
-
 export function applyManualOrder(instruments: Instrument[], order: string[]) {
   const bySymbol = new Map(instruments.map((item) => [item.symbol, item]));
   const ordered = order.flatMap((symbol) => (bySymbol.get(symbol) ? [bySymbol.get(symbol)!] : []));

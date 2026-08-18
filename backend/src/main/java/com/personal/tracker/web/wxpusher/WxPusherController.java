@@ -123,8 +123,8 @@ public class WxPusherController {
   @GetMapping("/messages/recent/search")
   List<FeedMessage> searchMessages(
       @RequestParam String keyword,
-      @RequestParam(defaultValue = "31") int sinceDays,
-      @RequestParam(defaultValue = "50") int limit) {
+      @RequestParam(defaultValue = "365") int sinceDays,
+      @RequestParam(defaultValue = "100") int limit) {
     return feed.search(keyword, sinceDays, limit);
   }
 

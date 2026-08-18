@@ -23,7 +23,6 @@ export function useDashboardData() {
   const [backfill, setBackfill] = useState<MarketBackfillStatus | null>(null);
   const [backfillBusy, setBackfillBusy] = useState(false);
   const [backfillError, setBackfillError] = useState('');
-  const [instrumentGroups, setInstrumentGroups] = useState<string[]>([]);
   const [quotesRefreshing, setQuotesRefreshing] = useState(false);
   const [lastQuoteAt, setLastQuoteAt] = useState<number | null>(null);
   const chart = useChartData();
@@ -73,7 +72,6 @@ export function useDashboardData() {
       api.kols(),
       api.sessions(kolId),
       api.marketBackfill(),
-      api.instrumentGroups(kolId),
     ]);
     const nextInstruments = await instrumentsRequest;
     if (seq !== shellSeq.current) return;
@@ -92,12 +90,11 @@ export function useDashboardData() {
       writeInstrumentCache(kolId, refreshed);
       setInstruments(refreshed);
     }).catch(() => undefined);
-    const [nextKols, nextSessions, nextBackfill, nextGroups] = await shellRequest;
+    const [nextKols, nextSessions, nextBackfill] = await shellRequest;
     if (seq !== shellSeq.current) return;
     setKols(nextKols);
     setSessions(nextSessions);
     setBackfill(nextBackfill);
-    setInstrumentGroups(nextGroups);
   }, [loadChart, setSelectedValue]);
 
   useEffect(() => {
@@ -218,7 +215,7 @@ export function useDashboardData() {
 
   return {
     selected, selectedKol, kols, instruments, sessions, bars, timeframe, opinions,
-    backfill, backfillBusy, backfillError, instrumentGroups, chartLoading,
+    backfill, backfillBusy, backfillError, chartLoading,
     chartRefreshing, chartMessage, setKols, selectKol, selectSymbol, changeTimeframe,
     reload, refreshOpinions, startBackfillAll, startBackfillCurrent,
     refreshQuotes, quotesRefreshing, lastQuoteAt,

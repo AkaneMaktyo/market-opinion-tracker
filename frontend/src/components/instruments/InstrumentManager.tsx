@@ -1,4 +1,4 @@
-import { ArrowRightLeft, Database, FolderOpen, Pencil, Trash2, X } from 'lucide-react';
+import { ArrowRightLeft, Database, Pencil, Trash2, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { api } from '../../api/client';
@@ -8,13 +8,11 @@ import { InstrumentLogo } from './InstrumentLogo';
 interface Props {
   instrument: Instrument;
   instruments: Instrument[];
-  kolId: string;
-  groups: string[];
   onChanged: (nextSelected?: string) => void;
   onClose: () => void;
 }
 
-type ManagerTab = 'rename' | 'merge' | 'group' | 'provider' | 'delete';
+type ManagerTab = 'rename' | 'merge' | 'provider' | 'delete';
 
 const PROVIDERS = [
   { value: 'auto', label: '自动兜底' },
@@ -24,21 +22,16 @@ const PROVIDERS = [
   { value: 'bitget', label: 'Bitget' },
 ];
 
-export function InstrumentManager({ instrument, instruments, kolId, groups, onChanged, onClose }: Props) {
+export function InstrumentManager({ instrument, instruments, onChanged, onClose }: Props) {
   const [tab, setTab] = useState<ManagerTab>('rename');
   const [symbol, setSymbol] = useState(instrument.symbol);
   const [name, setName] = useState(instrument.name || '');
   const [logoUrl, setLogoUrl] = useState(instrument.logoUrl || '');
   const [mergeTarget, setMergeTarget] = useState('');
-  const [groupName, setGroupName] = useState(instrument.groupName || '');
-  const [newGroup, setNewGroup] = useState('');
   const [provider, setProvider] = useState(instrument.marketDataProvider || 'auto');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const otherInstruments = instruments.filter((item) => item.id !== instrument.id);
-  const groupOptions = [...new Set([...groups, instrument.groupName || ''])]
-    .filter(Boolean)
-    .sort((left, right) => left.localeCompare(right)) as string[];
 
   async function doRename() {
     const nextSymbol = symbol.trim().toUpperCase();
@@ -67,17 +60,6 @@ export function InstrumentManager({ instrument, instruments, kolId, groups, onCh
       onChanged(target.symbol);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : '归并失败');
-      setBusy(false);
-    }
-  }
-
-  async function doUpdateGroup() {
-    setBusy(true);
-    try {
-      await api.updateInstrumentGroup(instrument.id, kolId, newGroup.trim() || groupName.trim() || null);
-      onChanged();
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : '更新分组失败');
       setBusy(false);
     }
   }
@@ -112,20 +94,18 @@ export function InstrumentManager({ instrument, instruments, kolId, groups, onCh
         <div className="modal-head">
           <div>
             <div className="panel-title">标的管理：{instrument.symbol}</div>
-            <p>{instrument.name || '未命名'}，这里可以改名、归并、分组、切换行情源或直接删除。</p>
+            <p>{instrument.name || '未命名'}，这里可以改名、归并、切换行情源或直接删除。</p>
           </div>
           <button className="icon-button" onClick={onClose} type="button"><X size={18} /></button>
         </div>
         <div className="manager-tabs">
           <TabButton active={tab === 'rename'} icon={<Pencil size={14} />} onClick={() => setTab('rename')} text="重命名" />
           <TabButton active={tab === 'merge'} icon={<ArrowRightLeft size={14} />} onClick={() => setTab('merge')} text="归并" />
-          <TabButton active={tab === 'group'} icon={<FolderOpen size={14} />} onClick={() => setTab('group')} text="分组" />
           <TabButton active={tab === 'provider'} icon={<Database size={14} />} onClick={() => setTab('provider')} text="行情源" />
           <TabButton active={tab === 'delete'} icon={<Trash2 size={14} />} onClick={() => setTab('delete')} text="删除" />
         </div>
         {tab === 'rename' ? <RenamePanel busy={busy} logoUrl={logoUrl} name={name} symbol={symbol} setLogoUrl={setLogoUrl} setName={setName} setSymbol={setSymbol} onSave={doRename} /> : null}
         {tab === 'merge' ? <MergePanel busy={busy} instrument={instrument} mergeTarget={mergeTarget} options={otherInstruments} setMergeTarget={setMergeTarget} onMerge={doMerge} /> : null}
-        {tab === 'group' ? <GroupPanel busy={busy} groupName={groupName} groups={groupOptions} newGroup={newGroup} setGroupName={setGroupName} setNewGroup={setNewGroup} onSave={doUpdateGroup} /> : null}
         {tab === 'provider' ? <ProviderPanel busy={busy} provider={provider} setProvider={setProvider} onSave={doUpdateProvider} /> : null}
         {tab === 'delete' ? <DeletePanel busy={busy} instrument={instrument} onDelete={doDelete} /> : null}
         {message ? <div className="form-message">{message}</div> : null}
@@ -153,18 +133,6 @@ function MergePanel({ busy, instrument, mergeTarget, options, setMergeTarget, on
     </select></label>
     <p className="manager-hint manager-hint-warn">会把 {instrument.symbol} 的观点和 K 线都迁移到目标标的，再删除原标的。</p>
     <button className="primary secondary" disabled={busy || !mergeTarget} onClick={onMerge} type="button">执行归并</button>
-  </div>;
-}
-
-function GroupPanel(props: { busy: boolean; groupName: string; groups: string[]; newGroup: string; setGroupName: (value: string) => void; setNewGroup: (value: string) => void; onSave: () => void }) {
-  const { busy, groupName, groups, newGroup, setGroupName, setNewGroup, onSave } = props;
-  return <div className="manager-panel">
-    <label>已有分组<select onChange={(event) => { setGroupName(event.target.value); setNewGroup(''); }} value={groupName}>
-      <option value="">-- 无分组 --</option>
-      {groups.map((group) => <option key={group} value={group}>{group}</option>)}
-    </select></label>
-    <label>或新建分组<input onChange={(event) => { setNewGroup(event.target.value); setGroupName(''); }} placeholder="例如 港股" value={newGroup} /></label>
-    <button className="primary" disabled={busy} onClick={onSave} type="button">更新分组</button>
   </div>;
 }
 
