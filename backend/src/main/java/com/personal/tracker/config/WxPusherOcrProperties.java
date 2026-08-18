@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 public class WxPusherOcrProperties {
   private boolean enabled = true;
   private String groupName = "顺哥vip小群";
-  private String provider = "tesseract";
+  private String provider = "auto";
   private String endpoint = "ocr-api.cn-hangzhou.aliyuncs.com";
   private int maxImages = 10;
   private String tesseractCommand = "tesseract";
@@ -27,7 +27,7 @@ public class WxPusherOcrProperties {
   }
 
   public String provider() {
-    return value(provider, "tesseract").toLowerCase();
+    return value(provider, "auto").toLowerCase();
   }
 
   public int maxImages() {

@@ -64,7 +64,7 @@ wxpusher:
   ocr:
     enabled: ${WXPUSHER_OCR_ENABLED:true}
     group-name: ${WXPUSHER_OCR_GROUP_NAME:顺哥vip小群}
-    provider: ${WXPUSHER_OCR_PROVIDER:tesseract}
+    provider: ${WXPUSHER_OCR_PROVIDER:auto}
     endpoint: ${WXPUSHER_OCR_ENDPOINT:ocr-api.cn-hangzhou.aliyuncs.com}
     max-images: ${WXPUSHER_OCR_MAX_IMAGES:10}
     tesseract-command: ${TESSERACT_COMMAND:tesseract}
