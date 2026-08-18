@@ -63,6 +63,30 @@ jobs:
       - name: Install deploy SSH client
         run: python -m pip install --disable-pip-version-check paramiko
 
+      - name: Restore deploy runtime files
+        env:
+          TRADING_ENV_B64: ${{ secrets.MOT_TRADING_ENV_B64 }}
+          BINANCE_PRIVATE_KEY_B64: ${{ secrets.MOT_BINANCE_PRIVATE_KEY_B64 }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:TRADING_ENV_B64)) {
+            throw "Missing MOT_TRADING_ENV_B64 secret."
+          }
+          if ([string]::IsNullOrWhiteSpace($env:BINANCE_PRIVATE_KEY_B64)) {
+            throw "Missing MOT_BINANCE_PRIVATE_KEY_B64 secret."
+          }
+          $backendEnv = Join-Path $PWD "backend\.env"
+          $privateKey = Join-Path $env:RUNNER_TEMP "mot-binance-spot-private.pem"
+          [IO.File]::WriteAllBytes($backendEnv, [Convert]::FromBase64String($env:TRADING_ENV_B64))
+          [IO.File]::WriteAllBytes($privateKey, [Convert]::FromBase64String($env:BINANCE_PRIVATE_KEY_B64))
+          $lines = Get-Content -LiteralPath $backendEnv | ForEach-Object {
+            if ($_ -match '^BINANCE_SPOT_PRIVATE_KEY_PATH=') {
+              "BINANCE_SPOT_PRIVATE_KEY_PATH=$privateKey"
+            } else {
+              $_
+            }
+          }
+          [IO.File]::WriteAllLines($backendEnv, $lines, (New-Object System.Text.UTF8Encoding($false)))
+
       - name: Build and deploy
         env:
           PRICE_ALERT_WXPUSHER_SPT: ${{ secrets.DEPLOY_WXPUSHER_SPT }}
@@ -73,6 +97,12 @@ jobs:
             -SshPort ([int]$env:SSH_PORT) `
             -SshUser $env:SSH_USER `
             -SshPassword $env:SSH_PASSWORD
+
+      - name: Clean deploy runtime files
+        if: always()
+        run: |
+          Remove-Item -LiteralPath (Join-Path $PWD "backend\.env") -Force -ErrorAction SilentlyContinue
+          Remove-Item -LiteralPath (Join-Path $env:RUNNER_TEMP "mot-binance-spot-private.pem") -Force -ErrorAction SilentlyContinue
 
       - name: Verify public endpoints
         run: |
