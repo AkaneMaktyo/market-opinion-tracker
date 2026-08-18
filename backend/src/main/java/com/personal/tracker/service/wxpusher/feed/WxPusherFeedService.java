@@ -19,6 +19,8 @@ public class WxPusherFeedService {
       "\\[[^\\]\\n]*?｜\\s*([^\\]\\n:]{2,40})\\]");
   private static final Pattern IMAGE_HINT = Pattern.compile(
       "(?i)\\.(?:jpe?g|png|gif|webp)(?:\\s|$|[?#])");
+  private static final Pattern IMAGE_PAYLOAD = Pattern.compile(
+      "(?m)^" + Pattern.quote(WxPusherArticleParser.IMAGE_PREFIX) + "[^\\r\\n]*(?:\\r?\\n|$)");
   private final WxPusherSharedMessageRepository messages;
   private final WxPusherSettingsRepository settings;
   private final WxPusherArticleExtractor articles;
@@ -49,6 +51,7 @@ public class WxPusherFeedService {
     int resultLimit = Math.max(1, Math.min(limit, 200));
     int candidateLimit = Math.min(1000, Math.max(resultLimit, resultLimit * 4));
     return messages.searchRecentFeed(terms, days, candidateLimit).stream()
+        .filter(message -> matchesAllTerms(message, terms))
         .map(message -> new SearchHit(view(message), relevance(message, cleaned, terms)))
         .sorted(Comparator.comparingInt(SearchHit::score)
             .thenComparing(
@@ -161,7 +164,7 @@ public class WxPusherFeedService {
     String blogger = normalize(value(message.processedBloggerName()) + " " + value(message.sourceName()));
     String title = normalize(message.title());
     String summary = normalize(message.summary());
-    String detail = normalize(message.detailText());
+    String detail = normalize(searchableDetail(message.detailText()));
     int score = fieldScore(title, query, terms, 0, 12)
         + fieldScore(blogger, query, terms, 2, 10)
         + fieldScore(summary, query, terms, 5, 6)
@@ -187,6 +190,20 @@ public class WxPusherFeedService {
         .toLowerCase(Locale.ROOT)
         .replaceAll("\\s+", " ")
         .trim();
+  }
+
+  private static boolean matchesAllTerms(RecentMessage message, List<String> terms) {
+    String searchable = normalize(String.join(" ",
+        value(message.processedBloggerName()),
+        value(message.sourceName()),
+        value(message.title()),
+        value(message.summary()),
+        searchableDetail(message.detailText())));
+    return terms.stream().allMatch(searchable::contains);
+  }
+
+  private static String searchableDetail(String detailText) {
+    return IMAGE_PAYLOAD.matcher(value(detailText)).replaceAll("");
   }
 
   private static Instant time(String value) {

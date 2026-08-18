@@ -97,4 +97,27 @@ class WxPusherFeedServiceTest {
     assertEquals(List.of("title", "detail"), result.stream().map(WxPusherFeedService.FeedMessage::id).toList());
     verify(messages).searchRecentFeed(List.of("nvda", "英伟达"), 365, 400);
   }
+
+  @Test
+  void searchIgnoresImagePayloadButKeepsOcrMatches() {
+    var messages = mock(WxPusherSharedMessageRepository.class);
+    var service = new WxPusherFeedService(
+        messages,
+        mock(WxPusherSettingsRepository.class),
+        mock(WxPusherArticleExtractor.class));
+    RecentMessage imagePayloadHit = message(
+        "image-payload", "牛顿师兄", "普通消息",
+        "正文没有股票代码\nWXPUSHER_IMAGE_URL=data:image/jpeg;base64,AAmcdBB");
+    RecentMessage ocrHit = message(
+        "ocr", "舒琴", "图中观点",
+        "WXPUSHER_IMAGE_URL=data:image/jpeg;base64,AA==\n"
+            + "[图片转文字 1]\nMCD 关注支撑位\n[/图片转文字]");
+    when(messages.searchRecentFeed(List.of("mcd"), 365, 200))
+        .thenReturn(List.of(imagePayloadHit, ocrHit));
+
+    var result = service.search("mcd", 365, 50);
+
+    assertEquals(List.of("ocr"), result.stream().map(WxPusherFeedService.FeedMessage::id).toList());
+    verify(messages).searchRecentFeed(List.of("mcd"), 365, 200);
+  }
 }

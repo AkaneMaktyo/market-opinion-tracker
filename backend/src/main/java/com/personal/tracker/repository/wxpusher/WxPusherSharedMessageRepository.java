@@ -12,6 +12,10 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public class WxPusherSharedMessageRepository {
+  private static final String SEARCHABLE_DETAIL = """
+      REGEXP_REPLACE(COALESCE(p.detail_text, ''),
+        '^WXPUSHER_IMAGE_URL=.*$', '', 1, 0, 'm')
+      """.trim();
   private static final String RECENT_FEED_SELECT = """
       SELECT r.id, r.message_key, r.source_name, r.title, r.summary,
              r.detail_url, r.source_url, r.message_time,
@@ -98,8 +102,8 @@ public class WxPusherSharedMessageRepository {
   public List<RecentMessage> searchRecentFeed(List<String> keywords, int sinceDays, int limit) {
     String searchable = """
         CONCAT_WS(' ', COALESCE(p.blogger_name, ''), COALESCE(r.source_name, ''),
-          COALESCE(r.title, ''), COALESCE(r.summary, ''), COALESCE(p.detail_text, ''))
-        """.trim();
+          COALESCE(r.title, ''), COALESCE(r.summary, ''), %s)
+        """.formatted(SEARCHABLE_DETAIL).trim();
     StringBuilder sql = new StringBuilder(RECENT_FEED_SELECT).append("""
         WHERE r.source_name <> 'WxPusher官方-极简推送'
           AND r.message_time >= ?
