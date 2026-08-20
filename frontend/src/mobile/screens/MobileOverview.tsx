@@ -1,4 +1,4 @@
-import { MessageSquareText, PenLine, RefreshCw, ShoppingCart } from 'lucide-react';
+import { MessageSquareText, PenLine, Radar, RefreshCw, ShoppingCart } from 'lucide-react';
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { api } from '../../api/client';
 import { InstrumentLogo } from '../../components/instruments/InstrumentLogo';
@@ -13,13 +13,14 @@ import { priceAlertProximity } from './priceAlertProximity';
 interface Props {
   dashboard: DashboardModel;
   onFocusSymbol: (symbol: string) => void;
+  onOpenCelebrity: () => void;
   onOpenMessage: (messageId?: string) => void;
   onQuickAdd: () => void;
 }
 
 const ALERT_REFRESH_MS = 30000;
 
-export function MobileOverview({ dashboard, onFocusSymbol, onOpenMessage, onQuickAdd }: Props) {
+export function MobileOverview({ dashboard, onFocusSymbol, onOpenCelebrity, onOpenMessage, onQuickAdd }: Props) {
   const [alerts, setAlerts] = useState<PriceAlert[]>([]);
   const [alertsLoaded, setAlertsLoaded] = useState(false);
   const [selectedAlertId, setSelectedAlertId] = useState('');
@@ -134,6 +135,12 @@ export function MobileOverview({ dashboard, onFocusSymbol, onOpenMessage, onQuic
         <Stat label="当前观点" value={dashboard.opinions.length} />
         <Stat label="直播记录" value={dashboard.sessions.length} />
       </section>
+
+      <button className="mobile-celebrity-entry" onClick={onOpenCelebrity} type="button">
+        <span><Radar size={20} /></span>
+        <div><strong>名人持仓雷达</strong><small>德鲁肯米勒、木头姐等公开披露 · 成本与盈亏估算分层展示</small></div>
+        <b>查看</b>
+      </button>
 
       <section className="mobile-card mobile-watchlist-card mobile-reminder-card">
         <div className="mobile-section-head"><div><h3>价格提醒标的</h3><small>点按标的可切换上方行情</small></div><span>{reminders.length} 个</span></div>

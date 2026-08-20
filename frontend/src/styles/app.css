@@ -9,10 +9,12 @@
 @import './opinions.css';
 @import './positions/positions.css';
 @import './positions/positionsPage.css';
+@import './celebrity/portfolio.css';
 @import './alerts/price-alerts.css';
 @import './mobile/android.css';
 @import './mobile/shell.css';
 @import './mobile/screens.css';
+@import './mobile/celebrity.css';
 @import './mobile/watchlist.css';
 @import './mobile/transcript.css';
 @import './mobile/trading.css';

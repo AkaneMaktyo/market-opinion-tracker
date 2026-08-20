@@ -9,6 +9,7 @@ import { MobileOverview } from './screens/MobileOverview';
 import { MobileProfile } from './screens/MobileProfile';
 import { MobileTranscript } from './screens/MobileTranscript';
 import { MobilePositions } from './trading/MobilePositions';
+import { MobileCelebrityPortfolio } from './celebrity/MobileCelebrityPortfolio';
 import type { MobileTab } from './screens/mobileTypes';
 import { MobileInstrumentDetail } from './watchlist/MobileInstrumentDetail';
 import { MobileWatchlist } from './watchlist/MobileWatchlist';
@@ -22,6 +23,7 @@ const tabTitles: Record<MobileTab, string> = {
   positions: '当前持仓',
   transcript: '视频转写',
   profile: '我的',
+  celebrity: '名人持仓',
 };
 
 export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) {
@@ -127,10 +129,11 @@ export function MobileApp({ liveUpdate }: { liveUpdate: LiveUpdateController }) 
 
       <section className={`mobile-app-viewport${detailOpen ? ' showing-chart-detail' : ''}`} aria-live="polite" ref={viewportRef}>
         {tab === 'opinions' ? <MobileOpinions focusMessageId={focusMessageId} focusRequestKey={focusMessageRequest} kolId={dashboard.selectedKol} onClearFocus={() => openOpinions()} onWatchlistChanged={() => dashboard.reload()} searchFocusRequest={searchFocusRequest} /> : null}
-        {tab === 'overview' ? <MobileOverview dashboard={dashboard} onFocusSymbol={focusOverviewSymbol} onOpenMessage={openOpinions} onQuickAdd={() => openComposer()} /> : null}
+        {tab === 'overview' ? <MobileOverview dashboard={dashboard} onFocusSymbol={focusOverviewSymbol} onOpenCelebrity={() => switchTab('celebrity')} onOpenMessage={openOpinions} onQuickAdd={() => openComposer()} /> : null}
         {tab === 'watchlist' && !detailOpen ? <MobileWatchlist dashboard={dashboard} onOpenDetail={openInstrument} /> : null}
         {tab === 'watchlist' && detailOpen ? <MobileInstrumentDetail dashboard={dashboard} onBack={() => setDetailOpen(false)} /> : null}
         {tab === 'positions' ? <MobilePositions /> : null}
+        {tab === 'celebrity' ? <MobileCelebrityPortfolio onBack={() => switchTab('overview')} /> : null}
         {transcriptMounted ? (
           <div className="mobile-persistent-tab" hidden={tab !== 'transcript'}>
             <MobileTranscript active={tab === 'transcript'} onCreateOpinion={openComposer} />

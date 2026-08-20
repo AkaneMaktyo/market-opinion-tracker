@@ -19,6 +19,7 @@ import { bitgetTradingApi } from './trading/bitget';
 import { signalTradingApi } from './trading/signalTrading';
 import { wxpusherApi } from './wxpusher';
 import { youtubeApi } from './youtube';
+import { celebrityApi } from './celebrity/celebrity';
 
 async function fetchWatchlist(kolId: string, quotes = true) {
   const [history, current] = await Promise.all([
@@ -36,6 +37,7 @@ export const api = {
   ...positionApi,
   ...signalTradingApi,
   ...bitgetTradingApi,
+  ...celebrityApi,
   kols: () => json<Kol[]>('/api/kols'),
   createKol: (body: { name: string; description?: string }) =>
     json<Kol>('/api/kols', { method: 'POST', body: JSON.stringify(body) }),

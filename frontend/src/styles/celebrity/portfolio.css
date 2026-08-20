@@ -1,0 +1,221 @@
+.celebrity-page-shell {
+  background:
+    radial-gradient(circle at 8% 0%, rgba(83, 161, 255, 0.18), transparent 31%),
+    radial-gradient(circle at 97% 7%, rgba(43, 128, 101, 0.17), transparent 29%),
+    linear-gradient(135deg, #edf4f1 0%, #f7f4ed 51%, #edf3fb 100%);
+  height: 100%;
+  overflow: auto;
+  padding: 22px;
+}
+
+.celebrity-page-header,
+.celebrity-page-brand {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.celebrity-page-header { margin: 0 auto 18px; max-width: 1360px; }
+.celebrity-page-brand { justify-content: flex-start; }
+.celebrity-page-body { margin: 0 auto; max-width: 1360px; }
+.celebrity-workspace { display: grid; gap: 14px; }
+
+.celebrity-intro-card,
+.celebrity-portfolio-head,
+.celebrity-table-card,
+.celebrity-empty {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  border-radius: 18px;
+  box-shadow: 0 12px 34px rgba(23, 49, 44, 0.08);
+}
+
+.celebrity-intro-card {
+  align-items: center;
+  display: flex;
+  gap: 22px;
+  justify-content: space-between;
+  padding: 18px 20px;
+}
+
+.celebrity-kicker {
+  color: #28745e;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.celebrity-intro-card h2,
+.celebrity-portfolio-head h3 { color: #173f37; margin: 5px 0 6px; }
+.celebrity-intro-card h2 { font-size: 23px; }
+.celebrity-intro-card p,
+.celebrity-portfolio-head p { color: #657b73; font-size: 13px; line-height: 1.55; margin: 0; max-width: 790px; }
+.celebrity-intro-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+
+.celebrity-sync-badge {
+  align-items: center;
+  background: #edf1ef;
+  border: 1px solid #dce6e2;
+  border-radius: 999px;
+  color: #627972;
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 700;
+  gap: 5px;
+  padding: 8px 10px;
+  white-space: nowrap;
+}
+
+.celebrity-sync-badge.success { background: #e6f5ed; border-color: #cfeada; color: #1f785b; }
+.celebrity-sync-badge.running { background: #e7f0ff; border-color: #cee0ff; color: #2862a7; }
+.celebrity-sync-badge.muted { color: #8c9794; }
+
+.celebrity-investor-grid { display: grid; gap: 11px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.celebrity-investor-card {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid #deebe6;
+  border-radius: 16px;
+  min-height: 158px;
+  overflow: hidden;
+  position: relative;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.celebrity-investor-card:hover { border-color: #94c4b3; box-shadow: 0 8px 22px rgba(24, 84, 66, 0.09); transform: translateY(-1px); }
+.celebrity-investor-card.selected { background: #f2faf7; border-color: #318b72; box-shadow: 0 8px 23px rgba(43, 128, 101, 0.14); }
+.celebrity-investor-select { background: transparent; border: 0; color: #193e35; cursor: pointer; display: grid; gap: 6px; min-height: 158px; padding: 14px 14px 13px; text-align: left; width: 100%; }
+.celebrity-investor-select:focus-visible { outline: 3px solid #70b5a0; outline-offset: -3px; }
+.celebrity-investor-top,
+.celebrity-investor-bottom { align-items: center; display: flex; justify-content: space-between; min-width: 0; }
+.celebrity-investor-top { color: #82938d; font-size: 10px; }
+.celebrity-investor-top small { color: #28745e; font-weight: 800; }
+.celebrity-investor-card > .celebrity-investor-select > strong { font-size: 17px; margin-top: 4px; }
+.celebrity-manager { color: #657b73; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.celebrity-investor-bottom { align-self: end; border-top: 1px solid #e5eeea; font-size: 11px; margin-top: 3px; padding-top: 9px; }
+.celebrity-investor-bottom b { color: #315a4e; }
+.celebrity-investor-bottom em { color: #8a9d96; font-style: normal; }
+.celebrity-follow-button {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #dbe8e3;
+  border-radius: 999px;
+  bottom: 11px;
+  color: #56726a;
+  display: inline-flex;
+  font-size: 11px;
+  font-weight: 700;
+  gap: 4px;
+  padding: 5px 8px;
+  position: absolute;
+  right: 11px;
+}
+
+.celebrity-follow-button.followed { background: #fff6cf; border-color: #f2da84; color: #9a6b00; }
+.celebrity-portfolio-head { align-items: center; display: flex; gap: 16px; justify-content: space-between; padding: 15px 18px; }
+.celebrity-portfolio-head h3 { font-size: 18px; }
+.celebrity-portfolio-head .primary { flex: 0 0 auto; }
+.celebrity-tabs { border-bottom: 1px solid #d8e4df; display: flex; gap: 20px; padding: 0 4px; }
+.celebrity-tabs button { background: transparent; border: 0; border-bottom: 3px solid transparent; color: #71857e; font-size: 13px; font-weight: 700; padding: 8px 6px 10px; }
+.celebrity-tabs button[aria-selected='true'] { border-bottom-color: #2b8065; color: #1d5e4c; }
+.celebrity-tabs span { background: #e9f1ee; border-radius: 999px; font-size: 10px; margin-left: 3px; padding: 2px 5px; }
+
+.celebrity-table-card { overflow-x: auto; padding: 4px 16px; }
+.celebrity-holdings-table { border-collapse: collapse; font-size: 13px; min-width: 1090px; width: 100%; }
+.celebrity-holdings-table th,
+.celebrity-holdings-table td { border-bottom: 1px solid #e6efeb; padding: 12px 9px; text-align: left; vertical-align: middle; }
+.celebrity-holdings-table th { color: #71867e; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.celebrity-holdings-table td > strong { color: #23453b; display: block; font-size: 13px; white-space: nowrap; }
+.celebrity-holdings-table td > small { color: #82948e; display: block; font-size: 10px; line-height: 1.45; margin-top: 2px; max-width: 180px; }
+.celebrity-holdings-table tr:last-child td { border-bottom: 0; }
+.celebrity-security { display: grid; gap: 2px; min-width: 170px; }
+.celebrity-security strong { color: #173f37; font-size: 14px; }
+.celebrity-security span { color: #506a62; font-size: 12px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.celebrity-security small { color: #91a39d; font-size: 10px; }
+.celebrity-cost-badge { border-radius: 999px; display: inline-block; font-size: 10px; font-weight: 800; margin-top: 5px; padding: 3px 6px; }
+.celebrity-cost-badge.medium { background: #e6f4ef; color: #1d785c; }
+.celebrity-cost-badge.low { background: #fff4dc; color: #a26809; }
+.celebrity-cost-badge.unknown { background: #edf0ef; color: #74837e; }
+.celebrity-holdings-table .pnl-pos strong, .celebrity-holdings-table .pnl-pos small { color: #098864; }
+.celebrity-holdings-table .pnl-neg strong, .celebrity-holdings-table .pnl-neg small { color: #d84052; }
+.celebrity-holdings-table .pnl-flat strong, .celebrity-holdings-table .pnl-flat small { color: #7c8e88; }
+.celebrity-change-tag { border-radius: 999px; font-size: 11px; font-weight: 800; padding: 5px 8px; }
+.celebrity-change-tag.new, .celebrity-change-tag.added { background: #e4f6eb; color: #16805d; }
+.celebrity-change-tag.reduced { background: #fff3d8; color: #ac740f; }
+.celebrity-change-tag.exited { background: #fce8eb; color: #c94050; }
+.celebrity-empty { color: #72867f; font-size: 13px; line-height: 1.6; padding: 30px 20px; text-align: center; }
+.celebrity-data-note, .celebrity-error-note { align-items: flex-start; color: #58746a; display: flex; font-size: 12px; gap: 6px; line-height: 1.5; margin: -5px 4px 0; }
+.celebrity-error-note { color: #b86d18; }
+
+.celebrity-discovery { display: grid; gap: 13px; }
+.celebrity-discovery-head, .celebrity-alert-card, .celebrity-discovery-list, .celebrity-ownership-result {
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid rgba(222, 235, 230, 0.96);
+  border-radius: 16px;
+  box-shadow: 0 10px 28px rgba(23, 49, 44, 0.06);
+}
+.celebrity-discovery-head { align-items: center; display: flex; gap: 18px; justify-content: space-between; padding: 16px 18px; }
+.celebrity-discovery-head h3, .celebrity-alert-title h3 { color: #183f35; font-size: 18px; margin: 4px 0; }
+.celebrity-discovery-head p, .celebrity-alert-title p { color: #70837c; font-size: 12px; line-height: 1.5; margin: 0; max-width: 690px; }
+.celebrity-symbol-search { align-items: stretch; display: flex; flex: 0 0 285px; }
+.celebrity-symbol-search input { border: 1px solid #ceded8; border-radius: 10px 0 0 10px; color: #24493f; min-width: 0; outline: 0; padding: 0 10px; width: 100%; }
+.celebrity-symbol-search input:focus { border-color: #61a991; box-shadow: 0 0 0 3px rgba(97, 169, 145, 0.16); }
+.celebrity-symbol-search button { align-items: center; background: #1c6754; border: 0; border-radius: 0 10px 10px 0; color: #fff; display: inline-flex; font-size: 12px; font-weight: 700; gap: 4px; padding: 0 10px; }
+.celebrity-discovery-grid { display: grid; gap: 13px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.celebrity-discovery-list, .celebrity-ownership-result { display: grid; gap: 11px; padding: 14px 16px; }
+.celebrity-discovery-list h4, .celebrity-ownership-result h4 { color: #24493f; font-size: 14px; margin: 0; }
+.celebrity-discovery-list > div > p { color: #80938c; font-size: 11px; line-height: 1.45; margin: 3px 0 0; }
+.celebrity-discovery-items { display: grid; gap: 8px; }
+.celebrity-discovery-empty { color: #8a9b95; font-size: 12px; line-height: 1.5; margin: 2px 0; }
+.celebrity-consensus-card { background: #f4f8f6; border: 1px solid #e3ece8; border-radius: 12px; display: grid; gap: 4px; grid-template-columns: minmax(0, 1fr) auto; padding: 10px 11px; }
+.celebrity-consensus-card > div { display: grid; gap: 2px; min-width: 0; }
+.celebrity-consensus-card strong { color: #22483d; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.celebrity-consensus-card small { color: #7f928b; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.celebrity-consensus-card b { background: #e0f1e9; border-radius: 999px; color: #1f765b; font-size: 10px; height: fit-content; padding: 4px 6px; }
+.celebrity-consensus-card > span, .celebrity-consensus-card p { color: #5d756c; font-size: 11px; margin: 0; }
+.celebrity-consensus-card p { color: #85968f; grid-column: 1 / -1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.celebrity-feed-row { align-items: center; border-top: 1px solid #e8f0ed; display: grid; gap: 10px; grid-template-columns: auto minmax(0, 1fr) auto auto; padding: 9px 0; }
+.celebrity-feed-row:first-child { border-top: 0; padding-top: 0; }
+.celebrity-feed-row:last-child { padding-bottom: 0; }
+.celebrity-feed-row > div { display: grid; gap: 2px; min-width: 0; }
+.celebrity-feed-row strong { color: #25493f; font-size: 12px; }
+.celebrity-feed-row small { color: #80928b; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.celebrity-feed-row > span:not(.celebrity-change-tag), .celebrity-feed-row > b { font-size: 11px; white-space: nowrap; }
+.celebrity-feed-row > b { color: #58746a; }
+.celebrity-ownership-result a { align-items: center; border-top: 1px solid #e8f0ed; color: inherit; display: flex; gap: 9px; justify-content: space-between; padding-top: 9px; text-decoration: none; }
+.celebrity-ownership-result a:hover strong { color: #1d795d; }
+.celebrity-ownership-result a strong { color: #284b41; font-size: 12px; }
+.celebrity-ownership-result a span { color: #70847c; font-size: 11px; text-align: right; }
+.celebrity-alert-card { display: grid; gap: 12px; padding: 15px 18px; }
+.celebrity-alert-title { align-items: flex-start; color: #2b8165; display: flex; gap: 9px; }
+.celebrity-alert-switch { align-items: center; color: #2d5146; cursor: pointer; display: inline-flex; font-size: 12px; gap: 8px; width: fit-content; }
+.celebrity-alert-switch input { height: 0; opacity: 0; position: absolute; width: 0; }
+.celebrity-alert-switch span { background: #b9c8c2; border-radius: 99px; height: 22px; position: relative; transition: background 0.18s; width: 39px; }
+.celebrity-alert-switch span::after { background: #fff; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.18); content: ''; height: 16px; left: 3px; position: absolute; top: 3px; transition: transform 0.18s; width: 16px; }
+.celebrity-alert-switch input:checked + span { background: #2a8b6d; }
+.celebrity-alert-switch input:checked + span::after { transform: translateX(17px); }
+.celebrity-alert-options { align-items: start; display: flex; gap: 24px; justify-content: space-between; }
+.celebrity-alert-options small { color: #71867e; display: block; font-size: 10px; font-weight: 800; margin-bottom: 6px; }
+.celebrity-alert-investors { display: flex; flex-wrap: wrap; gap: 6px 12px; }
+.celebrity-alert-investors label { color: #48665c; font-size: 12px; }
+.celebrity-alert-investors input { accent-color: #2a886b; margin-right: 4px; vertical-align: -1px; }
+.celebrity-alert-threshold select { background: #fff; border: 1px solid #cddbd6; border-radius: 8px; color: #35574b; font-size: 12px; padding: 6px 8px; }
+.celebrity-alert-note { align-items: center; color: #6c8379; display: flex; font-size: 11px; gap: 5px; margin: 0; }
+
+@media (max-width: 980px) {
+  .celebrity-investor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 720px) {
+  .celebrity-page-shell { padding: 13px; }
+  .celebrity-page-header, .celebrity-page-brand, .celebrity-intro-card, .celebrity-portfolio-head { align-items: flex-start; flex-direction: column; }
+  .celebrity-intro-actions { justify-content: flex-start; }
+  .celebrity-portfolio-head .primary { width: 100%; }
+  .celebrity-investor-grid { grid-template-columns: 1fr; }
+  .celebrity-discovery-head, .celebrity-alert-options { align-items: stretch; flex-direction: column; }
+  .celebrity-symbol-search { flex-basis: 37px; }
+  .celebrity-discovery-grid { grid-template-columns: 1fr; }
+  .celebrity-feed-row { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .celebrity-feed-row > b { display: none; }
+}

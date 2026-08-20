@@ -18,6 +18,16 @@ market-data:
     - yahoo
     - bitget
 
+celebrity-data:
+  enabled: ${CELEBRITY_DATA_ENABLED:true}
+  startup-sync-enabled: ${CELEBRITY_DATA_STARTUP_SYNC_ENABLED:true}
+  ark-enabled: ${CELEBRITY_DATA_ARK_ENABLED:true}
+  history-limit: ${CELEBRITY_DATA_HISTORY_LIMIT:8}
+  symbol-resolution-limit: ${CELEBRITY_DATA_SYMBOL_RESOLUTION_LIMIT:24}
+  # SEC 要求应用身份和可联系邮箱；生产环境必须填写真实值。
+  sec-user-agent: ${SEC_USER_AGENT:}
+  ark-holdings-url: ${ARKK_HOLDINGS_URL:https://assets.ark-funds.com/fund-documents/funds-etf-csv/ARK_INNOVATION_ETF_ARKK_HOLDINGS.csv}
+
 trading:
   bitget:
     enabled: ${BITGET_ENABLED:false}

@@ -3,6 +3,7 @@ import { useHashRoute } from './hashRoute';
 import { MobileApp } from './mobile/MobileApp';
 import { useAndroidApp } from './mobile/useAndroidApp';
 import { useLiveUpdate } from './mobile/useLiveUpdate';
+import { CelebrityPortfolioPage } from './pages/CelebrityPortfolioPage';
 import { PositionsPage } from './pages/PositionsPage';
 import { YouTubePage } from './pages/YouTubePage';
 
@@ -18,6 +19,9 @@ export default function App() {
   }
   if (route === 'positions') {
     return <PositionsPage />;
+  }
+  if (route === 'celebrity') {
+    return <CelebrityPortfolioPage />;
   }
   return <DashboardPage />;
 }

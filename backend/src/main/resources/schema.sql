@@ -567,3 +567,96 @@ ALTER TABLE price_signal_alerts ADD COLUMN source_recognition_id VARCHAR(64);
 ALTER TABLE price_signal_alerts ADD COLUMN source_candidate_id VARCHAR(64);
 CREATE UNIQUE INDEX uq_price_signal_source
   ON price_signal_alerts(source_recognition_id, source_candidate_id);
+
+CREATE TABLE IF NOT EXISTS celebrity_investors (
+  id VARCHAR(64) PRIMARY KEY,
+  slug VARCHAR(80) NOT NULL,
+  display_name VARCHAR(160) NOT NULL,
+  manager_name VARCHAR(255) NOT NULL,
+  source_type VARCHAR(32) NOT NULL,
+  cik VARCHAR(16),
+  source_url VARCHAR(1000) NOT NULL,
+  enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at VARCHAR(64) NOT NULL,
+  updated_at VARCHAR(64) NOT NULL,
+  UNIQUE KEY uq_celebrity_investor_slug(slug),
+  INDEX idx_celebrity_investor_source(enabled, source_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS celebrity_filings (
+  id VARCHAR(64) PRIMARY KEY,
+  investor_id VARCHAR(64) NOT NULL,
+  source_type VARCHAR(32) NOT NULL,
+  external_id VARCHAR(160) NOT NULL,
+  form_type VARCHAR(32) NOT NULL,
+  report_date VARCHAR(32) NOT NULL,
+  filed_at VARCHAR(64),
+  source_url VARCHAR(1000) NOT NULL,
+  is_amendment BOOLEAN NOT NULL DEFAULT FALSE,
+  fetched_at VARCHAR(64) NOT NULL,
+  UNIQUE KEY uq_celebrity_filing_external(investor_id, external_id),
+  INDEX idx_celebrity_filing_latest(investor_id, report_date, filed_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS celebrity_holdings (
+  id VARCHAR(64) PRIMARY KEY,
+  filing_id VARCHAR(64) NOT NULL,
+  investor_id VARCHAR(64) NOT NULL,
+  holding_key VARCHAR(360) NOT NULL,
+  symbol VARCHAR(32),
+  cusip VARCHAR(32),
+  issuer_name VARCHAR(500) NOT NULL,
+  title_class VARCHAR(160),
+  put_call VARCHAR(16),
+  shares DECIMAL(28, 6) NOT NULL,
+  reported_value DECIMAL(30, 2) NOT NULL,
+  reported_weight DECIMAL(14, 8),
+  reported_unit_value DECIMAL(24, 8),
+  UNIQUE KEY uq_celebrity_holding(filing_id, holding_key),
+  INDEX idx_celebrity_holding_filing(filing_id, reported_value),
+  INDEX idx_celebrity_holding_cusip(cusip)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS celebrity_symbol_mappings (
+  cusip VARCHAR(32) PRIMARY KEY,
+  symbol VARCHAR(32) NOT NULL,
+  source VARCHAR(32) NOT NULL,
+  confidence VARCHAR(16) NOT NULL,
+  updated_at VARCHAR(64) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS celebrity_sync_state (
+  id VARCHAR(32) PRIMARY KEY,
+  running BOOLEAN NOT NULL DEFAULT FALSE,
+  last_started_at VARCHAR(64),
+  last_completed_at VARCHAR(64),
+  last_outcome VARCHAR(32),
+  last_error TEXT,
+  investors_synced INT NOT NULL DEFAULT 0,
+  filings_synced INT NOT NULL DEFAULT 0,
+  holdings_synced INT NOT NULL DEFAULT 0,
+  updated_at VARCHAR(64) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS celebrity_alert_settings (
+  id VARCHAR(32) PRIMARY KEY,
+  enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  investor_slugs TEXT NOT NULL,
+  minimum_reported_weight DECIMAL(14, 8) NOT NULL DEFAULT 0.02,
+  updated_at VARCHAR(64) NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS celebrity_disclosure_alerts (
+  id VARCHAR(64) PRIMARY KEY,
+  investor_id VARCHAR(64) NOT NULL,
+  filing_id VARCHAR(64) NOT NULL,
+  holding_key VARCHAR(360) NOT NULL,
+  action VARCHAR(16) NOT NULL,
+  status VARCHAR(32) NOT NULL,
+  error_message TEXT,
+  sent_at VARCHAR(64),
+  created_at VARCHAR(64) NOT NULL,
+  updated_at VARCHAR(64) NOT NULL,
+  UNIQUE KEY uq_celebrity_alert_event(investor_id, filing_id, holding_key, action),
+  INDEX idx_celebrity_alert_status(status, updated_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

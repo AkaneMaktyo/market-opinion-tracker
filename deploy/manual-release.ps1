@@ -224,6 +224,13 @@ try {
     }
 
     if (Test-Path $resolvedBinanceEnvPath) {
+        $secUserAgent = Read-DotEnvValue $resolvedBinanceEnvPath "SEC_USER_AGENT"
+        if ($secUserAgent) {
+            $runtimeLines.Add("SEC_USER_AGENT=$(ConvertTo-SystemdEnvValue $secUserAgent)")
+        }
+    }
+
+    if (Test-Path $resolvedBinanceEnvPath) {
         $binanceApiKey = Read-DotEnvValue $resolvedBinanceEnvPath "BINANCE_SPOT_API_KEY"
         $binancePrivateKeyPath = Read-DotEnvValue $resolvedBinanceEnvPath "BINANCE_SPOT_PRIVATE_KEY_PATH"
         if ($binanceApiKey -or $binancePrivateKeyPath) {

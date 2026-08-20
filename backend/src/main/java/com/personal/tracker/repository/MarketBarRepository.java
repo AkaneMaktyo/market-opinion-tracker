@@ -141,6 +141,18 @@ public class MarketBarRepository {
         .findFirst();
   }
 
+  public Optional<MarketBar> latestDailyBar(String instrumentId) {
+    if (instrumentId == null || instrumentId.isBlank()) {
+      return Optional.empty();
+    }
+    return jdbc.query("""
+        SELECT * FROM market_bars
+        WHERE instrument_id = ? AND timeframe = '1D'
+        ORDER BY bar_time DESC
+        LIMIT 1
+        """, mapper, instrumentId).stream().findFirst();
+  }
+
   public Map<String, DailySnapshot> latestDailySnapshots(
       List<String> instrumentIds,
       String currentDate) {
