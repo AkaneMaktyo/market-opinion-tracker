@@ -26,6 +26,8 @@ celebrity-data:
   symbol-resolution-limit: ${CELEBRITY_DATA_SYMBOL_RESOLUTION_LIMIT:24}
   # SEC 要求应用身份和可联系邮箱；生产环境必须填写真实值。
   sec-user-agent: ${SEC_USER_AGENT:}
+  # 优先使用独立代理，未配置时复用服务器已有的 HTTP / YouTube 代理。
+  proxy-url: ${CELEBRITY_DATA_PROXY_URL:${HTTP_PROXY_URL:${YOUTUBE_PROXY_URL:}}}
   ark-holdings-url: ${ARKK_HOLDINGS_URL:https://assets.ark-funds.com/fund-documents/funds-etf-csv/ARK_INNOVATION_ETF_ARKK_HOLDINGS.csv}
 
 trading:

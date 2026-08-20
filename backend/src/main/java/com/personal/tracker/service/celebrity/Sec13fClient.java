@@ -3,6 +3,7 @@ package com.personal.tracker.service.celebrity;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.personal.tracker.config.celebrity.CelebrityDataProperties;
+import com.personal.tracker.config.celebrity.CelebrityHttpClientFactory;
 import com.personal.tracker.domain.celebrity.CelebrityInvestor;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -32,14 +33,15 @@ public class Sec13fClient {
   private static final String ARCHIVES_BASE = "https://www.sec.gov/Archives/edgar/data";
   private final CelebrityDataProperties properties;
   private final ObjectMapper mapper;
-  private final HttpClient client = HttpClient.newBuilder()
-      .connectTimeout(Duration.ofSeconds(12))
-      .followRedirects(HttpClient.Redirect.NORMAL)
-      .build();
+  private final HttpClient client;
 
-  public Sec13fClient(CelebrityDataProperties properties, ObjectMapper mapper) {
+  public Sec13fClient(
+      CelebrityDataProperties properties,
+      ObjectMapper mapper,
+      CelebrityHttpClientFactory httpClients) {
     this.properties = properties;
     this.mapper = mapper;
+    this.client = httpClients.create();
   }
 
   public List<SecFiling> recentFilings(CelebrityInvestor investor) {

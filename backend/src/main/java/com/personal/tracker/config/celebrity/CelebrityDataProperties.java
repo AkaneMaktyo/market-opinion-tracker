@@ -12,6 +12,7 @@ public class CelebrityDataProperties {
   private int historyLimit = 8;
   private int symbolResolutionLimit = 24;
   private String secUserAgent = "";
+  private String proxyUrl = "";
   private String arkHoldingsUrl = "https://assets.ark-funds.com/fund-documents/funds-etf-csv/"
       + "ARK_INNOVATION_ETF_ARKK_HOLDINGS.csv";
 
@@ -47,6 +48,10 @@ public class CelebrityDataProperties {
     return value(arkHoldingsUrl);
   }
 
+  public String proxyUrl() {
+    return value(proxyUrl);
+  }
+
   public void setEnabled(boolean enabled) {
     this.enabled = enabled;
   }
@@ -69,6 +74,10 @@ public class CelebrityDataProperties {
 
   public void setSecUserAgent(String secUserAgent) {
     this.secUserAgent = secUserAgent;
+  }
+
+  public void setProxyUrl(String proxyUrl) {
+    this.proxyUrl = proxyUrl;
   }
 
   public void setArkHoldingsUrl(String arkHoldingsUrl) {

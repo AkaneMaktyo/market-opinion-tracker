@@ -1,6 +1,7 @@
 package com.personal.tracker.service.celebrity;
 
 import com.personal.tracker.config.celebrity.CelebrityDataProperties;
+import com.personal.tracker.config.celebrity.CelebrityHttpClientFactory;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -22,13 +23,11 @@ import org.springframework.stereotype.Component;
 public class ArkHoldingsClient {
   private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("MM/dd/uuuu");
   private final CelebrityDataProperties properties;
-  private final HttpClient client = HttpClient.newBuilder()
-      .connectTimeout(Duration.ofSeconds(12))
-      .followRedirects(HttpClient.Redirect.NORMAL)
-      .build();
+  private final HttpClient client;
 
-  public ArkHoldingsClient(CelebrityDataProperties properties) {
+  public ArkHoldingsClient(CelebrityDataProperties properties, CelebrityHttpClientFactory httpClients) {
     this.properties = properties;
+    this.client = httpClients.create();
   }
 
   public ArkSnapshot currentArkk() {
