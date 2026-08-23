@@ -24,10 +24,12 @@ public class ArkHoldingsClient {
   private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("MM/dd/uuuu");
   private final CelebrityDataProperties properties;
   private final HttpClient client;
+  private final HttpClient directClient;
 
   public ArkHoldingsClient(CelebrityDataProperties properties, CelebrityHttpClientFactory httpClients) {
     this.properties = properties;
     this.client = httpClients.create();
+    this.directClient = httpClients.createDirect();
   }
 
   public ArkSnapshot currentArkk() {
@@ -70,21 +72,42 @@ public class ArkHoldingsClient {
 
   private String download() {
     try {
-      HttpRequest request = HttpRequest.newBuilder(URI.create(properties.arkHoldingsUrl()))
-          .timeout(Duration.ofSeconds(20))
-          .header("User-Agent", "market-opinion-tracker/1.0")
-          .GET().build();
-      HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-      if (response.statusCode() < 200 || response.statusCode() >= 300) {
-        throw new IllegalStateException("ARK 返回 HTTP " + response.statusCode());
-      }
-      return response.body();
+      return download(client);
     } catch (InterruptedException error) {
       Thread.currentThread().interrupt();
       throw new IllegalStateException("读取 ARK 持仓被中断", error);
     } catch (IOException error) {
-      throw new IllegalStateException("读取 ARK 持仓失败：" + error.getMessage(), error);
+      return downloadDirectAfterProxyFailure(error);
     }
+  }
+
+  private String downloadDirectAfterProxyFailure(IOException proxyError) {
+    if (properties.proxyUrl() == null || properties.proxyUrl().isBlank()) {
+      throw new IllegalStateException("读取 ARK 持仓失败：" + proxyError.getMessage(), proxyError);
+    }
+    try {
+      return download(directClient);
+    } catch (InterruptedException error) {
+      Thread.currentThread().interrupt();
+      throw new IllegalStateException("读取 ARK 持仓被中断", error);
+    } catch (IOException directError) {
+      directError.addSuppressed(proxyError);
+      throw new IllegalStateException(
+          "读取 ARK 持仓失败：代理 " + proxyError.getMessage() + "；直连 " + directError.getMessage(),
+          directError);
+    }
+  }
+
+  private String download(HttpClient httpClient) throws IOException, InterruptedException {
+    HttpRequest request = HttpRequest.newBuilder(URI.create(properties.arkHoldingsUrl()))
+        .timeout(Duration.ofSeconds(20))
+        .header("User-Agent", "market-opinion-tracker/1.0")
+        .GET().build();
+    HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+    if (response.statusCode() < 200 || response.statusCode() >= 300) {
+      throw new IllegalStateException("ARK 返回 HTTP " + response.statusCode());
+    }
+    return response.body();
   }
 
   private static Map<String, Integer> columns(List<String> headers) {

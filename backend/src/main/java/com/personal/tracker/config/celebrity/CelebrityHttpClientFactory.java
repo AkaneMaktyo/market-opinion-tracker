@@ -16,10 +16,20 @@ public class CelebrityHttpClientFactory {
   }
 
   public HttpClient create() {
+    return create(true);
+  }
+
+  public HttpClient createDirect() {
+    return create(false);
+  }
+
+  private HttpClient create(boolean useProxy) {
     HttpClient.Builder builder = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(12))
         .followRedirects(HttpClient.Redirect.NORMAL);
-    proxyAddress(properties.proxyUrl()).ifPresent(address -> builder.proxy(ProxySelector.of(address)));
+    if (useProxy) {
+      proxyAddress(properties.proxyUrl()).ifPresent(address -> builder.proxy(ProxySelector.of(address)));
+    }
     return builder.build();
   }
 
