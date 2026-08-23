@@ -223,11 +223,12 @@ try {
         $runtimeLines.Add("PRICE_ALERT_WXPUSHER_SPT=$(ConvertTo-SystemdEnvValue $runtimeSpt)")
     }
 
-    if (Test-Path $resolvedBinanceEnvPath) {
+    $secUserAgent = $env:SEC_USER_AGENT
+    if (-not $secUserAgent -and (Test-Path $resolvedBinanceEnvPath)) {
         $secUserAgent = Read-DotEnvValue $resolvedBinanceEnvPath "SEC_USER_AGENT"
-        if ($secUserAgent) {
-            $runtimeLines.Add("SEC_USER_AGENT=$(ConvertTo-SystemdEnvValue $secUserAgent)")
-        }
+    }
+    if ($secUserAgent) {
+        $runtimeLines.Add("SEC_USER_AGENT=$(ConvertTo-SystemdEnvValue $secUserAgent)")
     }
 
     if (Test-Path $resolvedBinanceEnvPath) {

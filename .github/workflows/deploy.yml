@@ -90,6 +90,8 @@ jobs:
       - name: Build and deploy
         env:
           PRICE_ALERT_WXPUSHER_SPT: ${{ secrets.DEPLOY_WXPUSHER_SPT }}
+          # SEC 要求请求方附带可联系的真实身份；该值仅在部署时注入运行环境。
+          SEC_USER_AGENT: ${{ secrets.MOT_SEC_USER_AGENT }}
           LIVE_UPDATE_PRIVATE_KEY_B64: ${{ secrets.LIVE_UPDATE_PRIVATE_KEY_B64 }}
         run: |
           & .\deploy\manual-release.ps1 `
