@@ -34,6 +34,8 @@ import org.springframework.stereotype.Service;
 public class CelebrityPortfolioService {
   private static final Logger log = LoggerFactory.getLogger(CelebrityPortfolioService.class);
   private static final int MAX_HOLDINGS = 200;
+  private static final BigDecimal ARK_MIN_PRICE_RATIO = new BigDecimal("0.10");
+  private static final BigDecimal ARK_MAX_PRICE_RATIO = new BigDecimal("10");
   private final CelebrityPortfolioRepository repository;
   private final CelebrityDataProperties properties;
   private final Sec13fClient sec;
@@ -82,7 +84,7 @@ public class CelebrityPortfolioService {
     int limit = Math.max(1, Math.min(requestedLimit, MAX_HOLDINGS));
     List<CelebrityHolding> raw = repository.holdingsForFiling(filing.id());
     Map<String, List<CelebrityHolding>> histories = repository.holdingHistories(investor.id(), properties.historyLimit());
-    Map<String, Quote> quotes = loadQuotes(raw.subList(0, Math.min(raw.size(), limit)));
+    Map<String, Quote> quotes = loadQuotes(investor.sourceType(), raw.subList(0, Math.min(raw.size(), limit)));
     List<CelebrityHoldingView> items = new ArrayList<>();
     for (CelebrityHolding holding : raw.subList(0, Math.min(raw.size(), limit))) {
       Quote quote = quotes.get(symbolKey(holding.symbol()));
@@ -100,7 +102,7 @@ public class CelebrityPortfolioService {
           filing.sourceUrl(), quote == null ? null : quote.updatedAt()));
     }
     String message = items.stream().anyMatch(item -> item.currentPrice() == null)
-        ? "部分标的正在补齐代码或行情；空值不会按 0 计价。"
+        ? "部分标的正在补齐代码或核验行情；空值不会按 0 计价。"
         : "行情已覆盖当前列表；成本和盈亏均为公开披露重建估算。";
     return new CelebrityPortfolio(overview(investor), items, message);
   }
@@ -228,7 +230,7 @@ public class CelebrityPortfolioService {
         latest.get().fetchedAt(), disclosureDelay(latest.get().reportDate()), holdings.size(), value);
   }
 
-  private Map<String, Quote> loadQuotes(List<CelebrityHolding> holdings) {
+  private Map<String, Quote> loadQuotes(String sourceType, List<CelebrityHolding> holdings) {
     Map<String, Quote> result = new HashMap<>();
     for (CelebrityHolding holding : holdings) {
       String symbol = symbolKey(holding.symbol());
@@ -237,7 +239,7 @@ public class CelebrityPortfolioService {
       }
       Instrument instrument = marketData.instrument(symbol);
       Optional<MarketBar> bar = marketBars.latestDailyBar(instrument.id());
-      if (bar.isEmpty() || !positive(bar.get().close())) {
+      if (bar.isEmpty() || !positive(bar.get().close()) || incompatibleQuote(sourceType, holding, bar.get().close())) {
         marketData.queueSummaryRefresh(instrument, bar.isEmpty(), true);
         result.put(symbol, new Quote(null, null));
       } else {
@@ -245,6 +247,14 @@ public class CelebrityPortfolioService {
       }
     }
     return result;
+  }
+
+  private static boolean incompatibleQuote(String sourceType, CelebrityHolding holding, BigDecimal currentPrice) {
+    if (!"ARK_DAILY".equals(sourceType) || !positive(holding.reportedUnitValue()) || !positive(currentPrice)) {
+      return false;
+    }
+    BigDecimal ratio = currentPrice.divide(holding.reportedUnitValue(), 8, RoundingMode.HALF_UP);
+    return ratio.compareTo(ARK_MIN_PRICE_RATIO) < 0 || ratio.compareTo(ARK_MAX_PRICE_RATIO) > 0;
   }
 
   private static List<CelebrityHolding> withWeights(List<CelebrityHolding> holdings) {
