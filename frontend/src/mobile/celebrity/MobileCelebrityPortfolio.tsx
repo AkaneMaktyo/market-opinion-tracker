@@ -1,6 +1,7 @@
 import { ArrowLeft, ExternalLink, RefreshCw, Star } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import { celebritySyncHealth } from '../../celebrity/syncHealth';
 import type { CelebrityInvestorOverview, CelebrityPortfolio, CelebritySyncStatus } from '../../celebrity/types';
 import { MobileCelebrityDiscovery } from './MobileCelebrityDiscovery';
 
@@ -87,11 +88,12 @@ export function MobileCelebrityPortfolio({ onBack }: Props) {
 
   const investor = portfolio?.investor ?? investors.find((item) => item.slug === selectedSlug);
   const isFollowed = followed.includes(selectedSlug);
+  const syncHealth = celebritySyncHealth(status);
   return (
     <div className="mobile-screen-content mobile-celebrity-screen">
       <section className="mobile-card mobile-celebrity-top-card">
         <button className="mobile-celebrity-back" onClick={onBack} type="button"><ArrowLeft size={17} />返回概览</button>
-        <div className="mobile-section-head"><div><small>公开披露 · 只读跟踪</small><h2>名人持仓雷达</h2></div><span className={`mobile-celebrity-sync${status?.running ? ' running' : ''}`}>{status?.running ? '同步中' : '披露追踪'}</span></div>
+        <div className="mobile-section-head"><div><small>公开披露 · 只读跟踪</small><h2>名人持仓雷达</h2></div><span className={`mobile-celebrity-sync ${syncHealth.tone}`}>{syncHealth.label}</span></div>
         <p>季度 13F 与 ARK 官方日度持仓。成本、盈亏是估算，不是实际成交单。</p>
         <div className="mobile-celebrity-controls">
           <select aria-label="选择投资人" onChange={(event) => setSelectedSlug(event.target.value)} value={selectedSlug}>
@@ -99,6 +101,7 @@ export function MobileCelebrityPortfolio({ onBack }: Props) {
           </select>
           <button disabled={status?.running || status?.enabled === false} onClick={() => void sync()} type="button"><RefreshCw className={status?.running ? 'spinning' : ''} size={16} />刷新</button>
         </div>
+        {['partial', 'failed', 'muted'].includes(syncHealth.tone) ? <div className={`mobile-celebrity-sync-note ${syncHealth.tone}`}><strong>{syncHealth.title}</strong><span>{syncHealth.message}</span></div> : null}
       </section>
 
       {investor ? (

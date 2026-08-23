@@ -71,6 +71,15 @@
 .celebrity-sync-badge.success { background: #e6f5ed; border-color: #cfeada; color: #1f785b; }
 .celebrity-sync-badge.running { background: #e7f0ff; border-color: #cee0ff; color: #2862a7; }
 .celebrity-sync-badge.muted { color: #8c9794; }
+.celebrity-sync-badge.partial { background: #fff3dc; border-color: #efd89d; color: #9a6816; }
+.celebrity-sync-badge.failed { background: #fff0ed; border-color: #f1cfc7; color: #b45540; }
+.celebrity-sync-notice { align-items: flex-start; background: #fff8e9; border: 1px solid #eed79a; border-radius: 13px; color: #835a18; display: flex; gap: 9px; margin: -10px 0 2px; padding: 11px 13px; }
+.celebrity-sync-notice.failed { background: #fff4f1; border-color: #efcec4; color: #9a4e3d; }
+.celebrity-sync-notice > div { display: grid; gap: 3px; }
+.celebrity-sync-notice strong { font-size: 13px; }
+.celebrity-sync-notice p { font-size: 12px; line-height: 1.55; margin: 0; }
+.celebrity-sync-notice details { font-size: 12px; margin-top: 3px; }
+.celebrity-sync-notice summary { cursor: pointer; font-weight: 700; }
 
 .celebrity-investor-grid { display: grid; gap: 11px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .celebrity-investor-card {

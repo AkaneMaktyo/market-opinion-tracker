@@ -36,10 +36,17 @@
 .mobile-celebrity-top-card p { color: #71847d; font-size: 12px; line-height: 1.5; margin: 0; }
 .mobile-celebrity-sync { background: #e5f2ed; border-radius: 999px; color: #28755d; font-size: 10px; font-weight: 800; padding: 5px 7px; }
 .mobile-celebrity-sync.running { background: #e7f0ff; color: #2c63a7; }
+.mobile-celebrity-sync.partial { background: #fff3dc; color: #9c6a16; }
+.mobile-celebrity-sync.failed { background: #fff0ed; color: #b25540; }
+.mobile-celebrity-sync.muted { background: #eef2f0; color: #71827c; }
 .mobile-celebrity-controls { display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr) auto; }
 .mobile-celebrity-controls select { background: #fff; border: 1px solid #ccdad5; border-radius: 11px; color: #18382f; min-width: 0; padding: 0 10px; }
 .mobile-celebrity-controls button { align-items: center; background: #173f37; border: 0; border-radius: 11px; color: #fff; display: inline-flex; font-size: 12px; font-weight: 700; gap: 5px; padding: 0 11px; }
 .mobile-celebrity-controls button:disabled { opacity: 0.6; }
+.mobile-celebrity-sync-note { background: #fff8e8; border: 1px solid #efdb9e; border-radius: 10px; color: #835b19; display: grid; gap: 3px; padding: 8px 9px; }
+.mobile-celebrity-sync-note.failed { background: #fff4f1; border-color: #f0cec5; color: #9a4e3d; }
+.mobile-celebrity-sync-note strong { font-size: 11px; }
+.mobile-celebrity-sync-note span { font-size: 10px; line-height: 1.45; }
 
 .mobile-celebrity-summary { display: grid; gap: 11px; }
 .mobile-celebrity-summary h3 { font-size: 18px; margin: 3px 0 0; }

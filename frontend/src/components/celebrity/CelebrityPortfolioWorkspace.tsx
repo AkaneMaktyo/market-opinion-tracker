@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import { celebritySyncHealth } from '../../celebrity/syncHealth';
 import { CelebrityAlertSettingsPanel, CelebrityDiscoveryPanel } from './CelebrityDiscoveryPanel';
 import type {
   CelebrityHolding,
@@ -127,6 +128,7 @@ export function CelebrityPortfolioWorkspace() {
           </button>
         </div>
       </section>
+      <SyncHealthNotice status={status} />
 
       <section className="celebrity-investor-grid" aria-label="选择投资人">
         {investors.map((investor) => {
@@ -181,7 +183,6 @@ export function CelebrityPortfolioWorkspace() {
       {tab === 'discover' ? <CelebrityDiscoveryPanel /> : null}
       <CelebrityAlertSettingsPanel investors={investors} />
       {portfolio?.message ? <p className="celebrity-data-note"><CircleAlert size={15} />{portfolio.message}</p> : null}
-      {status?.lastError ? <p className="celebrity-error-note"><CircleAlert size={15} />最近同步提示：{status.lastError}</p> : null}
       {message ? <div className="form-message">{message}</div> : null}
     </div>
   );
@@ -235,10 +236,21 @@ function CostBadge({ holding }: { holding: CelebrityHolding }) {
 }
 
 function SyncBadge({ status }: { status?: CelebritySyncStatus }) {
-  if (!status?.enabled) return <span className="celebrity-sync-badge muted">数据同步已关闭</span>;
-  if (status.running) return <span className="celebrity-sync-badge running"><RefreshCw className="spinning" size={14} />正在同步</span>;
-  if (status.lastOutcome === 'SUCCESS') return <span className="celebrity-sync-badge success"><CheckCircle2 size={14} />已同步 {formatDate(status.lastCompletedAt)}</span>;
-  return <span className="celebrity-sync-badge"><CircleAlert size={14} />等待同步</span>;
+  const health = celebritySyncHealth(status);
+  if (health.tone === 'running') return <span className="celebrity-sync-badge running"><RefreshCw className="spinning" size={14} />{health.label}</span>;
+  if (health.tone === 'success') return <span className="celebrity-sync-badge success"><CheckCircle2 size={14} />{health.label} {formatDate(status?.lastCompletedAt)}</span>;
+  return <span className={`celebrity-sync-badge ${health.tone}`}><CircleAlert size={14} />{health.label}</span>;
+}
+
+function SyncHealthNotice({ status }: { status?: CelebritySyncStatus }) {
+  const health = celebritySyncHealth(status);
+  if (!['partial', 'failed', 'muted'].includes(health.tone)) return null;
+  return (
+    <section className={`celebrity-sync-notice ${health.tone}`}>
+      <CircleAlert size={17} />
+      <div><strong>{health.title}</strong><p>{health.message}</p>{health.details ? <details><summary>查看同步原因</summary><p>{health.details}</p></details> : null}</div>
+    </section>
+  );
 }
 
 function readFollowed() {
