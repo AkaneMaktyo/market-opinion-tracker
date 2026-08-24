@@ -29,64 +29,171 @@
 .mobile-celebrity-entry small { color: #658078; font-size: 11px; line-height: 1.4; }
 .mobile-celebrity-entry b { color: #28735c; font-size: 11px; }
 
-.mobile-celebrity-screen { align-content: start; }
-.mobile-celebrity-top-card { display: grid; gap: 10px; }
-.mobile-celebrity-back { align-items: center; background: transparent; border: 0; color: #4f7067; display: inline-flex; font-size: 12px; gap: 4px; justify-self: start; margin: -2px 0 1px -5px; padding: 5px; }
-.mobile-celebrity-top-card h2 { font-size: 19px; margin: 3px 0 0; }
-.mobile-celebrity-top-card p { color: #71847d; font-size: 12px; line-height: 1.5; margin: 0; }
-.mobile-celebrity-sync { background: #e5f2ed; border-radius: 999px; color: #28755d; font-size: 10px; font-weight: 800; padding: 5px 7px; }
-.mobile-celebrity-sync.running { background: #e7f0ff; color: #2c63a7; }
-.mobile-celebrity-sync.partial { background: #fff3dc; color: #9c6a16; }
-.mobile-celebrity-sync.failed { background: #fff0ed; color: #b25540; }
-.mobile-celebrity-sync.muted { background: #eef2f0; color: #71827c; }
-.mobile-celebrity-controls { display: grid; gap: 8px; grid-template-columns: minmax(0, 1fr) auto; }
-.mobile-celebrity-controls select { background: #fff; border: 1px solid #ccdad5; border-radius: 11px; color: #18382f; min-width: 0; padding: 0 10px; }
-.mobile-celebrity-controls button { align-items: center; background: #173f37; border: 0; border-radius: 11px; color: #fff; display: inline-flex; font-size: 12px; font-weight: 700; gap: 5px; padding: 0 11px; }
-.mobile-celebrity-controls button:disabled { opacity: 0.6; }
-.mobile-celebrity-sync-note { background: #fff8e8; border: 1px solid #efdb9e; border-radius: 10px; color: #835b19; display: grid; gap: 3px; padding: 8px 9px; }
-.mobile-celebrity-sync-note.failed { background: #fff4f1; border-color: #f0cec5; color: #9a4e3d; }
-.mobile-celebrity-sync-note strong { font-size: 11px; }
-.mobile-celebrity-sync-note span { font-size: 10px; line-height: 1.45; }
+.mobile-celebrity-screen { align-content: start; background: linear-gradient(180deg, #f4f8f6 0, #f7faf8 420px); }
+.mobile-celebrity-sticky-head {
+  align-items: center;
+  backdrop-filter: blur(14px);
+  background: rgba(247, 250, 248, 0.94);
+  border-bottom: 1px solid rgba(213, 227, 221, 0.9);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 38px minmax(0, 1fr) 38px;
+  margin: -13px -13px 0;
+  min-height: 62px;
+  padding: 8px 13px;
+  position: sticky;
+  top: 0;
+  z-index: 8;
+}
 
-.mobile-celebrity-summary { display: grid; gap: 11px; }
-.mobile-celebrity-summary h3 { font-size: 18px; margin: 3px 0 0; }
-.mobile-celebrity-summary p { color: #71847d; font-size: 11px; margin: 2px 0 0; }
-.mobile-celebrity-summary .mobile-section-head > button { align-items: center; background: #fff8d8; border: 1px solid #eedc96; border-radius: 50%; color: #9b700a; display: inline-flex; height: 36px; justify-content: center; width: 36px; }
-.mobile-celebrity-summary .mobile-section-head > button:not(.followed) { background: #f2f6f4; border-color: #dbe7e2; color: #72857e; }
-.mobile-celebrity-metrics { background: #f4f8f6; border: 1px solid #e1ebe6; border-radius: 12px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: hidden; }
-.mobile-celebrity-metrics > div { display: grid; gap: 3px; min-width: 0; padding: 9px 8px; }
-.mobile-celebrity-metrics > div + div { border-left: 1px solid #e1ebe6; }
-.mobile-celebrity-metrics small { color: #73867f; font-size: 10px; }
-.mobile-celebrity-metrics strong { color: #24493e; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mobile-celebrity-summary > a { align-items: center; color: #2a795f; display: inline-flex; font-size: 11px; font-weight: 700; gap: 4px; justify-self: start; text-decoration: none; }
+.mobile-celebrity-sticky-head > div { min-width: 0; text-align: center; }
+.mobile-celebrity-sticky-head h2 { color: #173f37; font-size: 17px; margin: 0; }
+.mobile-celebrity-sticky-head small { color: #788b84; display: block; font-size: 9px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mobile-celebrity-icon-button { align-items: center; background: #fff; border: 1px solid #dbe7e2; border-radius: 12px; color: #315e52; display: flex; height: 38px; justify-content: center; padding: 0; width: 38px; }
+.mobile-celebrity-icon-button.refresh { color: #1d735b; }
+.mobile-celebrity-icon-button:disabled { color: #8ba09a; opacity: 0.65; }
 
-.mobile-celebrity-list { display: grid; gap: 8px; }
-.mobile-celebrity-list > .mobile-section-head { margin: 2px 2px 0; }
-.mobile-celebrity-row { background: #fff; border: 1px solid #e0eae6; border-radius: 15px; display: grid; gap: 10px; padding: 11px 12px; }
+.mobile-celebrity-health {
+  background: #edf7f3;
+  border: 1px solid #d4e9e0;
+  border-radius: 15px;
+  color: #245e4e;
+  display: grid;
+  gap: 5px;
+  padding: 11px 12px;
+}
+
+.mobile-celebrity-health.running { background: #edf4ff; border-color: #d4e3fa; color: #2b5f9a; }
+.mobile-celebrity-health.partial { background: #fff8e8; border-color: #eedcae; color: #805b1a; }
+.mobile-celebrity-health.failed { background: #fff4f1; border-color: #efd2ca; color: #984f40; }
+.mobile-celebrity-health.muted, .mobile-celebrity-health.pending { background: #f1f5f3; border-color: #dfe7e3; color: #62766f; }
+.mobile-celebrity-health-badges { align-items: center; display: flex; flex-wrap: wrap; gap: 6px; }
+.mobile-celebrity-health-badges span, .mobile-celebrity-health-badges b { background: rgba(255,255,255,.74); border: 1px solid currentColor; border-radius: 999px; font-size: 9px; font-weight: 800; padding: 3px 6px; }
+.mobile-celebrity-health-badges b { color: #197255; }
+.mobile-celebrity-health > strong { font-size: 12px; }
+.mobile-celebrity-health > p { font-size: 10px; line-height: 1.5; margin: 0; }
+
+.mobile-celebrity-investors {
+  display: flex;
+  gap: 9px;
+  margin: 0 -13px;
+  overflow-x: auto;
+  padding: 1px 13px 5px;
+  scroll-padding-inline: 13px;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+}
+
+.mobile-celebrity-investors::-webkit-scrollbar { display: none; }
+.mobile-celebrity-investor-card {
+  background: #fff;
+  border: 1px solid #dfe9e5;
+  border-radius: 14px;
+  flex: 0 0 162px;
+  min-height: 108px;
+  overflow: hidden;
+  position: relative;
+  scroll-snap-align: start;
+}
+
+.mobile-celebrity-investor-card.selected { background: linear-gradient(145deg, #e9f6f1, #f5fbf8); border-color: #3e9278; box-shadow: 0 7px 18px rgba(38, 111, 88, .11); }
+.mobile-celebrity-investor-select { background: transparent; border: 0; color: #21483d; display: grid; gap: 6px; height: 100%; padding: 11px 32px 11px 11px; text-align: left; width: 100%; }
+.mobile-celebrity-investor-select > span { display: grid; gap: 2px; }
+.mobile-celebrity-investor-select > span small { color: #2b7b63; font-size: 9px; font-weight: 800; }
+.mobile-celebrity-investor-select > span em { color: #8a9b95; font-size: 9px; font-style: normal; }
+.mobile-celebrity-investor-select > strong { font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mobile-celebrity-investor-select > small { color: #6f837b; font-size: 10px; }
+.mobile-celebrity-investor-follow { align-items: center; background: #f0f5f3; border: 0; border-radius: 50%; color: #7b8d86; display: flex; height: 27px; justify-content: center; padding: 0; position: absolute; right: 8px; top: 8px; width: 27px; }
+.mobile-celebrity-investor-follow.followed { background: #fff2bf; color: #9a6a00; }
+.mobile-celebrity-investor-skeleton { align-items: center; background: #fff; border: 1px solid #e0eae6; border-radius: 14px; color: #788b84; display: flex; flex: 0 0 162px; font-size: 11px; justify-content: center; min-height: 108px; }
+
+.mobile-celebrity-snapshot { display: grid; gap: 12px; overflow: hidden; padding: 14px; position: relative; }
+.mobile-celebrity-snapshot::after { background: radial-gradient(circle, rgba(53, 143, 115, .15), transparent 68%); content: ''; height: 150px; pointer-events: none; position: absolute; right: -55px; top: -75px; width: 150px; }
+.mobile-celebrity-snapshot-head { align-items: flex-start; display: flex; gap: 12px; justify-content: space-between; position: relative; z-index: 1; }
+.mobile-celebrity-snapshot-head > div { min-width: 0; }
+.mobile-celebrity-snapshot-head small { color: #26745c; font-size: 9px; font-weight: 800; }
+.mobile-celebrity-snapshot-head h3 { color: #173f37; font-size: 18px; margin: 3px 0 1px; }
+.mobile-celebrity-snapshot-head p { color: #74877f; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mobile-celebrity-snapshot-head > button { align-items: center; background: #f1f5f3; border: 1px solid #dce7e2; border-radius: 999px; color: #62776f; display: inline-flex; flex: 0 0 auto; font-size: 10px; font-weight: 700; gap: 4px; padding: 6px 8px; }
+.mobile-celebrity-snapshot-head > button.followed { background: #fff5ce; border-color: #ead88c; color: #966900; }
+.mobile-celebrity-snapshot-value { display: grid; gap: 1px; }
+.mobile-celebrity-snapshot-value small { color: #71867e; font-size: 10px; }
+.mobile-celebrity-snapshot-value strong { color: #163f35; font-size: clamp(25px, 8vw, 32px); letter-spacing: -1px; }
+.mobile-celebrity-snapshot-grid { background: #f4f8f6; border: 1px solid #e2ebe7; border-radius: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: hidden; }
+.mobile-celebrity-snapshot-grid > span { display: grid; gap: 3px; min-width: 0; padding: 9px 10px; }
+.mobile-celebrity-snapshot-grid > span:nth-child(even) { border-left: 1px solid #e2ebe7; }
+.mobile-celebrity-snapshot-grid > span:nth-child(n+3) { border-top: 1px solid #e2ebe7; }
+.mobile-celebrity-snapshot-grid small { color: #7a8d86; font-size: 9px; }
+.mobile-celebrity-snapshot-grid strong { color: #294d42; font-size: 11px; }
+.mobile-celebrity-snapshot > a { align-items: center; color: #28785e; display: inline-flex; font-size: 10px; font-weight: 700; gap: 4px; justify-self: start; text-decoration: none; }
+
+.mobile-celebrity-tabs { background: #edf3f0; border: 1px solid #dfe8e4; border-radius: 13px; display: grid; gap: 3px; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 3px; }
+.mobile-celebrity-tabs button { background: transparent; border: 0; border-radius: 10px; color: #6a7f77; font-size: 11px; font-weight: 700; min-height: 38px; padding: 6px 5px; }
+.mobile-celebrity-tabs button[aria-selected='true'] { background: #fff; box-shadow: 0 2px 8px rgba(36, 74, 62, .09); color: #1d654f; }
+.mobile-celebrity-tabs span { background: #e6efeb; border-radius: 999px; font-size: 8px; margin-left: 2px; padding: 2px 4px; }
+
+.mobile-celebrity-list { display: grid; gap: 9px; }
+.mobile-celebrity-panel-head { align-items: flex-start; display: flex; gap: 12px; justify-content: space-between; margin: 2px 2px 0; }
+.mobile-celebrity-panel-head > div { min-width: 0; }
+.mobile-celebrity-panel-head h3 { color: #244a3f; font-size: 15px; margin: 0; }
+.mobile-celebrity-panel-head small { color: #7b8e87; display: block; font-size: 9px; line-height: 1.45; margin-top: 3px; }
+.mobile-celebrity-panel-head > b { align-items: center; background: #e5f0ec; border-radius: 50%; color: #35705e; display: flex; flex: 0 0 auto; font-size: 10px; height: 26px; justify-content: center; width: 26px; }
+.mobile-celebrity-row, .mobile-celebrity-change { background: #fff; border: 1px solid #dfe9e5; border-radius: 16px; display: grid; gap: 11px; padding: 12px; }
 .mobile-celebrity-row-head { align-items: flex-start; display: flex; gap: 10px; justify-content: space-between; }
 .mobile-celebrity-row-head > span { display: grid; gap: 2px; min-width: 0; }
-.mobile-celebrity-row-head strong { color: #183e34; font-size: 14px; }
-.mobile-celebrity-row-head small { color: #657d74; font-size: 11px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mobile-celebrity-row-head > b { background: #eef5f2; border-radius: 8px; color: #2e745e; flex: 0 0 auto; font-size: 11px; padding: 4px 5px; }
-.mobile-celebrity-row-grid { display: grid; gap: 8px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.mobile-celebrity-row-grid > span { display: grid; gap: 3px; min-width: 0; }
-.mobile-celebrity-row-grid small { color: #869892; font-size: 9px; white-space: nowrap; }
-.mobile-celebrity-row-grid strong { color: #25493f; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mobile-celebrity-row-grid .pnl-pos strong { color: #098764; }
-.mobile-celebrity-row-grid .pnl-neg strong { color: #d53f50; }
-.mobile-celebrity-row-foot { align-items: center; border-top: 1px solid #edf2ef; color: #849690; display: flex; font-size: 10px; justify-content: space-between; padding-top: 8px; }
-.mobile-celebrity-confidence { background: #fff3dc; border-radius: 999px; color: #9c6b15; font-weight: 700; padding: 3px 6px; }
+.mobile-celebrity-row-head > span strong { color: #173f35; font-size: 16px; }
+.mobile-celebrity-row-head > span small { color: #667d74; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mobile-celebrity-row-head > b { align-items: flex-end; color: #20765b; display: grid; flex: 0 0 auto; font-size: 15px; text-align: right; }
+.mobile-celebrity-row-head > b small { color: #8a9a94; font-size: 8px; font-weight: 500; }
+.mobile-celebrity-row-primary { background: #f4f8f6; border-radius: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.mobile-celebrity-row-primary > span { display: grid; gap: 3px; min-width: 0; padding: 10px; }
+.mobile-celebrity-row-primary > span + span { border-left: 1px solid #e1ebe6; }
+.mobile-celebrity-row-primary small { color: #7d8e88; font-size: 9px; }
+.mobile-celebrity-row-primary strong { color: #264d41; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mobile-celebrity-row-primary .pnl-pos strong { color: #07845f; }
+.mobile-celebrity-row-primary .pnl-neg strong { color: #cf4051; }
+.mobile-celebrity-row-secondary { align-items: center; color: #7d8f88; display: flex; flex-wrap: wrap; font-size: 9px; gap: 7px 12px; }
+.mobile-celebrity-row-secondary b { color: #425f55; }
+.mobile-celebrity-confidence { background: #fff3dc; border-radius: 999px; color: #9c6b15; font-weight: 700; margin-left: auto; padding: 3px 6px; }
 .mobile-celebrity-confidence.medium { background: #e5f5ed; color: #1f795d; }
 .mobile-celebrity-confidence.unknown { background: #eef2f0; color: #798a84; }
-.mobile-celebrity-message { color: #b16d18; font-size: 12px; line-height: 1.5; margin: 0 3px; }
+.mobile-celebrity-row-details { border-top: 1px solid #ebf0ee; color: #6d827a; font-size: 9px; padding-top: 8px; }
+.mobile-celebrity-row-details summary { color: #537168; cursor: pointer; font-size: 10px; font-weight: 700; list-style-position: inside; }
+.mobile-celebrity-row-details > div { display: grid; gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 9px; }
+.mobile-celebrity-row-details > div > span { display: grid; gap: 2px; }
+.mobile-celebrity-row-details small { color: #8b9a95; font-size: 8px; }
+.mobile-celebrity-row-details strong { color: #46645a; font-size: 10px; }
+.mobile-celebrity-row-details p { line-height: 1.5; margin: 8px 0 0; }
 
-.mobile-celebrity-discovery { display: grid; gap: 9px; margin-top: 4px; }
+.mobile-celebrity-change-head { align-items: center; display: grid; gap: 9px; grid-template-columns: auto minmax(0, 1fr) auto; }
+.mobile-celebrity-change-head > span { border-radius: 999px; font-size: 9px; font-weight: 800; padding: 4px 6px; }
+.mobile-celebrity-change-head > span.new, .mobile-celebrity-change-head > span.added { background: #e4f6eb; color: #16805d; }
+.mobile-celebrity-change-head > span.reduced { background: #fff3d8; color: #ac740f; }
+.mobile-celebrity-change-head > span.exited { background: #fce8eb; color: #c94050; }
+.mobile-celebrity-change-head > div { display: grid; gap: 1px; min-width: 0; }
+.mobile-celebrity-change-head strong { color: #21473c; font-size: 13px; }
+.mobile-celebrity-change-head small { color: #7b8e87; font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mobile-celebrity-change-head > b { color: #527168; font-size: 10px; }
+.mobile-celebrity-change-metrics { background: #f5f8f7; border-radius: 11px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.mobile-celebrity-change-metrics > span { display: grid; gap: 3px; min-width: 0; padding: 8px; }
+.mobile-celebrity-change-metrics > span + span { border-left: 1px solid #e4ebe8; }
+.mobile-celebrity-change-metrics small { color: #82938d; font-size: 8px; }
+.mobile-celebrity-change-metrics strong { color: #38584e; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mobile-celebrity-change footer { align-items: center; color: #83948e; display: flex; font-size: 9px; justify-content: space-between; }
+.mobile-celebrity-change footer span, .mobile-celebrity-change footer a { align-items: center; color: inherit; display: inline-flex; gap: 3px; text-decoration: none; }
+.mobile-celebrity-empty-state { align-items: center; background: #fff; border: 1px dashed #cfddd7; border-radius: 16px; color: #70847c; display: flex; flex-direction: column; gap: 5px; padding: 25px 18px; text-align: center; }
+.mobile-celebrity-empty-state > span { background: #e8f2ee; border-radius: 999px; color: #3a7562; font-size: 8px; font-weight: 800; padding: 4px 7px; }
+.mobile-celebrity-empty-state strong { color: #35584d; font-size: 13px; }
+.mobile-celebrity-empty-state p { font-size: 10px; line-height: 1.5; margin: 0; }
+.mobile-celebrity-message { background: #fff8e8; border: 1px solid #eedcae; border-radius: 12px; color: #8d651e; font-size: 10px; line-height: 1.5; margin: 0; padding: 9px 10px; }
+
+.mobile-celebrity-discovery { display: grid; gap: 9px; }
 .mobile-celebrity-discovery > .mobile-section-head { margin: 2px 2px 0; }
 .mobile-celebrity-discovery > .mobile-section-head h3 { font-size: 16px; margin: 2px 0; }
 .mobile-celebrity-discovery > .mobile-section-head p { color: #778a83; font-size: 11px; margin: 2px 0 0; }
-.mobile-celebrity-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; height: 37px; }
-.mobile-celebrity-search input { border: 1px solid #cddbd6; border-radius: 10px 0 0 10px; color: #24483e; min-width: 0; padding: 0 10px; }
-.mobile-celebrity-search button { align-items: center; background: #1b6955; border: 0; border-radius: 0 10px 10px 0; color: #fff; display: inline-flex; font-size: 11px; font-weight: 700; gap: 4px; padding: 0 10px; }
+.mobile-celebrity-search { display: grid; grid-template-columns: minmax(0, 1fr) auto; height: 39px; }
+.mobile-celebrity-search input { border: 1px solid #cddbd6; border-radius: 11px 0 0 11px; color: #24483e; min-width: 0; padding: 0 10px; }
+.mobile-celebrity-search button { align-items: center; background: #1b6955; border: 0; border-radius: 0 11px 11px 0; color: #fff; display: inline-flex; font-size: 11px; font-weight: 700; gap: 4px; padding: 0 10px; }
 .mobile-celebrity-ownership, .mobile-celebrity-discovery-list { background: #fff; border: 1px solid #e0eae6; border-radius: 14px; display: grid; gap: 8px; padding: 11px 12px; }
 .mobile-celebrity-ownership a { border-top: 1px solid #e9f0ed; color: inherit; display: grid; gap: 2px; padding-top: 8px; text-decoration: none; }
 .mobile-celebrity-ownership a:first-child { border-top: 0; padding-top: 0; }
@@ -101,7 +208,6 @@
 .mobile-celebrity-consensus b { background: #e1f1e9; border-radius: 99px; color: #237558; font-size: 10px; height: fit-content; padding: 4px 5px; }
 .mobile-celebrity-consensus > span { color: #7a8d85; font-size: 10px; grid-column: 1 / -1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mobile-celebrity-feed { align-items: center; border-top: 1px solid #e9f0ed; display: grid; gap: 8px; grid-template-columns: auto minmax(0, 1fr) auto; padding: 8px 0; }
-.mobile-celebrity-feed + .mobile-celebrity-feed { border-top: 1px solid #e9f0ed; }
 .mobile-celebrity-feed:first-of-type { border-top: 0; padding-top: 0; }
 .mobile-celebrity-feed > span { border-radius: 99px; font-size: 10px; font-weight: 800; padding: 4px 5px; }
 .mobile-celebrity-feed > span.new, .mobile-celebrity-feed > span.added { background: #e4f6eb; color: #16805d; }
@@ -111,7 +217,7 @@
 .mobile-celebrity-feed strong { color: #264a3f; font-size: 11px; }
 .mobile-celebrity-feed small { color: #81938c; font-size: 9px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mobile-celebrity-feed b { color: #5c766d; font-size: 10px; }
-.mobile-celebrity-alerts { display: grid; gap: 10px; }
+.mobile-celebrity-alerts { display: grid; gap: 10px; padding: 12px; }
 .mobile-celebrity-alert-head { align-items: flex-start; color: #2a8064; display: flex; gap: 7px; }
 .mobile-celebrity-alert-head h3 { color: #285145; font-size: 14px; margin: 0; }
 .mobile-celebrity-alert-head p { color: #7b8e86; font-size: 10px; line-height: 1.45; margin: 2px 0 0; }
@@ -130,7 +236,7 @@
 .mobile-celebrity-alert-note { align-items: center; color: #6e847a; display: flex; font-size: 10px; gap: 4px; margin: 0; }
 
 @media (max-width: 360px) {
-  .mobile-celebrity-row-grid { gap: 5px; }
-  .mobile-celebrity-row-grid strong { font-size: 10px; }
-  .mobile-celebrity-metrics strong { font-size: 11px; }
+  .mobile-celebrity-investor-card { flex-basis: 150px; }
+  .mobile-celebrity-row-primary strong { font-size: 12px; }
+  .mobile-celebrity-change-metrics strong { font-size: 9px; }
 }

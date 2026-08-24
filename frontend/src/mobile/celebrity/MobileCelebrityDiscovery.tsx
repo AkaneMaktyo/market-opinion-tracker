@@ -30,8 +30,8 @@ export function MobileCelebrityDiscovery({ investors }: { investors: CelebrityIn
         setConsensus(nextConsensus);
         setOverlap(nextOverlap);
         setSettings(nextSettings);
-      } catch (error) {
-        setMessage(error instanceof Error ? error.message : '名人发现数据暂时不可用');
+      } catch {
+        setMessage('公开持仓发现暂时不可用，请稍后再试。');
       }
     })();
   }, []);
@@ -42,8 +42,8 @@ export function MobileCelebrityDiscovery({ investors }: { investors: CelebrityIn
     try {
       setMessage('');
       setOwnership(await api.celebrityOwnership(value));
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : '标的反查失败');
+    } catch {
+      setMessage('标的反查暂时不可用，请稍后再试。');
     }
   }
 
@@ -51,8 +51,8 @@ export function MobileCelebrityDiscovery({ investors }: { investors: CelebrityIn
     try {
       setMessage('');
       setSettings(await api.saveCelebrityAlertSettings(next));
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : '保存提醒设置失败');
+    } catch {
+      setMessage('提醒设置暂时无法保存，请稍后再试。');
     }
   }
 

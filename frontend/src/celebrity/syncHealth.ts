@@ -30,7 +30,6 @@ export function celebritySyncHealth(status?: CelebritySyncStatus): CelebritySync
       label: failed ? '刷新未完成' : '部分来源待恢复',
       title: failed ? '本轮披露刷新未完成' : '本轮仅部分来源完成同步',
       message: failureSummary(status.lastError),
-      details: status.lastError,
     };
   }
   return { tone: 'pending', label: '尚未同步', title: '尚未开始同步', message: '点击刷新后将从公开来源异步导入披露。' };
@@ -43,6 +42,9 @@ function failureSummary(error?: string) {
   }
   if (error?.includes('SEC_USER_AGENT')) {
     notices.push('SEC 13F 等待合规身份配置，不会伪造或猜测名人持仓。');
+  }
+  if (error?.includes('holding_key') || error?.includes('Duplicate entry')) {
+    notices.push('SEC 13F 个别申报明细正在整理，页面保留最近一次有效快照。');
   }
   return notices.length > 0
     ? notices.join(' ')

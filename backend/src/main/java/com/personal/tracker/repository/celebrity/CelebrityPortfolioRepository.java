@@ -16,6 +16,7 @@ import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public class CelebrityPortfolioRepository {
@@ -180,6 +181,7 @@ public class CelebrityPortfolioRepository {
     return findFiling(filing.investorId(), filing.externalId()).orElseThrow();
   }
 
+  @Transactional
   public void replaceHoldings(CelebrityFiling filing, List<CelebrityHolding> holdings) {
     jdbc.update("DELETE FROM celebrity_holdings WHERE filing_id = ?", filing.id());
     if (holdings == null || holdings.isEmpty()) {

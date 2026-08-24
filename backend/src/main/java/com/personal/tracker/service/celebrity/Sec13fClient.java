@@ -14,7 +14,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -111,7 +110,7 @@ public class Sec13fClient {
     }
   }
 
-  private static List<SecHolding> parseInformationTable(byte[] raw) {
+  static List<SecHolding> parseInformationTable(byte[] raw) {
     try {
       DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
       factory.setNamespaceAware(true);
@@ -125,7 +124,7 @@ public class Sec13fClient {
       if (rows.getLength() == 0) {
         rows = document.getElementsByTagName("infoTable");
       }
-      List<SecHolding> holdings = new ArrayList<>();
+      Map<String, SecHolding> holdings = new LinkedHashMap<>();
       for (int index = 0; index < rows.getLength(); index++) {
         Element row = (Element) rows.item(index);
         BigDecimal shares = decimal(child(row, "sshPrnamt"));
@@ -138,15 +137,24 @@ public class Sec13fClient {
         String titleClass = clean(child(row, "titleOfClass"));
         String putCall = clean(child(row, "putCall"));
         BigDecimal reportedValue = valueThousands.multiply(BigDecimal.valueOf(1000));
-        BigDecimal unitValue = reportedValue.divide(shares, 8, RoundingMode.HALF_UP);
         String holdingKey = holdingKey(cusip, issuer, titleClass, putCall);
-        holdings.add(new SecHolding(holdingKey, "", cusip, issuer, titleClass, putCall,
-            shares, reportedValue, unitValue));
+        SecHolding rowHolding = new SecHolding(holdingKey, "", cusip, issuer, titleClass, putCall,
+            shares, reportedValue, reportedValue.divide(shares, 8, RoundingMode.HALF_UP));
+        holdings.merge(holdingKey, rowHolding, Sec13fClient::mergeHolding);
       }
-      return holdings;
+      return List.copyOf(holdings.values());
     } catch (Exception error) {
       throw new IllegalStateException("解析 SEC 13F information table 失败：" + error.getMessage(), error);
     }
+  }
+
+  private static SecHolding mergeHolding(SecHolding first, SecHolding duplicate) {
+    BigDecimal shares = first.shares().add(duplicate.shares());
+    BigDecimal reportedValue = first.reportedValue().add(duplicate.reportedValue());
+    return new SecHolding(
+        first.holdingKey(), first.symbol(), first.cusip(), first.issuerName(), first.titleClass(),
+        first.putCall(), shares, reportedValue,
+        reportedValue.divide(shares, 8, RoundingMode.HALF_UP));
   }
 
   private static String informationTableFile(JsonNode items) {
