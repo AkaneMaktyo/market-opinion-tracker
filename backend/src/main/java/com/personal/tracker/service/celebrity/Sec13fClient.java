@@ -30,6 +30,10 @@ import org.w3c.dom.NodeList;
 public class Sec13fClient {
   private static final String DATA_BASE = "https://data.sec.gov";
   private static final String ARCHIVES_BASE = "https://www.sec.gov/Archives/edgar/data";
+  private static final BigDecimal THOUSANDS_VALUE_MULTIPLIER = BigDecimal.valueOf(1000);
+  private static final BigDecimal DIRECT_DOLLAR_MEDIAN_FLOOR = new BigDecimal("20");
+  private static final BigDecimal THOUSANDS_MEDIAN_CEILING = new BigDecimal("10");
+  private static final int MAX_REQUEST_ATTEMPTS = 3;
   private final CelebrityDataProperties properties;
   private final ObjectMapper mapper;
   private final HttpClient client;
@@ -91,22 +95,38 @@ public class Sec13fClient {
   }
 
   private byte[] bytes(String url) {
-    try {
-      HttpRequest request = HttpRequest.newBuilder(URI.create(url))
-          .timeout(Duration.ofSeconds(20))
-          .header("User-Agent", properties.secUserAgent())
-          .header("Accept", "application/json, application/xml, text/xml, text/plain")
-          .GET().build();
-      HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
-      if (response.statusCode() < 200 || response.statusCode() >= 300) {
-        throw new IllegalStateException("SEC 返回 HTTP " + response.statusCode());
+    IOException lastIoError = null;
+    for (int attempt = 1; attempt <= MAX_REQUEST_ATTEMPTS; attempt++) {
+      try {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+            .timeout(Duration.ofSeconds(20))
+            .header("User-Agent", properties.secUserAgent())
+            .header("Accept", "application/json, application/xml, text/xml, text/plain")
+            .GET().build();
+        HttpResponse<byte[]> response = client.send(request, HttpResponse.BodyHandlers.ofByteArray());
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+          throw new IllegalStateException("SEC 返回 HTTP " + response.statusCode());
+        }
+        return response.body();
+      } catch (InterruptedException error) {
+        Thread.currentThread().interrupt();
+        throw new IllegalStateException("读取 SEC 数据被中断", error);
+      } catch (IOException error) {
+        lastIoError = error;
+        if (attempt < MAX_REQUEST_ATTEMPTS) {
+          pauseBeforeRetry(attempt);
+        }
       }
-      return response.body();
+    }
+    throw new IllegalStateException("读取 SEC 数据失败：" + lastIoError.getMessage(), lastIoError);
+  }
+
+  private static void pauseBeforeRetry(int attempt) {
+    try {
+      Thread.sleep(200L * attempt);
     } catch (InterruptedException error) {
       Thread.currentThread().interrupt();
       throw new IllegalStateException("读取 SEC 数据被中断", error);
-    } catch (IOException error) {
-      throw new IllegalStateException("读取 SEC 数据失败：" + error.getMessage(), error);
     }
   }
 
@@ -124,28 +144,53 @@ public class Sec13fClient {
       if (rows.getLength() == 0) {
         rows = document.getElementsByTagName("infoTable");
       }
-      Map<String, SecHolding> holdings = new LinkedHashMap<>();
+      List<RawSecHolding> rowsToNormalize = new java.util.ArrayList<>();
       for (int index = 0; index < rows.getLength(); index++) {
         Element row = (Element) rows.item(index);
         BigDecimal shares = decimal(child(row, "sshPrnamt"));
-        BigDecimal valueThousands = decimal(child(row, "value"));
-        if (shares.signum() <= 0 || valueThousands.signum() < 0) {
+        BigDecimal rawValue = decimal(child(row, "value"));
+        if (shares.signum() <= 0 || rawValue.signum() < 0) {
           continue;
         }
         String issuer = child(row, "nameOfIssuer");
         String cusip = clean(child(row, "cusip"));
         String titleClass = clean(child(row, "titleOfClass"));
         String putCall = clean(child(row, "putCall"));
-        BigDecimal reportedValue = valueThousands.multiply(BigDecimal.valueOf(1000));
         String holdingKey = holdingKey(cusip, issuer, titleClass, putCall);
-        SecHolding rowHolding = new SecHolding(holdingKey, "", cusip, issuer, titleClass, putCall,
-            shares, reportedValue, reportedValue.divide(shares, 8, RoundingMode.HALF_UP));
-        holdings.merge(holdingKey, rowHolding, Sec13fClient::mergeHolding);
+        rowsToNormalize.add(new RawSecHolding(holdingKey, cusip, issuer, titleClass, putCall, shares, rawValue));
+      }
+      BigDecimal valueMultiplier = valueMultiplier(rowsToNormalize);
+      Map<String, SecHolding> holdings = new LinkedHashMap<>();
+      for (RawSecHolding row : rowsToNormalize) {
+        BigDecimal reportedValue = row.rawValue().multiply(valueMultiplier);
+        SecHolding rowHolding = new SecHolding(row.holdingKey(), "", row.cusip(), row.issuerName(),
+            row.titleClass(), row.putCall(), row.shares(), reportedValue,
+            reportedValue.divide(row.shares(), 8, RoundingMode.HALF_UP));
+        holdings.merge(row.holdingKey(), rowHolding, Sec13fClient::mergeHolding);
       }
       return List.copyOf(holdings.values());
     } catch (Exception error) {
       throw new IllegalStateException("解析 SEC 13F information table 失败：" + error.getMessage(), error);
     }
+  }
+
+  private static BigDecimal valueMultiplier(List<RawSecHolding> holdings) {
+    List<BigDecimal> rawUnitValues = holdings.stream()
+        .filter(item -> item.rawValue().signum() > 0)
+        .map(item -> item.rawValue().divide(item.shares(), 8, RoundingMode.HALF_UP))
+        .sorted()
+        .toList();
+    if (rawUnitValues.isEmpty()) {
+      throw new IllegalStateException("SEC 13F 没有可校验的持仓金额");
+    }
+    BigDecimal median = rawUnitValues.get(rawUnitValues.size() / 2);
+    if (median.compareTo(THOUSANDS_MEDIAN_CEILING) <= 0) {
+      return THOUSANDS_VALUE_MULTIPLIER;
+    }
+    if (median.compareTo(DIRECT_DOLLAR_MEDIAN_FLOOR) >= 0) {
+      return BigDecimal.ONE;
+    }
+    throw new IllegalStateException("SEC 13F 金额单位无法安全判定，已拒绝覆盖已有快照");
   }
 
   private static SecHolding mergeHolding(SecHolding first, SecHolding duplicate) {
@@ -243,5 +288,15 @@ public class Sec13fClient {
       BigDecimal shares,
       BigDecimal reportedValue,
       BigDecimal reportedUnitValue) {
+  }
+
+  private record RawSecHolding(
+      String holdingKey,
+      String cusip,
+      String issuerName,
+      String titleClass,
+      String putCall,
+      BigDecimal shares,
+      BigDecimal rawValue) {
   }
 }

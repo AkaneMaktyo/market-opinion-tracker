@@ -187,10 +187,14 @@ public class CelebrityPortfolioService {
 
   private void syncSec(CelebrityInvestor investor, SyncCounters counters) {
     for (Sec13fClient.SecFiling source : sec.recentFilings(investor)) {
+      List<Sec13fClient.SecHolding> sourceHoldings = sec.holdings(source);
+      if (sourceHoldings.isEmpty()) {
+        throw new IllegalStateException("SEC 13F 未返回有效持仓，已保留上次正确快照");
+      }
       CelebrityFiling filing = repository.saveFiling(new CelebrityFiling(
           JdbcSupport.id(), investor.id(), "SEC_13F", source.accessionNumber(), source.formType(),
           source.reportDate(), source.filedAt(), sec.filingUrl(source), source.amendment(), JdbcSupport.now()));
-      List<CelebrityHolding> holdings = sec.holdings(source).stream()
+      List<CelebrityHolding> holdings = sourceHoldings.stream()
           .map(item -> holding(investor.id(), filing.id(), item.holdingKey(), item.symbol(), "UNKNOWN", item.cusip(),
               item.issuerName(), item.titleClass(), item.putCall(), item.shares(), item.reportedValue(), null,
               item.reportedUnitValue()))
